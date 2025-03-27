@@ -47,6 +47,8 @@ export default function RootLayout() {
             <Stack.Screen name="(quotes)" options={{ headerShown: false }} />
             <Stack.Screen name="(contacts)" options={{ headerShown: false }} />
             <Stack.Screen name="(stats)" options={{ headerShown: false }} />
+            <Stack.Screen name="product_page" options={{ headerShown: false }} />
+            <Stack.Screen name="product_baogia/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />

@@ -256,7 +256,13 @@ export default function ProductPage() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>MÔ TẢ SẢN PHẨM</Text>
-              <TouchableOpacity style={styles.quoteButton}>
+              <TouchableOpacity 
+                style={styles.quoteButton}
+                onPress={() => {
+                  const productId = Array.isArray(id) ? id[0] : id;
+                  router.push(`/product_baogia/${productId}`);
+                }}
+              >
                 <Text style={styles.quoteButtonText}>Xem báo giá</Text>
               </TouchableOpacity>
             </View>

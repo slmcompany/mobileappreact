@@ -50,6 +50,13 @@ export const API_ENDPOINTS = {
     VERIFY: '/auth/verify',
     REFRESH: '/auth/refresh',
     LOGOUT: '/auth/logout'
+  },
+  
+  // Content
+  CONTENT: {
+    LIST: '/content',
+    DETAIL: (id: string) => `/content/${id}`,
+    BY_BRAND: (brand: string) => `/content?brand=${brand}`
   }
 };
 
