@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, TextInput, View, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, Linking, Image, Switch, ImageBackground } from 'react-native';
+import { StyleSheet, Text, TextInput, View, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, Linking, Image, Switch, ImageBackground, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/context/AuthContext';
+import AuthService from '@/services/AuthService';
 
 // Function để kiểm tra môi trường web
 const isWeb = Platform.OS === 'web';
 
 export default function LoginScreen() {
+  const { login, authState } = useAuth();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -17,18 +20,38 @@ export default function LoginScreen() {
   const [isWrongPasswordModalVisible, setIsWrongPasswordModalVisible] = useState(false);
   const [hasStoredUser, setHasStoredUser] = useState(false);
   const [storedUserName, setStoredUserName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Các số điện thoại và mật khẩu mẫu
+  const sampleAccounts = [
+    { phone: '0964920242', password: 'slm123', name: 'Nguyễn TIến Mạnh' },
+    { phone: '0966874083', password: 'slm123', name: 'Trần Bảo Ngọc' },
+    { phone: '0394307569', password: 'slm123', name: 'Đỗ Thuỳ Dung' },
+    { phone: '0917599966', password: 'slm123', name: 'Nguyễn Đình Linh' },
+    { phone: '0969862033', password: 'slm123', name: 'Nguyễn Hoành Văn' },
+    { phone: '0969663387', password: 'slm123', name: 'Lê Huy Sĩ' },
+  ];
   
   useEffect(() => {
     // Kiểm tra nếu có thông tin đăng nhập đã lưu
     checkStoredLogin();
   }, []);
   
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (authState.isAuthenticated && !authState.isLoading) {
+      router.replace('/(tabs)');
+    }
+  }, [authState.isAuthenticated, authState.isLoading]);
+  
   const checkStoredLogin = async () => {
     try {
       const storedPhone = await AsyncStorage.getItem('@slm_login_phone');
+      const storedName = await AsyncStorage.getItem('@slm_user_name');
+      
       if (storedPhone) {
         setHasStoredUser(true);
-        setStoredUserName(storedPhone);
+        setStoredUserName(storedName || storedPhone);
         setPhoneNumber(storedPhone);
       }
     } catch (error) {
@@ -43,24 +66,106 @@ export default function LoginScreen() {
     setIsPasswordVisible(!isPasswordVisible);
   };
 
+  // Các hàm điều khiển modal
+  const showUserNotFoundModal = () => {
+    console.log('Đang hiển thị modal: User không tồn tại');
+    setIsUserNotFoundModalVisible(true);
+  };
+  
+  const hideUserNotFoundModal = () => {
+    console.log('Đang ẩn modal: User không tồn tại');
+    setIsUserNotFoundModalVisible(false);
+  };
+  
+  const showWrongPasswordModal = () => {
+    console.log('Đang hiển thị modal: Sai mật khẩu');
+    setIsWrongPasswordModalVisible(true);
+  };
+  
+  const hideWrongPasswordModal = () => {
+    console.log('Đang ẩn modal: Sai mật khẩu');
+    setIsWrongPasswordModalVisible(false);
+    setPassword('slm123');
+  };
+
   const handleLogin = async () => {
     if (!isWeb) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     
-    // Kiểm tra đăng nhập ảo với id: admin và password: admin
-    if (phoneNumber === '' && password === '') { 
-      // Cho phép đăng nhập trống để dễ test
-      router.replace('/(tabs)');
-    } else if (phoneNumber === 'admin' && password !== 'admin') {
-      // Mật khẩu không chính xác
-      setIsWrongPasswordModalVisible(true);
-    } else if (phoneNumber !== 'admin') {
-      // Tài khoản không tồn tại
-      setIsUserNotFoundModalVisible(true);
-    } else {
-      // Đăng nhập thành công
-      router.replace('/(tabs)');
+    if (!phoneNumber || !password) {
+      Alert.alert('Thông báo', 'Vui lòng nhập số điện thoại và mật khẩu');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log('Đang kiểm tra đăng nhập với số điện thoại:', phoneNumber);
+      
+      // Kiểm tra đăng nhập với mã test
+      if (phoneNumber === 'admin' && password === 'admin') {
+        console.log('Đăng nhập thành công với tài khoản admin test');
+        // Lưu thông tin đăng nhập giả lập
+        const testUser = {
+          id: 0,
+          role_id: 1,
+          email: null,
+          password: 'admin',
+          created_at: new Date().toISOString(),
+          commission_rate: null,
+          name: 'Admin Test',
+          phone: 'admin',
+          parent_id: null,
+          total_commission: null,
+          role: { name: 'admin', description: null, id: 1 }
+        };
+        await AuthService.storeUserData(testUser);
+        router.replace('/(tabs)');
+        return;
+      }
+      
+      // Gọi API đăng nhập thông qua API Service
+      const users = await AuthService.getUsers();
+      console.log(`Đã lấy được ${users.length} người dùng từ API`);
+      
+      // Chuẩn hóa số điện thoại để tìm kiếm
+      const normalizedPhone = phoneNumber.replace(/\s+/g, '').trim();
+      
+      // Tìm user phù hợp
+      const user = users.find(
+        (u) => {
+          const userPhone = u.phone.replace(/\s+/g, '').trim();
+          return userPhone === normalizedPhone && u.password === password;
+        }
+      );
+      
+      if (user) {
+        // Đăng nhập thành công
+        console.log(`Đăng nhập thành công với tài khoản: ${user.name}`);
+        await AuthService.storeUserData(user);
+        router.replace('/(tabs)');
+      } else {
+        // Kiểm tra xem số điện thoại có tồn tại không
+        const phoneExists = users.some(u => {
+          const userPhone = u.phone.replace(/\s+/g, '').trim();
+          return userPhone === normalizedPhone;
+        });
+        
+        if (phoneExists) {
+          // Số điện thoại đúng, mật khẩu sai
+          console.log('Số điện thoại đúng nhưng mật khẩu sai');
+          showWrongPasswordModal();
+        } else {
+          // Số điện thoại không tồn tại
+          console.log('Số điện thoại không tồn tại trong hệ thống');
+          showUserNotFoundModal();
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi đăng nhập:', error);
+      Alert.alert('Lỗi đăng nhập', 'Có lỗi xảy ra khi đăng nhập. Vui lòng thử lại sau.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,9 +200,19 @@ export default function LoginScreen() {
     Linking.openURL('tel:0977879291');
   };
 
+  const handleSelectSampleAccount = (account: { phone: string; password: string }) => {
+    setPhoneNumber(account.phone);
+    setPassword(account.password);
+    
+    // Nếu đang có stored user, hãy reset nó để hiển thị input số điện thoại
+    if (hasStoredUser) {
+      setHasStoredUser(false);
+    }
+  };
+
   return (
     <ImageBackground 
-      source={require('../assets/images/Splash-screen.png')}
+      source={require('../../assets/images/Splash-screen.png')}
       style={styles.container}
     >
       <StatusBar style="light" />
@@ -114,7 +229,7 @@ export default function LoginScreen() {
               <View style={styles.inputContainer}>
                 <View style={styles.iconContainer}>
                   <Image 
-                    source={require('../assets/images/smartphone.png')} 
+                    source={require('../../assets/images/smartphone.png')} 
                     style={styles.inputIcon} 
                     resizeMode="contain"
                   />
@@ -132,7 +247,7 @@ export default function LoginScreen() {
             <View style={styles.inputContainer}>
               <View style={styles.iconContainer}>
                 <Image 
-                  source={require('../assets/images/smartphone.png')} 
+                  source={require('../../assets/images/smartphone.png')} 
                   style={styles.inputIcon} 
                   resizeMode="contain"
                 />
@@ -143,7 +258,7 @@ export default function LoginScreen() {
                 placeholderTextColor="#7B7D9D"
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
-                keyboardType="default"
+                keyboardType="phone-pad"
                 autoCapitalize="none"
               />
             </View>
@@ -152,7 +267,7 @@ export default function LoginScreen() {
           <View style={styles.inputContainer}>
             <View style={styles.iconContainer}>
               <Image 
-                source={require('../assets/images/lock-2.png')} 
+                source={require('../../assets/images/lock-2.png')} 
                 style={styles.inputIcon} 
                 resizeMode="contain"
               />
@@ -179,8 +294,16 @@ export default function LoginScreen() {
           </View>
           
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-              <Text style={styles.loginButtonText}>Đăng nhập</Text>
+            <TouchableOpacity 
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Đăng nhập</Text>
+              )}
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.biometricButton} onPress={handleBiometricLogin}>
@@ -191,6 +314,24 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={handleForgotPassword}>
             <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
+          
+          {/* Nút kiểm tra modal - chỉ hiển thị trong môi trường dev */}
+          {__DEV__ && (
+            <View style={styles.debugContainer}>
+              <TouchableOpacity 
+                style={styles.debugButton}
+                onPress={showUserNotFoundModal}
+              >
+                <Text style={styles.debugButtonText}>Test: User không tồn tại</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.debugButton}
+                onPress={showWrongPasswordModal}
+              >
+                <Text style={styles.debugButtonText}>Test: Sai mật khẩu</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
       
@@ -200,26 +341,22 @@ export default function LoginScreen() {
 
       {/* Modal thông báo tài khoản không tồn tại */}
       <Modal
-        animationType="fade"
+        animationType="slide"
         transparent={true}
         visible={isUserNotFoundModalVisible}
-        onRequestClose={() => setIsUserNotFoundModalVisible(false)}
+        onRequestClose={hideUserNotFoundModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <TouchableOpacity 
               style={styles.closeButton} 
-              onPress={() => setIsUserNotFoundModalVisible(false)}
+              onPress={hideUserNotFoundModal}
             >
-              <Ionicons name="close" size={20} color="#999" />
+              <Ionicons name="close" size={24} color="#999" />
             </TouchableOpacity>
             
             <View style={styles.userIconContainer}>
-              <Image 
-                source={require('../assets/images/Fail-button-icon.png')} 
-                style={styles.failIcon} 
-                resizeMode="contain"
-              />
+              <Ionicons name="close-circle" size={60} color="#ff3b30" />
             </View>
             
             <Text style={styles.modalTitle}>Tên đăng nhập không tồn tại</Text>
@@ -227,6 +364,10 @@ export default function LoginScreen() {
             <Text style={styles.modalMessage}>
               Vui lòng kiểm tra lại hoặc <Text style={styles.linkText}>Liên hệ Hỗ trợ</Text> để{' '}
               <Text style={styles.linkText}>Đăng ký tài khoản</Text> mới.
+              {'\n\n'}
+              <Text style={styles.boldText}>Hoặc sử dụng tài khoản mẫu để đăng nhập:</Text>
+              {'\n'}• Số ĐT: 0964920242, MK: slm123
+              {'\n'}• Hoặc nhập: admin / admin
             </Text>
             
             <View style={styles.modalButtonContainer}>
@@ -239,7 +380,7 @@ export default function LoginScreen() {
               
               <TouchableOpacity 
                 style={styles.retryButton} 
-                onPress={() => setIsUserNotFoundModalVisible(false)}
+                onPress={hideUserNotFoundModal}
               >
                 <Text style={styles.retryButtonText}>Thử lại</Text>
               </TouchableOpacity>
@@ -250,33 +391,30 @@ export default function LoginScreen() {
 
       {/* Modal thông báo mật khẩu không chính xác */}
       <Modal
-        animationType="fade"
+        animationType="slide"
         transparent={true}
         visible={isWrongPasswordModalVisible}
-        onRequestClose={() => setIsWrongPasswordModalVisible(false)}
+        onRequestClose={hideWrongPasswordModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <TouchableOpacity 
               style={styles.closeButton} 
-              onPress={() => setIsWrongPasswordModalVisible(false)}
+              onPress={hideWrongPasswordModal}
             >
-              <Ionicons name="close" size={20} color="#999" />
+              <Ionicons name="close" size={24} color="#999" />
             </TouchableOpacity>
             
             <View style={styles.userIconContainer}>
-              <Image 
-                source={require('../assets/images/fail-pass-button-icon.png')} 
-                style={styles.failIcon} 
-                resizeMode="contain"
-              />
+              <Ionicons name="warning" size={60} color="#ff9800" />
             </View>
             
-            <Text style={styles.modalTitle}>Mật khẩu bạn nhập không chính xác.</Text>
+            <Text style={styles.modalTitle}>Mật khẩu không chính xác</Text>
             
             <Text style={styles.modalMessage}>
-              Vui lòng <Text style={styles.boldText}>Thử lại</Text> hoặc <Text style={styles.linkText}>Liên hệ Hỗ trợ</Text> để được
-              cấp lại mật khẩu mới.
+              Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ nếu bạn không nhớ mật khẩu.
+              {'\n\n'}
+              <Text style={styles.boldText}>Mật khẩu mặc định là: slm123</Text>
             </Text>
             
             <View style={styles.modalButtonContainer}>
@@ -289,7 +427,7 @@ export default function LoginScreen() {
               
               <TouchableOpacity 
                 style={styles.retryButton} 
-                onPress={() => setIsWrongPasswordModalVisible(false)}
+                onPress={hideWrongPasswordModal}
               >
                 <Text style={styles.retryButtonText}>Thử lại</Text>
               </TouchableOpacity>
@@ -297,6 +435,25 @@ export default function LoginScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Hiển thị các tài khoản mẫu */}
+      <View style={styles.demoAccountContainer}>
+        <Text style={styles.demoAccountTitle}>Tài khoản mẫu để đăng nhập:</Text>
+        <ScrollView style={styles.demoAccountsList}>
+          {sampleAccounts.map((account, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={styles.demoAccountItem}
+              onPress={() => handleSelectSampleAccount(account)}
+            >
+              <Text style={styles.demoAccountText}>
+                <Text style={styles.demoAccountName}>{account.name}</Text>
+                {'\n'}- SĐT: {account.phone}, MK: {account.password}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
     </ImageBackground>
   );
 }
@@ -418,41 +575,45 @@ const styles = StyleSheet.create({
   // Styles cho modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
   },
   modalContainer: {
     width: '100%',
     backgroundColor: 'white',
     borderRadius: 10,
-    padding: 30,
-    alignItems: 'flex-start',
+    padding: 20,
     position: 'relative',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    maxWidth: 400,
   },
   closeButton: {
     position: 'absolute',
     top: 10,
     right: 10,
     padding: 5,
+    zIndex: 10,
   },
   userIconContainer: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 25,
-    position: 'relative',
-    alignSelf: 'flex-start',
-  },
-  closeCircleIcon: {
-    position: 'absolute',
-    bottom: -5,
-    right: -5,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    overflow: 'hidden',
+    marginBottom: 15,
+    alignSelf: 'center',
   },
   modalTitle: {
     fontSize: 18,
@@ -533,5 +694,62 @@ const styles = StyleSheet.create({
   failIcon: {
     width: '100%',
     height: '100%',
+  },
+  loginButtonDisabled: {
+    backgroundColor: 'rgba(255, 59, 48, 0.5)',
+  },
+  warningIcon: {
+    width: '100%',
+    height: '100%',
+  },
+  demoAccountContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 50,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 5,
+    marginHorizontal: 20,
+    padding: 10,
+    maxHeight: 150,
+  },
+  demoAccountTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  demoAccountsList: {
+    maxHeight: 120,
+  },
+  demoAccountItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 6,
+  },
+  demoAccountText: {
+    color: 'white',
+    fontSize: 12,
+  },
+  demoAccountName: {
+    fontWeight: 'bold',
+    color: '#ffea00',
+  },
+  debugContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  debugButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 5,
+    padding: 10,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    color: 'white',
+    fontSize: 14,
   },
 }); 

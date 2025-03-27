@@ -1,4 +1,4 @@
-import React, { useState, useRef, Fragment } from 'react';
+import React, { useState, useRef, Fragment, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, FlatList, Text as RNText, Image, SafeAreaView, Platform, StatusBar, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
@@ -14,6 +14,8 @@ import {
 } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Mock data cho sản phẩm
 const brandData = [
@@ -231,6 +233,35 @@ export default function HomeScreen() {
   const flatListRef = useRef<FlatList>(null);
   const promoFlatListRef = useRef<FlatList>(null);
   const { width } = Dimensions.get('window');
+  const { authState } = useAuth();
+  const [userName, setUserName] = useState<string>('');
+  const [userPhone, setUserPhone] = useState<string>('');
+  
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        // Lấy trực tiếp từ AsyncStorage để đảm bảo dữ liệu mới nhất
+        const storedName = await AsyncStorage.getItem('@slm_user_name');
+        const storedPhone = await AsyncStorage.getItem('@slm_login_phone');
+        
+        if (storedName) {
+          setUserName(storedName);
+        } else if (authState.user?.name) {
+          setUserName(authState.user.name);
+        }
+        
+        if (storedPhone) {
+          setUserPhone(storedPhone);
+        } else if (authState.user?.phone) {
+          setUserPhone(authState.user.phone);
+        }
+      } catch (error) {
+        console.error('Lỗi khi tải thông tin người dùng:', error);
+      }
+    };
+    
+    loadUserData();
+  }, [authState.user]);
   
   const renderTypeTag = (type: string) => {
     let color = '';
@@ -322,8 +353,8 @@ export default function HomeScreen() {
                   <Ionicons name="person" size={24} color="white" />
                 </View>
                 <View style={styles.userInfo}>
-                  <Text style={styles.greeting}>Chào, Tuỳ Phong</Text>
-                  <Text style={styles.userId}>0912.345.678</Text>
+                  <Text style={styles.greeting}>Chào {userName || 'Người dùng'}</Text>
+                  <Text style={styles.userId}>{userPhone || '(Chưa đăng nhập)'}</Text>
                 </View>
               </TouchableOpacity>
               <View style={styles.notificationContainer}>
@@ -404,7 +435,7 @@ export default function HomeScreen() {
                   key={brand.id}
                   style={styles.brandCard}
                   activeOpacity={0.8}
-                  onPress={() => brand.name === 'SOLAR MAX' ? router.push('/product_line') : null}
+                  onPress={() => brand.name === 'SOLAR MAX' ? router.push('/(products)/product-line') : null}
                 >
                   <View style={styles.brandContent}>
                     {brand.logo ? (

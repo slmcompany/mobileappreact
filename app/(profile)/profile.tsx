@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image, ScrollView, Switch, Modal, TextInput, KeyboardAvoidingView, Platform, Pressable, ImageBackground, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
-  const { logout, authState, updateUser } = useAuth();
+  const { logout, authState, updateUser, getUser } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [editDrawerVisible, setEditDrawerVisible] = useState(false);
   
@@ -17,6 +17,26 @@ const ProfileScreen = () => {
   const [idNumber, setIdNumber] = useState(authState.user?.idNumber || '1234 5678 9000');
   const [birthDate, setBirthDate] = useState(authState.user?.birthDate || '14/01/1993');
   const [gender, setGender] = useState(authState.user?.gender || 'Nam');
+
+  // Lấy thông tin người dùng khi component được tạo
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userData = await getUser();
+        if (userData) {
+          setEmail(userData.email || '');
+          setAddress(userData.address || 'Somewhere over the rainbow');
+          setIdNumber(userData.idNumber || '1234 5678 9000');
+          setBirthDate(userData.birthDate || '14/01/1993');
+          setGender(userData.gender || 'Nam');
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy thông tin người dùng:', error);
+      }
+    };
+    
+    fetchUserData();
+  }, [getUser]);
 
   const toggleBiometric = () => {
     // Implementation of toggleBiometric function
@@ -112,7 +132,7 @@ const ProfileScreen = () => {
       <View style={styles.mainContent}>
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <ImageBackground 
-            source={require('../assets/images/info_bg.png')} 
+            source={require('../../assets/images/info_bg.png')} 
             style={styles.profileHeaderBg}
             resizeMode="cover"
           >

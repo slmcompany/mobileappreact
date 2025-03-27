@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, StatusBar,
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useNavigation } from 'expo-router';
-import { API_CONFIG, API_ENDPOINTS, ApiResponse, handleApiError, buildUrl } from './config/api';
+import { API_CONFIG, API_ENDPOINTS, ApiResponse, handleApiError, buildUrl } from '@/config/api';
 
 interface Product {
   id: string;

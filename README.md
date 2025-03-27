@@ -2,6 +2,8 @@
 
 Một ứng dụng di động phát triển bằng Expo và React Native.
 
+> **Lưu ý quan trọng:** Dự án đã được tái cấu trúc để cải thiện khả năng bảo trì. Hãy đọc file [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) để biết thêm chi tiết. Sau khi clone repository, hãy chạy `npm run setup` để thiết lập dự án.
+
 ## Giới thiệu
 
 SLM App là một ứng dụng di động đa nền tảng được phát triển bằng công nghệ Expo và React Native, sử dụng TypeScript để đảm bảo tính an toàn cho mã nguồn. Ứng dụng tập trung vào việc quản lý sản phẩm, theo dõi hoa hồng, và tương tác với người dùng.
@@ -36,88 +38,57 @@ SLM App là một ứng dụng di động đa nền tảng được phát triể
 
 ## Cấu trúc dự án
 
-- **/app**: Thư mục chính chứa mã nguồn ứng dụng (sử dụng file-based routing của Expo Router)
-  - **/app/(tabs)**: Chứa các màn hình chính của ứng dụng (trang chủ, sản phẩm, thống kê, tài khoản)
-  - **/app/product_page**: Các trang chi tiết sản phẩm
-  - **/app/category**: Trang danh mục sản phẩm
-  - **/app/brand**: Trang thương hiệu
-- **/components**: Các components được tái sử dụng trong ứng dụng
-- **/constants**: Định nghĩa các hằng số, theme và màu sắc
-- **/hooks**: Các custom hooks
-- **/assets**: Chứa hình ảnh, fonts và các tài nguyên khác
-
-## Cấu trúc thư mục đề xuất
-
-Dưới đây là cấu trúc thư mục được đề xuất để cải thiện tính tổ chức và khả năng mở rộng của dự án:
+### Cấu trúc thư mục chính
 
 ```
-app/
-├── (auth)/                  # Phân nhóm các route liên quan đến xác thực
-│   ├── login.tsx            # Trang đăng nhập
-│   ├── register.tsx         # Trang đăng ký (nếu có)
-│   ├── password-update.tsx  # Trang cập nhật mật khẩu
-│   └── _layout.tsx          # Layout cho phần xác thực
-│
-├── (main)/                  # Phân nhóm các route chính sau khi đăng nhập
-│   ├── (tabs)/              # Tabs navigation
-│   │   ├── home/            # Tab trang chủ
-│   │   │   └── index.tsx
-│   │   ├── products/        # Tab sản phẩm 
-│   │   │   └── index.tsx
-│   │   ├── gallery/         # Tab thư viện ảnh
-│   │   │   └── index.tsx
-│   │   ├── stats/           # Tab thống kê
-│   │   │   └── index.tsx
-│   │   ├── account/         # Tab tài khoản
-│   │   │   └── index.tsx
-│   │   └── _layout.tsx      # Layout cho tabs
-│   │
-│   ├── profile/             # Các trang profile
-│   │   ├── index.tsx        # Trang chính profile
-│   │   └── edit.tsx         # Trang chỉnh sửa profile
-│   │
-│   ├── products/            # Các trang sản phẩm
-│   │   ├── [id].tsx         # Chi tiết sản phẩm
-│   │   ├── line/[id].tsx    # Dòng sản phẩm
-│   │   └── _layout.tsx      # Layout cho sản phẩm
-│   │
-│   ├── categories/          # Danh mục sản phẩm
-│   │   ├── index.tsx        # Danh sách danh mục
-│   │   └── [id].tsx         # Chi tiết danh mục
-│   │
-│   ├── brands/              # Thương hiệu
-│   │   ├── index.tsx        # Danh sách thương hiệu
-│   │   └── [id].tsx         # Chi tiết thương hiệu
-│   │
-│   ├── commission/          # Phần hoa hồng
-│   │   ├── index.tsx        # Tổng quan hoa hồng
-│   │   └── stats.tsx        # Thống kê hoa hồng
-│   │
-│   ├── quotes/              # Phần báo giá
-│   │   ├── index.tsx        # Danh sách báo giá
-│   │   └── [id].tsx         # Chi tiết báo giá
-│   │
-│   ├── contacts/            # Quản lý liên hệ
-│   │   ├── index.tsx        # Danh sách liên hệ
-│   │   ├── [id].tsx         # Chi tiết liên hệ
-│   │   └── new.tsx          # Tạo liên hệ mới
-│   │
-│   └── _layout.tsx          # Layout chung cho phần main
-│
-├── api/                     # API endpoints (nếu có)
-│
-├── _layout.tsx              # Layout gốc
-├── index.tsx                # Entry point (redirect)
-└── +not-found.tsx           # Trang 404
+slmapp/
+├── app/                       # Chứa router và các trang (Expo Router)
+│   ├── (auth)/                # Nhóm các trang liên quan đến xác thực
+│   ├── (profile)/             # Nhóm các trang liên quan đến hồ sơ
+│   ├── (products)/            # Nhóm các trang liên quan đến sản phẩm
+│   ├── (brands)/              # Nhóm các trang liên quan đến thương hiệu
+│   ├── (quotes)/              # Nhóm các trang liên quan đến báo giá
+│   ├── (contacts)/            # Nhóm các trang liên quan đến liên hệ
+│   ├── (stats)/               # Nhóm các trang liên quan đến thống kê
+│   ├── (tabs)/                # Navigation tabs
+│   ├── _layout.tsx            # Layout chính
+│   └── +not-found.tsx         # Trang 404
+├── src/                       # Mã nguồn chính của ứng dụng
+│   ├── components/            # Các thành phần UI có thể tái sử dụng
+│   │   ├── auth/              # Các thành phần xác thực
+│   │   ├── layout/            # Các thành phần bố cục
+│   │   ├── products/          # Các thành phần sản phẩm
+│   │   ├── profile/           # Các thành phần hồ sơ
+│   │   ├── ui/                # Các thành phần UI cơ bản
+│   │   │   ├── buttons/
+│   │   │   ├── cards/
+│   │   │   ├── forms/
+│   │   │   ├── modals/
+│   │   │   └── typography/
+│   │   └── shared/            # Các thành phần dùng chung
+│   ├── hooks/                 # Các custom hooks
+│   ├── context/               # Các context React
+│   ├── services/              # Các dịch vụ API, xác thực và tích hợp bên thứ ba
+│   ├── utils/                 # Các tiện ích
+│   │   ├── helpers/           # Các hàm helper
+│   │   ├── formatters/        # Các hàm định dạng
+│   │   └── validation/        # Các hàm xác thực
+│   ├── constants/             # Các hằng số và cấu hình
+│   ├── models/                # Các kiểu TypeScript và interfaces
+│   └── styles/                # Các styles, themes
+├── assets/                    # Tài nguyên tĩnh
+│   ├── images/
+│   ├── fonts/
+│   └── icons/
+└── các file cấu hình
 ```
 
-### Ưu điểm của cấu trúc mới
+### Quy ước đặt tên
 
-- **Phân nhóm theo chức năng**: Phân tách rõ ràng giữa phần xác thực và phần chính
-- **Tổ chức theo tính năng**: Mỗi tính năng lớn có thư mục riêng, dễ mở rộng và bảo trì
-- **Cấu trúc route rõ ràng**: Sử dụng quy ước của Expo Router để tạo URL trực quan
-- **Layout phân cấp**: Mỗi nhóm chức năng có layout riêng
-- **Hỗ trợ Dynamic Routes**: Sử dụng tên file như `[id].tsx` cho các route động
+- **Thành phần**: PascalCase (ví dụ: `ProductCard.tsx`)
+- **Hook**: camelCase với tiền tố "use" (ví dụ: `useAuth.ts`)
+- **Context**: PascalCase với hậu tố "Context" (ví dụ: `AuthContext.tsx`)
+- **Utilities**: camelCase (ví dụ: `formatDate.ts`)
 
 ## Công nghệ sử dụng
 
@@ -149,6 +120,15 @@ npm run test
 
 # Kiểm tra lỗi linting
 npm run lint
+
+# Cấu trúc lại dự án
+npm run setup-structure
+
+# Tạo lại symbolic links
+npm run create-symlinks
+
+# Cập nhật các import paths
+npm run update-imports
 ```
 
 ## Tìm hiểu thêm
