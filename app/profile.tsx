@@ -1,26 +1,35 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, ScrollView, Switch, Modal, TextInput, KeyboardAvoidingView, Platform, Pressable, ImageBackground } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Image, ScrollView, Switch, Modal, TextInput, KeyboardAvoidingView, Platform, Pressable, ImageBackground, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from './context/AuthContext';
 
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
+  const { logout, authState, updateUser } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [editDrawerVisible, setEditDrawerVisible] = useState(false);
   
   // User info states
-  const [email, setEmail] = useState('tuyphong@slm.vn');
-  const [address, setAddress] = useState('Somewhere over the rainbow');
-  const [idNumber, setIdNumber] = useState('1234 5678 9000');
-  const [birthDate, setBirthDate] = useState('14/01/1993');
-  const [gender, setGender] = useState('Nam');
+  const [email, setEmail] = useState(authState.user?.email || '');
+  const [address, setAddress] = useState(authState.user?.address || 'Somewhere over the rainbow');
+  const [idNumber, setIdNumber] = useState(authState.user?.idNumber || '1234 5678 9000');
+  const [birthDate, setBirthDate] = useState(authState.user?.birthDate || '14/01/1993');
+  const [gender, setGender] = useState(authState.user?.gender || 'Nam');
 
   const toggleBiometric = () => {
     // Implementation of toggleBiometric function
   };
 
   const openEditDrawer = () => {
+    // Cập nhật trạng thái ban đầu từ authState
+    setEmail(authState.user?.email || '');
+    setAddress(authState.user?.address || 'Somewhere over the rainbow');
+    setIdNumber(authState.user?.idNumber || '1234 5678 9000');
+    setBirthDate(authState.user?.birthDate || '14/01/1993');
+    setGender(authState.user?.gender || 'Nam');
+    
     setEditDrawerVisible(true);
   };
 
@@ -28,9 +37,69 @@ const ProfileScreen = () => {
     setEditDrawerVisible(false);
   };
 
-  const saveUserInfo = () => {
-    // Xử lý lưu thông tin người dùng
-    closeEditDrawer();
+  const saveUserInfo = async () => {
+    try {
+      // Hiển thị loading hoặc thông báo đang xử lý
+      
+      const updatedUser = await updateUser({
+        email,
+        address,
+        idNumber,
+        birthDate,
+        gender
+      });
+      
+      if (updatedUser) {
+        // Hiển thị thông báo thành công
+        Alert.alert(
+          'Thành công',
+          'Thông tin cá nhân đã được cập nhật',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Hiển thị thông báo lỗi
+        Alert.alert(
+          'Lỗi',
+          'Có lỗi xảy ra khi cập nhật thông tin',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Lỗi khi cập nhật thông tin người dùng:', error);
+      Alert.alert(
+        'Lỗi',
+        'Có lỗi xảy ra khi cập nhật thông tin',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      closeEditDrawer();
+    }
+  };
+  
+  const handleLogout = async () => {
+    try {
+      Alert.alert(
+        'Đăng xuất',
+        'Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?',
+        [
+          {
+            text: 'Hủy',
+            style: 'cancel',
+          },
+          {
+            text: 'Đăng xuất',
+            style: 'destructive',
+            onPress: async () => {
+              await logout();
+              router.replace('/login');
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    } catch (error) {
+      console.error('Lỗi khi đăng xuất:', error);
+    }
   };
 
   return (
@@ -53,8 +122,8 @@ const ProfileScreen = () => {
                   <Ionicons name="person" size={24} color="#999" />
                 </View>
               </View>
-              <Text style={styles.name}>Tùy Phong</Text>
-              <Text style={styles.phoneNumber}>0384 123 456</Text>
+              <Text style={styles.name}>{authState.user?.name || 'Người dùng'}</Text>
+              <Text style={styles.phoneNumber}>{authState.user?.phone || ''}</Text>
             </View>
 
             <View style={styles.salesManagementContainer}>
@@ -75,12 +144,17 @@ const ProfileScreen = () => {
           }]}>
             <Text style={styles.sectionTitle}>TÀI KHOẢN</Text>
             <View style={styles.editButtonContainer}>
-              <Text style={styles.changeRequestText}>YÊU CẦU THAY ĐỔI</Text>
+              <TouchableOpacity onPress={openEditDrawer}>
+                <Text style={styles.changeRequestText}>YÊU CẦU THAY ĐỔI</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.infoSection}>
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={openEditDrawer}
+            >
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
                   <Ionicons name="person-outline" size={24} color="#666" />
@@ -89,6 +163,46 @@ const ProfileScreen = () => {
               </View>
               <Ionicons name="chevron-forward" size={20} color="#999" />
             </TouchableOpacity>
+
+            {/* Hiển thị thông tin cá nhân đã cập nhật */}
+            {(authState.user?.email || authState.user?.address || authState.user?.idNumber || authState.user?.birthDate) && (
+              <View style={styles.userInfoPreview}>
+                {authState.user?.email && (
+                  <View style={styles.infoPreviewItem}>
+                    <Text style={styles.infoPreviewLabel}>Email:</Text>
+                    <Text style={styles.infoPreviewValue}>{authState.user.email}</Text>
+                  </View>
+                )}
+                
+                {authState.user?.address && (
+                  <View style={styles.infoPreviewItem}>
+                    <Text style={styles.infoPreviewLabel}>Địa chỉ:</Text>
+                    <Text style={styles.infoPreviewValue}>{authState.user.address}</Text>
+                  </View>
+                )}
+                
+                {authState.user?.idNumber && (
+                  <View style={styles.infoPreviewItem}>
+                    <Text style={styles.infoPreviewLabel}>CCCD/Hộ chiếu:</Text>
+                    <Text style={styles.infoPreviewValue}>{authState.user.idNumber}</Text>
+                  </View>
+                )}
+                
+                {authState.user?.birthDate && (
+                  <View style={styles.infoPreviewItem}>
+                    <Text style={styles.infoPreviewLabel}>Ngày sinh:</Text>
+                    <Text style={styles.infoPreviewValue}>{authState.user.birthDate}</Text>
+                  </View>
+                )}
+                
+                {authState.user?.gender && (
+                  <View style={styles.infoPreviewItem}>
+                    <Text style={styles.infoPreviewLabel}>Giới tính:</Text>
+                    <Text style={styles.infoPreviewValue}>{authState.user.gender}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -98,7 +212,7 @@ const ProfileScreen = () => {
           <View style={styles.infoSection}>
             <TouchableOpacity 
               style={styles.menuItem}
-              onPress={() => router.push('/(auth)/password')}
+              onPress={() => router.push('/password')}
             >
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
@@ -164,7 +278,7 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.logoutButton}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={20} color="#666" />
             <Text style={styles.logoutText}>Đăng xuất</Text>
           </TouchableOpacity>
@@ -206,7 +320,7 @@ const ProfileScreen = () => {
               <View style={styles.formField}>
                 <Text style={styles.fieldLabel}>Số điện thoại</Text>
                 <View style={styles.fieldDisabled}>
-                  <Text style={styles.fieldDisabledText}>0384 123 456</Text>
+                  <Text style={styles.fieldDisabledText}>{authState.user?.phone || ''}</Text>
                 </View>
                 <Text style={styles.fieldNote}>Số điện thoại không thể thay đổi</Text>
               </View>
@@ -613,6 +727,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     textAlign: 'left',
+  },
+  userInfoPreview: {
+    padding: 16,
+    backgroundColor: '#f9f9f9',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  infoPreviewItem: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  infoPreviewLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+    marginRight: 8,
+    minWidth: 100,
+  },
+  infoPreviewValue: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
   },
 });
 
