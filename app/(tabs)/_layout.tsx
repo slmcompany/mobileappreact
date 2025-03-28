@@ -1,6 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable, useColorScheme, View, StyleSheet, Image } from 'react-native';
+import { Link, Tabs, router } from 'expo-router';
+import { Pressable, useColorScheme, View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,10 +26,8 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: '#D9261C',
         tabBarInactiveTintColor: '#888',
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, false),
-        tabBarShowLabel: false, // Ẩn text trong navbar
+        headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: { 
           height: 60 + (insets.bottom > 0 ? insets.bottom : 10),
           backgroundColor: 'white',
@@ -105,7 +103,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="gallery"
         options={{
-          title: 'Thư viện',
+          title: 'Thư viện nội dung',
+          headerLeft: () => (
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          ),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
               <Image 
@@ -134,5 +140,9 @@ const styles = StyleSheet.create({
   iconImage: {
     width: 24,
     height: 24,
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 8,
   }
 });

@@ -3,6 +3,8 @@ import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, Platfo
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import authService from '@/services/AuthService';
 
 const PasswordUpdateScreen = () => {
   const insets = useSafeAreaInsets();
@@ -13,6 +15,10 @@ const PasswordUpdateScreen = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [currentPasswordError, setCurrentPasswordError] = useState('');
+  const [newPasswordError, setNewPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Validation states
   const [isPasswordValid, setIsPasswordValid] = useState({
@@ -38,6 +44,7 @@ const PasswordUpdateScreen = () => {
   const handleNewPasswordChange = (text: string) => {
     setNewPassword(text);
     validatePassword(text);
+    setNewPasswordError('');
   };
 
   const toggleShowCurrentPassword = () => {
@@ -52,20 +59,63 @@ const PasswordUpdateScreen = () => {
     setShowConfirmPassword(!showConfirmPassword);
   };
 
-  const handleUpdate = () => {
-    // Check if new password meets requirements
-    const isValid = Object.values(isPasswordValid).every(value => value === true);
-    
-    // Check if new password and confirm password match
-    const passwordsMatch = newPassword === confirmPassword;
-    
-    if (isValid && passwordsMatch) {
-      // Update password logic here
-      console.log('Password updated successfully');
-      router.back();
-    } else {
-      console.log('Password validation failed');
-      // Show error message
+  const handleUpdate = async () => {
+    try {
+      setIsLoading(true);
+      // Reset errors
+      setCurrentPasswordError('');
+      setNewPasswordError('');
+      setConfirmPasswordError('');
+
+      // Check if new password meets requirements
+      const isValid = Object.values(isPasswordValid).every(value => value === true);
+      
+      // Check if new password and confirm password match
+      const passwordsMatch = newPassword === confirmPassword;
+
+      if (!isValid) {
+        setNewPasswordError('Mật khẩu phải có ít nhất 8 ký tự, chứa cả chữ hoa, chữ thường và ký tự đặc biệt');
+        return;
+      }
+
+      if (!passwordsMatch) {
+        setConfirmPasswordError('Mật khẩu không trùng khớp');
+        return;
+      }
+
+      // Validate current password
+      const isCurrentPasswordValid = await authService.checkCurrentPassword(currentPassword);
+      if (!isCurrentPasswordValid) {
+        setCurrentPasswordError('Mật khẩu không đúng');
+        return;
+      }
+      
+      // Update password
+      const success = await authService.updatePassword(currentPassword, newPassword);
+      if (success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Thay đổi mật khẩu thành công',
+          position: 'top',
+          visibilityTime: 2000,
+          autoHide: true,
+          topOffset: Platform.OS === 'ios' ? 50 : 30,
+          onHide: () => router.back()
+        });
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Có lỗi xảy ra',
+        text2: 'Vui lòng thử lại sau',
+        position: 'top',
+        visibilityTime: 2000,
+        autoHide: true,
+        topOffset: Platform.OS === 'ios' ? 50 : 30,
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -113,14 +163,22 @@ const PasswordUpdateScreen = () => {
 
         <View style={styles.inputSection}>
           <Text style={styles.label}>Mật khẩu hiện tại</Text>
-          <View style={styles.passwordInputContainer}>
+          <View style={[styles.passwordInputContainer, currentPasswordError && styles.inputError]}>
             <TextInput
               style={styles.input}
               placeholder="Nhập mật khẩu hiện tại"
               secureTextEntry={!showCurrentPassword}
               value={currentPassword}
-              onChangeText={setCurrentPassword}
+              onChangeText={(text) => {
+                setCurrentPassword(text);
+                setCurrentPasswordError('');
+              }}
             />
+            {currentPassword.length > 0 && (
+              <TouchableOpacity onPress={() => setCurrentPassword('')} style={styles.visibilityToggle}>
+                <Ionicons name="close" size={22} color={currentPasswordError ? "#ED1C24" : "#666"} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={toggleShowCurrentPassword} style={styles.visibilityToggle}>
               <Ionicons 
                 name={showCurrentPassword ? "eye-off-outline" : "eye-outline"} 
@@ -129,11 +187,14 @@ const PasswordUpdateScreen = () => {
               />
             </TouchableOpacity>
           </View>
+          {currentPasswordError ? (
+            <Text style={styles.errorText}>{currentPasswordError}</Text>
+          ) : null}
         </View>
 
         <View style={styles.inputSection}>
           <Text style={styles.label}>Mật khẩu mới</Text>
-          <View style={styles.passwordInputContainer}>
+          <View style={[styles.passwordInputContainer, newPasswordError && styles.inputError]}>
             <TextInput
               style={styles.input}
               placeholder="Nhập mật khẩu mới"
@@ -141,6 +202,11 @@ const PasswordUpdateScreen = () => {
               value={newPassword}
               onChangeText={handleNewPasswordChange}
             />
+            {newPassword.length > 0 && (
+              <TouchableOpacity onPress={() => setNewPassword('')} style={styles.visibilityToggle}>
+                <Ionicons name="close" size={22} color={newPasswordError ? "#ED1C24" : "#666"} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={toggleShowNewPassword} style={styles.visibilityToggle}>
               <Ionicons 
                 name={showNewPassword ? "eye-off-outline" : "eye-outline"} 
@@ -149,18 +215,29 @@ const PasswordUpdateScreen = () => {
               />
             </TouchableOpacity>
           </View>
+          {newPasswordError ? (
+            <Text style={styles.errorText}>{newPasswordError}</Text>
+          ) : null}
         </View>
 
         <View style={styles.inputSection}>
           <Text style={styles.label}>Nhập lại mật khẩu mới</Text>
-          <View style={styles.passwordInputContainer}>
+          <View style={[styles.passwordInputContainer, confirmPasswordError && styles.inputError]}>
             <TextInput
               style={styles.input}
               placeholder="Nhập lại mật khẩu mới"
               secureTextEntry={!showConfirmPassword}
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                setConfirmPasswordError('');
+              }}
             />
+            {confirmPassword.length > 0 && (
+              <TouchableOpacity onPress={() => setConfirmPassword('')} style={styles.visibilityToggle}>
+                <Ionicons name="close" size={22} color={confirmPasswordError ? "#ED1C24" : "#666"} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={toggleShowConfirmPassword} style={styles.visibilityToggle}>
               <Ionicons 
                 name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
@@ -169,15 +246,22 @@ const PasswordUpdateScreen = () => {
               />
             </TouchableOpacity>
           </View>
+          {confirmPasswordError ? (
+            <Text style={styles.errorText}>{confirmPasswordError}</Text>
+          ) : null}
         </View>
       </ScrollView>
 
       <View style={[styles.bottomActions, { paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
         <TouchableOpacity 
-          style={styles.updateButton} 
+          style={[
+            styles.updateButton,
+            (!currentPassword || !newPassword || !confirmPassword || isLoading) && styles.updateButtonDisabled
+          ]} 
           onPress={handleUpdate}
+          disabled={!currentPassword || !newPassword || !confirmPassword || isLoading}
         >
-          <Text style={styles.updateButtonText}>Cập nhật</Text>
+          <Text style={styles.updateButtonText}>CẬP NHẬT</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -262,14 +346,23 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
   },
+  inputError: {
+    borderColor: '#ED1C24',
+  },
   input: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
+    color: '#27273E',
   },
   visibilityToggle: {
     padding: 12,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#ED1C24',
+    marginTop: 4,
   },
   bottomActions: {
     backgroundColor: 'white',
@@ -283,10 +376,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
+  updateButtonDisabled: {
+    backgroundColor: '#FF9295',
+  },
   updateButtonText: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

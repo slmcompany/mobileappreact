@@ -85,8 +85,27 @@ const DEFAULT_USERS: User[] = [
   }
 ];
 
-// Authentication service class
-class AuthService {
+export interface UpdateUserProfileRequest {
+  email?: string | null;
+  address?: string;
+  idNumber?: string;
+  birthDate?: string;
+  gender?: string;
+}
+
+export interface IAuthService {
+  getUsers(): Promise<User[]>;
+  login(credentials: LoginCredentials): Promise<User | null>;
+  isAuthenticated(): Promise<boolean>;
+  storeUserData(user: User): Promise<void>;
+  updateUserProfile(userInfo: UpdateUserProfileRequest): Promise<User | null>;
+  getCurrentUser(): Promise<User | null>;
+  logout(): Promise<void>;
+  checkCurrentPassword(password: string): Promise<boolean>;
+  updatePassword(currentPassword: string, newPassword: string): Promise<boolean>;
+}
+
+export class AuthServiceImpl implements IAuthService {
   // Fetch all users from API
   async getUsers(): Promise<User[]> {
     try {
@@ -183,13 +202,7 @@ class AuthService {
   }
 
   // Update user profile information
-  async updateUserProfile(userInfo: {
-    email?: string | null;
-    address?: string;
-    idNumber?: string;
-    birthDate?: string;
-    gender?: string;
-  }): Promise<User | null> {
+  async updateUserProfile(userInfo: UpdateUserProfileRequest): Promise<User | null> {
     try {
       // Get current user data
       const currentUser = await this.getCurrentUser();
@@ -246,6 +259,45 @@ class AuthService {
       throw error;
     }
   }
+
+  // Check if current password is correct
+  async checkCurrentPassword(password: string): Promise<boolean> {
+    const currentUser = await this.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('No user data found');
+    }
+    return currentUser.password === password;
+  }
+
+  // Update user password
+  async updatePassword(currentPassword: string, newPassword: string): Promise<boolean> {
+    try {
+      const isValid = await this.checkCurrentPassword(currentPassword);
+      if (!isValid) {
+        throw new Error('Current password is incorrect');
+      }
+
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('No user data found');
+      }
+
+      const updatedUser = {
+        ...currentUser,
+        password: newPassword
+      };
+
+      await this.storeUserData(updatedUser);
+      console.log('Password updated successfully');
+      return true;
+    } catch (error) {
+      console.error('Error updating password:', error);
+      return false;
+    }
+  }
 }
 
-export default new AuthService(); 
+// Export a singleton instance
+const authService = new AuthServiceImpl();
+export type AuthService = IAuthService;
+export default authService; 

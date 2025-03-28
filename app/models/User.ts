@@ -19,6 +19,8 @@ export interface User {
   idNumber?: string;
   birthDate?: string;
   gender?: string;
+  issueDate?: string;
+  issuePlace?: string;
 }
 
 // Authentication state interface

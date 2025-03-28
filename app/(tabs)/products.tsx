@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image, TextInput,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 
 interface ProductLine {
   id: string;
@@ -85,7 +86,7 @@ const bestSellersEliton: Product[] = [
   },
 ];
 
-export default function ProductScreen() {
+export default function ProductsTab() {
   const router = useRouter();
   const screenWidth = Dimensions.get('window').width;
   const [currentNewProductIndex, setCurrentNewProductIndex] = useState(0);
@@ -121,116 +122,136 @@ export default function ProductScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={28} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Sản phẩm</Text>
-        <TouchableOpacity style={styles.supportButton}>
-          <View style={styles.supportIcon}>
-            <Text style={styles.supportIconText}>?</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.container}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={20} color="#666" />
-          <TextInput 
-            style={styles.searchInput} 
-            placeholder="Bạn muốn tìm sản phẩm nào?" 
-            placeholderTextColor="#888"
-          />
-        </View>
-
-        {/* Sale Banner */}
-        <View style={styles.saleBanner}>
-          <Text style={styles.saleText}>S A L E</Text>
-        </View>
-
-        {/* Product Lines */}
-        <View style={styles.productLinesContainer}>
-          <View style={styles.productLinesRow}>
-            {productLines.map((product) => (
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'right', 'left']}>
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: '#FFFFFF',
+            },
+            headerShadowVisible: false,
+            headerTitle: 'Sản phẩm',
+            headerTitleStyle: {
+              fontFamily: 'Roboto Flex',
+              fontSize: 20,
+              fontWeight: '600',
+              color: '#27273E',
+            },
+            headerTitleAlign: 'center',
+            headerLeft: () => (
               <TouchableOpacity 
-                key={product.id} 
-                style={styles.productLine}
-                onPress={() => router.push(product.route as any)}
+                style={styles.backButton}
+                onPress={() => router.back()}
               >
-                <Image 
-                  source={product.image}
-                  style={styles.productLogo}
-                  resizeMode="contain"
-                />
+                <Ionicons name="chevron-back" size={24} color="#27273E" />
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* New Products Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sản phẩm mới</Text>
-          <View style={styles.newProductsContainer}>
-            <View style={styles.newProductCard}>
-              {/* Placeholder for product image */}
+            ),
+          }}
+        />
+        
+        <View style={styles.mainContainer}>
+          <ScrollView style={styles.container}>
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <Ionicons name="search-outline" size={20} color="#666" />
+              <TextInput 
+                style={styles.searchInput} 
+                placeholder="Bạn muốn tìm sản phẩm nào?" 
+                placeholderTextColor="#888"
+              />
             </View>
-          </View>
-          <View style={styles.indicators}>
-            <TouchableOpacity 
-              style={[styles.indicator, currentNewProductIndex === 0 ? styles.activeIndicator : null]}
-              onPress={() => handleIndicatorPress(0)}
-            />
-            <TouchableOpacity 
-              style={[styles.indicator, currentNewProductIndex === 1 ? styles.activeIndicator : null]}
-              onPress={() => handleIndicatorPress(1)}
-            />
-            <TouchableOpacity 
-              style={[styles.indicator, currentNewProductIndex === 2 ? styles.activeIndicator : null]}
-              onPress={() => handleIndicatorPress(2)}
-            />
-          </View>
-        </View>
 
-        {/* Best Sellers - SolarMax */}
-        <View style={styles.section}>
-          {renderSectionHeader('Bán chạy', () => {})}
-          <Text style={styles.brandTitle}>ĐIỆN MẶT TRỜI SOLARMAX</Text>
-          <FlatList
-            data={bestSellersSolarmax}
-            renderItem={renderProductItem}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.productsListContainer}
-          />
-        </View>
+            {/* Sale Banner */}
+            <View style={styles.saleBanner}>
+              <Text style={styles.saleText}>S A L E</Text>
+            </View>
 
-        {/* Best Sellers - Eliton */}
-        <View style={styles.section}>
-          <Text style={styles.brandTitle}>THANG MÁY ELITON</Text>
-          <FlatList
-            data={bestSellersEliton}
-            renderItem={renderProductItem}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.productsListContainer}
-          />
+            {/* Product Lines */}
+            <View style={styles.productLinesContainer}>
+              <View style={styles.productLinesRow}>
+                {productLines.map((product) => (
+                  <TouchableOpacity 
+                    key={product.id} 
+                    style={styles.productLine}
+                    onPress={() => router.push(product.route as any)}
+                  >
+                    <Image 
+                      source={product.image}
+                      style={styles.productLogo}
+                      resizeMode="contain"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* New Products Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Sản phẩm mới</Text>
+              <View style={styles.newProductsContainer}>
+                <View style={styles.newProductCard}>
+                  {/* Placeholder for product image */}
+                </View>
+              </View>
+              <View style={styles.indicators}>
+                <TouchableOpacity 
+                  style={[styles.indicator, currentNewProductIndex === 0 ? styles.activeIndicator : null]}
+                  onPress={() => handleIndicatorPress(0)}
+                />
+                <TouchableOpacity 
+                  style={[styles.indicator, currentNewProductIndex === 1 ? styles.activeIndicator : null]}
+                  onPress={() => handleIndicatorPress(1)}
+                />
+                <TouchableOpacity 
+                  style={[styles.indicator, currentNewProductIndex === 2 ? styles.activeIndicator : null]}
+                  onPress={() => handleIndicatorPress(2)}
+                />
+              </View>
+            </View>
+
+            {/* Best Sellers - SolarMax */}
+            <View style={styles.section}>
+              {renderSectionHeader('Bán chạy', () => {})}
+              <Text style={styles.brandTitle}>ĐIỆN MẶT TRỜI SOLARMAX</Text>
+              <FlatList
+                data={bestSellersSolarmax}
+                renderItem={renderProductItem}
+                keyExtractor={item => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.productsListContainer}
+              />
+            </View>
+
+            {/* Best Sellers - Eliton */}
+            <View style={styles.section}>
+              <Text style={styles.brandTitle}>THANG MÁY ELITON</Text>
+              <FlatList
+                data={bestSellersEliton}
+                renderItem={renderProductItem}
+                keyExtractor={item => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.productsListContainer}
+              />
+            </View>
+          </ScrollView>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   container: {
     flex: 1,
@@ -251,9 +272,8 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
+    padding: 8,
+    marginLeft: 8,
   },
   supportButton: {
     width: 40,

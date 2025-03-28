@@ -1,94 +1,105 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Stack, router } from 'expo-router';
 
 export default function AccountScreen() {
-  const router = useRouter();
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Khách hàng tiềm năng</Text>
-        <TouchableOpacity>
-          <Ionicons name="add" size={24} color="#00A650" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Ô, hình như danh sách của bạn chưa có ai cả!</Text>
-        <Text style={styles.emptySubText}>Hãy thêm liên hệ mới nhé.</Text>
-        
-        <TouchableOpacity style={styles.createButton} onPress={() => router.push('/new-contact')}>
-          <Ionicons name="person-add-outline" size={20} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.createButtonText}>Tạo liên hệ mới</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'right', 'left']}>
+        <Stack.Screen
+          options={{
+            headerStyle: {
+              backgroundColor: '#FFFFFF',
+            },
+            headerShadowVisible: false,
+            headerTitle: 'Khách hàng tiềm năng',
+            headerTitleStyle: {
+              fontFamily: 'Roboto Flex',
+              fontSize: 20,
+              fontWeight: '600',
+              color: '#27273E',
+            },
+            headerTitleAlign: 'center',
+            headerLeft: () => (
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => router.back()}
+              >
+                <Ionicons name="chevron-back" size={24} color="#27273E" />
+              </TouchableOpacity>
+            ),
+            headerRight: () => (
+              <TouchableOpacity>
+                <Ionicons name="add" size={24} color="#00A650" />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <View style={styles.mainContainer}>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Ô, hình như danh sách của bạn chưa có ai cả!</Text>
+            <Text style={styles.emptySubText}>Hãy thêm liên hệ mới nhé.</Text>
+            
+            <TouchableOpacity style={styles.createButton} onPress={() => router.push('/new-contact')}>
+              <Ionicons name="person-add-outline" size={20} color="#fff" style={styles.buttonIcon} />
+              <Text style={styles.createButtonText}>Tạo liên hệ mới</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   backButton: {
-    width: 24,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
+    padding: 8,
+    marginLeft: 8,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    padding: 20,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: '#27273E',
+    fontWeight: '500',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubText: {
     fontSize: 14,
-    color: '#888',
+    color: '#7B7D9D',
+    marginBottom: 24,
     textAlign: 'center',
-    marginBottom: 30,
   },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EE0033',
-    paddingHorizontal: 20,
+    backgroundColor: '#00A650',
     paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 8,
   },
   buttonIcon: {
     marginRight: 8,
   },
   createButtonText: {
-    color: '#fff',
-    fontSize: 15,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
   },
 }); 

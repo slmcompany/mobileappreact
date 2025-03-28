@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, TextInput, View, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, Linking, Image, Switch, ImageBackground, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { StyleSheet, Text, TextInput, View, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, Linking, Image, ImageBackground, Alert, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -7,11 +7,13 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/context/AuthContext';
 import AuthService from '@/services/AuthService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Function để kiểm tra môi trường web
 const isWeb = Platform.OS === 'web';
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const { login, authState } = useAuth();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -219,29 +221,27 @@ export default function LoginScreen() {
       
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.formContainer}
+        style={[styles.formContainer, { paddingBottom: insets.bottom }]}
       >
         <View style={styles.loginCard}>
-          <Text style={styles.subheading}>Chào mừng đến với SLM</Text>
+          <Text style={styles.heading}>Chào mừng đến với SLM</Text>
           
           {hasStoredUser ? (
-            <View style={styles.storedUserContainer}>
-              <View style={styles.inputContainer}>
-                <View style={styles.iconContainer}>
-                  <Image 
-                    source={require('../../assets/images/smartphone.png')} 
-                    style={styles.inputIcon} 
-                    resizeMode="contain"
-                  />
-                </View>
-                <Text style={styles.storedUserText}>{storedUserName}</Text>
-                <TouchableOpacity 
-                  style={styles.changeUserButton} 
-                  onPress={handleChangeUser}
-                >
-                  <Text style={styles.changeUserButtonText}>Đổi</Text>
-                </TouchableOpacity>
+            <View style={styles.inputContainer}>
+              <View style={styles.iconContainer}>
+                <Image 
+                  source={require('../../assets/images/smartphone.png')} 
+                  style={styles.inputIcon} 
+                  resizeMode="contain"
+                />
               </View>
+              <Text style={styles.storedUserText}>{storedUserName}</Text>
+              <TouchableOpacity 
+                style={styles.changeUserButton} 
+                onPress={handleChangeUser}
+              >
+                <Text style={styles.changeUserButtonText}>Đổi</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.inputContainer}>
@@ -253,7 +253,7 @@ export default function LoginScreen() {
                 />
               </View>
               <TextInput
-                style={styles.inputWithIcon}
+                style={styles.input}
                 placeholder="Số điện thoại"
                 placeholderTextColor="#7B7D9D"
                 value={phoneNumber}
@@ -273,7 +273,7 @@ export default function LoginScreen() {
               />
             </View>
             <TextInput
-              style={styles.inputWithIcon}
+              style={styles.input}
               placeholder="••••••••••••"
               placeholderTextColor="#7B7D9D"
               secureTextEntry={!isPasswordVisible}
@@ -311,32 +311,17 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
           
-          <TouchableOpacity onPress={handleForgotPassword}>
+          <TouchableOpacity 
+            style={styles.forgotPasswordButton} 
+            onPress={handleForgotPassword}
+          >
             <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
-          
-          {/* Nút kiểm tra modal - chỉ hiển thị trong môi trường dev */}
-          {__DEV__ && (
-            <View style={styles.debugContainer}>
-              <TouchableOpacity 
-                style={styles.debugButton}
-                onPress={showUserNotFoundModal}
-              >
-                <Text style={styles.debugButtonText}>Test: User không tồn tại</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.debugButton}
-                onPress={showWrongPasswordModal}
-              >
-                <Text style={styles.debugButtonText}>Test: Sai mật khẩu</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
       </KeyboardAvoidingView>
       
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>© SLM Agent được phát triển bởi SLM Co., Ltd.</Text>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 44) }]}>
+        <Text style={styles.footerText}>© Phát triển bởi SLM Investment JSC.</Text>
       </View>
 
       {/* Modal thông báo tài khoản không tồn tại */}
@@ -364,10 +349,6 @@ export default function LoginScreen() {
             <Text style={styles.modalMessage}>
               Vui lòng kiểm tra lại hoặc <Text style={styles.linkText}>Liên hệ Hỗ trợ</Text> để{' '}
               <Text style={styles.linkText}>Đăng ký tài khoản</Text> mới.
-              {'\n\n'}
-              <Text style={styles.boldText}>Hoặc sử dụng tài khoản mẫu để đăng nhập:</Text>
-              {'\n'}• Số ĐT: 0964920242, MK: slm123
-              {'\n'}• Hoặc nhập: admin / admin
             </Text>
             
             <View style={styles.modalButtonContainer}>
@@ -413,8 +394,6 @@ export default function LoginScreen() {
             
             <Text style={styles.modalMessage}>
               Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ nếu bạn không nhớ mật khẩu.
-              {'\n\n'}
-              <Text style={styles.boldText}>Mật khẩu mặc định là: slm123</Text>
             </Text>
             
             <View style={styles.modalButtonContainer}>
@@ -435,25 +414,6 @@ export default function LoginScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Hiển thị các tài khoản mẫu */}
-      <View style={styles.demoAccountContainer}>
-        <Text style={styles.demoAccountTitle}>Tài khoản mẫu để đăng nhập:</Text>
-        <ScrollView style={styles.demoAccountsList}>
-          {sampleAccounts.map((account, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={styles.demoAccountItem}
-              onPress={() => handleSelectSampleAccount(account)}
-            >
-              <Text style={styles.demoAccountText}>
-                <Text style={styles.demoAccountName}>{account.name}</Text>
-                {'\n'}- SĐT: {account.phone}, MK: {account.password}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
     </ImageBackground>
   );
 }
@@ -463,57 +423,52 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   formContainer: {
     flex: 1,
     width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: 80,
   },
   loginCard: {
     width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
+    backgroundColor: 'rgba(39, 39, 62, 0.6)',
+    borderRadius: 12,
+    padding: 24,
+    shadowColor: '#27273E',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 5,
   },
   heading: {
-    fontSize: 16,
+    fontSize: 18,
+    fontFamily: 'Roboto Flex',
     color: 'white',
-    marginBottom: 4,
-    alignSelf: 'flex-start',
-  },
-  subheading: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 20,
-    alignSelf: 'flex-start',
+    marginBottom: 12,
+    letterSpacing: -0.2,
+    lineHeight: 28,
   },
   inputContainer: {
     width: '100%',
-    marginBottom: 15,
-    position: 'relative',
     flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 5,
     alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  input: {
-    width: '100%',
     backgroundColor: 'white',
-    borderRadius: 5,
-    padding: 12,
-    fontSize: 16,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ABACC2',
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   iconContainer: {
     width: 24,
     height: 24,
-    marginRight: 10,
+    marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -522,70 +477,98 @@ const styles = StyleSheet.create({
     height: '100%',
     tintColor: '#7B7D9D',
   },
-  inputWithIcon: {
+  input: {
     flex: 1,
     fontSize: 16,
-    padding: 12,
-    paddingLeft: 0,
+    color: '#27273E',
+    fontFamily: 'Roboto Flex',
+    letterSpacing: -0.16,
+    lineHeight: 24,
   },
   eyeIcon: {
-    position: 'absolute',
-    right: 12,
-    height: '100%',
-    justifyContent: 'center',
+    padding: 4,
   },
   buttonRow: {
     flexDirection: 'row',
     width: '100%',
-    marginTop: 5,
-    marginBottom: 15,
+    marginTop: 16,
+    gap: 8,
   },
   loginButton: {
     flex: 1,
-    backgroundColor: '#D9261C',
-    borderRadius: 5,
-    padding: 14,
+    backgroundColor: '#ED1C24',
+    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   loginButtonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Roboto Flex',
+    fontWeight: '500',
+    letterSpacing: -0.16,
+    lineHeight: 24,
+  },
+  loginButtonDisabled: {
+    backgroundColor: 'rgba(237, 28, 36, 0.5)',
   },
   biometricButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 5,
+    width: 40,
+    height: 40,
+    backgroundColor: '#FF9295',
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
+  },
+  forgotPasswordButton: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    marginTop: 8,
   },
   forgotPasswordText: {
     color: '#ABACC2',
     fontSize: 14,
+    fontFamily: 'Roboto Flex',
+    fontWeight: '500',
+    lineHeight: 20,
   },
   footer: {
-    marginBottom: 20,
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 8,
   },
   footerText: {
     color: 'white',
     fontSize: 12,
+    fontFamily: 'Roboto Flex',
+    fontWeight: '500',
+    lineHeight: 20,
   },
-  // Styles cho modal
+  storedUserText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#27273E',
+    fontFamily: 'Roboto Flex',
+    letterSpacing: -0.16,
+    lineHeight: 24,
+  },
+  changeUserButton: {
+    paddingHorizontal: 8,
+  },
+  changeUserButtonText: {
+    color: '#ED1C24',
+    fontSize: 14,
+    fontFamily: 'Roboto Flex',
+    fontWeight: '500',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
   },
   modalContainer: {
     width: '100%',
@@ -635,10 +618,6 @@ const styles = StyleSheet.create({
     color: '#2e6db4',
     fontWeight: 'bold',
   },
-  boldText: {
-    fontWeight: 'bold',
-    color: '#666',
-  },
   modalButtonContainer: {
     flexDirection: 'row',
     width: '100%',
@@ -662,7 +641,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     flex: 1,
-    backgroundColor: '#D9261C',
+    backgroundColor: '#ED1C24',
     borderRadius: 5,
     padding: 15,
     alignItems: 'center',
@@ -672,84 +651,5 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '500',
-  },
-  storedUserContainer: {
-    width: '100%',
-    marginBottom: 15,
-  },
-  storedUserText: {
-    flex: 1,
-    fontSize: 16,
-    padding: 12,
-    color: '#333',
-  },
-  changeUserButton: {
-    padding: 12,
-  },
-  changeUserButtonText: {
-    color: '#D9261C',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  failIcon: {
-    width: '100%',
-    height: '100%',
-  },
-  loginButtonDisabled: {
-    backgroundColor: 'rgba(255, 59, 48, 0.5)',
-  },
-  warningIcon: {
-    width: '100%',
-    height: '100%',
-  },
-  demoAccountContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 50,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 5,
-    marginHorizontal: 20,
-    padding: 10,
-    maxHeight: 150,
-  },
-  demoAccountTitle: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
-    marginBottom: 5,
-  },
-  demoAccountsList: {
-    maxHeight: 120,
-  },
-  demoAccountItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
-    padding: 8,
-    marginBottom: 6,
-  },
-  demoAccountText: {
-    color: 'white',
-    fontSize: 12,
-  },
-  demoAccountName: {
-    fontWeight: 'bold',
-    color: '#ffea00',
-  },
-  debugContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  debugButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 5,
-    padding: 10,
-    alignItems: 'center',
-  },
-  debugButtonText: {
-    color: 'white',
-    fontSize: 14,
   },
 }); 

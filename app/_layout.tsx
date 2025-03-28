@@ -4,21 +4,57 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 import { Provider as AntDesignProvider } from '@ant-design/react-native';
 import * as Font from 'expo-font';
 import { IconFill, IconOutline } from '@ant-design/icons-react-native';
 import { AuthProvider } from '@/context/AuthContext';
+import Toast, { BaseToast, ErrorToast, BaseToastProps } from 'react-native-toast-message';
 
 // Cấu hình màn hình splash với màu nền đỏ
 SplashScreen.preventAutoHideAsync();
 
 // Màu nền splash screen được cấu hình trong app.json
 
+/*
+  1. Tạo cấu hình cho toast
+*/
+const toastConfig = {
+  success: (props: BaseToastProps) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#00A86B', backgroundColor: 'rgba(39, 39, 62, 0.75)' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 12,
+        fontWeight: '400',
+        color: '#FFFFFF'
+      }}
+    />
+  ),
+  error: (props: BaseToastProps) => (
+    <ErrorToast
+      {...props}
+      style={{ borderLeftColor: '#ED1C24', backgroundColor: 'rgba(39, 39, 62, 0.75)' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 12,
+        fontWeight: '400',
+        color: '#FFFFFF'
+      }}
+      text2Style={{
+        fontSize: 12,
+        color: '#FFFFFF'
+      }}
+    />
+  )
+};
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
+    RobotoFlex: require('../assets/fonts/RobotoFlex-Regular.ttf'),
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     antoutline: require('@ant-design/icons-react-native/fonts/antoutline.ttf'),
     antfill: require('@ant-design/icons-react-native/fonts/antfill.ttf'),
@@ -52,8 +88,15 @@ export default function RootLayout() {
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />
+          <Toast config={toastConfig} />
         </ThemeProvider>
       </AntDesignProvider>
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: '#fff'
+  }
+});

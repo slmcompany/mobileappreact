@@ -1,131 +1,175 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function StatsScreen() {
   const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
-  const router = useRouter();
 
   const navigateToCommissionStats = () => {
     router.push('/commission-stats');
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Profile Section */}
-      <View style={styles.profileSection}>
-        <Image 
-          source={{ uri: 'https://via.placeholder.com/100' }} 
-          style={styles.profileImage} 
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'right', 'left']}>
+        <Stack.Screen
+          options={{
+            headerStyle: {
+              backgroundColor: '#FFFFFF',
+            },
+            headerShadowVisible: false,
+            headerTitle: 'Thống kê',
+            headerTitleStyle: {
+              fontFamily: 'Roboto Flex',
+              fontSize: 20,
+              fontWeight: '600',
+              color: '#27273E',
+            },
+            headerTitleAlign: 'center',
+            headerLeft: () => (
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => router.back()}
+              >
+                <Ionicons name="chevron-back" size={24} color="#27273E" />
+              </TouchableOpacity>
+            ),
+          }}
         />
-        <Text style={styles.profileName}>Tùy Phong</Text>
-        <Text style={styles.profileId}>ID: AG1203</Text>
-      </View>
-      
-      {/* Summary Cards */}
-      <View style={styles.statsRow}>
-        <View style={[styles.statsCard, styles.halfCard]}>
-          <Text style={styles.cardLabel}>Tổng số hợp đồng</Text>
-          <Text style={styles.cardValue}>12</Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={[styles.statsCard, styles.halfCard]}
-          onPress={navigateToCommissionStats}
-        >
-          <Text style={styles.cardLabel}>Hoa hồng đã nhận</Text>
-          <Text style={[styles.cardValue, styles.valueGreen]}>8.640.000</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* List Items */}
-      <TouchableOpacity style={styles.listItem}>
-        <Text style={styles.listItemText}>Khách hàng tiềm năng</Text>
-        <View style={styles.listItemRight}>
-          <Text style={styles.listItemValue}>12 người</Text>
-          <Text style={styles.arrow}>→</Text>
-        </View>
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.listItem}>
-        <Text style={styles.listItemText}>Cộng đồng</Text>
-        <View style={styles.listItemRight}>
-          <Text style={styles.listItemValue}>12 thành viên</Text>
-          <Text style={styles.arrow}>→</Text>
-        </View>
-      </TouchableOpacity>
-      
-      {/* Chart Section */}
-      <View style={styles.chartContainer}>
-        <View style={styles.chartTooltip}>
-          <Text style={styles.tooltipText}>3.000.000 đ</Text>
-        </View>
-        
-        <View style={styles.chartBars}>
-          {months.map((month, index) => (
-            <View key={index} style={styles.barColumn}>
-              <View 
-                style={[
-                  styles.bar, 
-                  { height: index === 6 ? 170 : 50 + Math.random() * 100 },
-                  index === 6 ? styles.activeBar : styles.inactiveBar
-                ]} 
+        <View style={styles.mainContainer}>
+          <ScrollView style={styles.container}>
+            {/* Profile Section */}
+            <View style={styles.profileSection}>
+              <Image 
+                source={{ uri: 'https://via.placeholder.com/100' }} 
+                style={styles.profileImage} 
               />
-              <Text style={styles.monthLabel}>{month}</Text>
+              <Text style={styles.profileName}>Tùy Phong</Text>
+              <Text style={styles.profileId}>ID: AG1203</Text>
             </View>
-          ))}
-        </View>
-      </View>
-      
-      {/* Bottom Stats */}
-      <View style={styles.bottomStats}>
-        <View style={styles.statsGridRow}>
-          <View style={[styles.statCard, styles.gridCard]}>
-            <View style={[styles.statCardIndicator, styles.orangeIndicator]} />
-            <View style={styles.statCardContent}>
-              <Text style={styles.statCardLabel}>Hợp đồng tháng này</Text>
-              <Text style={styles.statCardValue}>02</Text>
-            </View>
-          </View>
-          
-          <View style={[styles.statCard, styles.gridCard]}>
-            <View style={[styles.statCardIndicator, styles.blueIndicator]} />
-            <View style={styles.statCardContent}>
-              <Text style={styles.statCardLabel}>Thu nhập dự kiến</Text>
-              <Text style={styles.statCardValue}>12.650.000</Text>
-            </View>
-          </View>
-        </View>
-        
-        <View style={styles.statsGridRow}>
-          <View style={[styles.statCard, styles.gridCard]}>
-            <View style={[styles.statCardIndicator, styles.grayIndicator]} />
-            <View style={styles.statCardContent}>
-              <Text style={styles.statCardLabel}>Tổng số hợp đồng</Text>
-              <Text style={styles.statCardValue}>12</Text>
-              <TouchableOpacity style={styles.circleArrow}>
-                <Text style={styles.circleArrowText}>→</Text>
+            
+            {/* Summary Cards */}
+            <View style={styles.statsRow}>
+              <View style={[styles.statsCard, styles.halfCard]}>
+                <Text style={styles.cardLabel}>Tổng số hợp đồng</Text>
+                <Text style={styles.cardValue}>12</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={[styles.statsCard, styles.halfCard]}
+                onPress={navigateToCommissionStats}
+              >
+                <Text style={styles.cardLabel}>Hoa hồng đã nhận</Text>
+                <Text style={[styles.cardValue, styles.valueGreen]}>8.640.000</Text>
               </TouchableOpacity>
             </View>
-          </View>
-          
-          <TouchableOpacity 
-            style={[styles.statCard, styles.gridCard]}
-            onPress={navigateToCommissionStats}
-          >
-            <View style={[styles.statCardIndicator, styles.greenIndicator]} />
-            <View style={styles.statCardContent}>
-              <Text style={styles.statCardLabel}>Hoa hồng đã nhận</Text>
-              <Text style={styles.statCardValue}>8.640.000</Text>
+            
+            {/* List Items */}
+            <TouchableOpacity style={styles.listItem}>
+              <Text style={styles.listItemText}>Khách hàng tiềm năng</Text>
+              <View style={styles.listItemRight}>
+                <Text style={styles.listItemValue}>12 người</Text>
+                <Text style={styles.arrow}>→</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.listItem}>
+              <Text style={styles.listItemText}>Cộng đồng</Text>
+              <View style={styles.listItemRight}>
+                <Text style={styles.listItemValue}>12 thành viên</Text>
+                <Text style={styles.arrow}>→</Text>
+              </View>
+            </TouchableOpacity>
+            
+            {/* Chart Section */}
+            <View style={styles.chartContainer}>
+              <View style={styles.chartTooltip}>
+                <Text style={styles.tooltipText}>3.000.000 đ</Text>
+              </View>
+              
+              <View style={styles.chartBars}>
+                {months.map((month, index) => (
+                  <View key={index} style={styles.barColumn}>
+                    <View 
+                      style={[
+                        styles.bar, 
+                        { height: index === 6 ? 170 : 50 + Math.random() * 100 },
+                        index === 6 ? styles.activeBar : styles.inactiveBar
+                      ]} 
+                    />
+                    <Text style={styles.monthLabel}>{month}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </TouchableOpacity>
+            
+            {/* Bottom Stats */}
+            <View style={styles.bottomStats}>
+              <View style={styles.statsGridRow}>
+                <View style={[styles.statCard, styles.gridCard]}>
+                  <View style={[styles.statCardIndicator, styles.orangeIndicator]} />
+                  <View style={styles.statCardContent}>
+                    <Text style={styles.statCardLabel}>Hợp đồng tháng này</Text>
+                    <Text style={styles.statCardValue}>02</Text>
+                  </View>
+                </View>
+                
+                <View style={[styles.statCard, styles.gridCard]}>
+                  <View style={[styles.statCardIndicator, styles.blueIndicator]} />
+                  <View style={styles.statCardContent}>
+                    <Text style={styles.statCardLabel}>Thu nhập dự kiến</Text>
+                    <Text style={styles.statCardValue}>12.650.000</Text>
+                  </View>
+                </View>
+              </View>
+              
+              <View style={styles.statsGridRow}>
+                <View style={[styles.statCard, styles.gridCard]}>
+                  <View style={[styles.statCardIndicator, styles.grayIndicator]} />
+                  <View style={styles.statCardContent}>
+                    <Text style={styles.statCardLabel}>Tổng số hợp đồng</Text>
+                    <Text style={styles.statCardValue}>12</Text>
+                    <TouchableOpacity style={styles.circleArrow}>
+                      <Text style={styles.circleArrowText}>→</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                
+                <TouchableOpacity 
+                  style={[styles.statCard, styles.gridCard]}
+                  onPress={navigateToCommissionStats}
+                >
+                  <View style={[styles.statCardIndicator, styles.greenIndicator]} />
+                  <View style={styles.statCardContent}>
+                    <Text style={styles.statCardLabel}>Hoa hồng đã nhận</Text>
+                    <Text style={styles.statCardValue}>8.640.000</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
         </View>
-      </View>
-    </ScrollView>
+      </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',

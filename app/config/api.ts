@@ -10,31 +10,6 @@ export const API_CONFIG = {
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  // Products
-  PRODUCTS: {
-    LIST: '/products',
-    DETAIL: (id: string) => `/products/${id}`,
-    CATEGORIES: '/products/categories',
-    SEARCH: '/products/search',
-    HEALTHCHECK: '/products/healthcheck'
-  },
-  
-  // Categories
-  CATEGORIES: {
-    LIST: '/categories',
-    DETAIL: (id: string) => `/categories/${id}`,
-    PRODUCTS: (id: string) => `/categories/${id}/products`
-  },
-  
-  // Orders
-  ORDERS: {
-    LIST: '/orders',
-    DETAIL: (id: string) => `/orders/${id}`,
-    CREATE: '/orders',
-    UPDATE: (id: string) => `/orders/${id}`,
-    DELETE: (id: string) => `/orders/${id}`
-  },
-  
   // Users
   USERS: {
     LIST: '/users',
@@ -43,13 +18,56 @@ export const API_ENDPOINTS = {
     ORDERS: '/users/orders',
     FAVORITES: '/users/favorites'
   },
-  
+
   // Authentication
   AUTH: {
     LOGIN: '/users',
     VERIFY: '/auth/verify',
     REFRESH: '/auth/refresh',
     LOGOUT: '/auth/logout'
+  },
+
+  // Pre Quote
+  PRE_QUOTE: {
+    COMBO: '/pre_quote/combo',
+    CREATE: '/pre_quote',
+    LIST: '/pre_quote',
+    DETAIL: (id: string) => `/pre_quote/${id}`,
+    UPDATE: (id: string) => `/pre_quote/${id}`,
+    DELETE: (id: string) => `/pre_quote/${id}`
+  },
+
+  // Content
+  CONTENT: {
+    LIST: '/content',
+    DETAIL: (id: string) => `/content/${id}`,
+    CATEGORIES: '/content_category',
+    BY_BRAND: (brand: string) => `/content?brand=${brand}`
+  },
+
+  // Sectors/Brands
+  SECTOR: {
+    LIST: '/sector',
+    DETAIL: (id: string) => `/sector/${id}`,
+    PRODUCTS: (id: string) => `/sector/${id}/products`
+  },
+
+  // Agents
+  AGENTS: {
+    LIST: '/agents',
+    DETAIL: (id: string) => `/agents/${id}`,
+    CREATE: '/agents',
+    UPDATE: (id: string) => `/agents/${id}`,
+    DELETE: (id: string) => `/agents/${id}`
+  },
+
+  // Customers
+  CUSTOMERS: {
+    LIST: '/customer',
+    DETAIL: (id: string) => `/customer/${id}`,
+    CREATE: '/customer',
+    UPDATE: (id: string) => `/customer/${id}`,
+    DELETE: (id: string) => `/customer/${id}`
   }
 };
 
