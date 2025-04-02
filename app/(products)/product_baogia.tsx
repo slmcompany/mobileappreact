@@ -189,44 +189,70 @@ export default function ProductQuoteScreen() {
                             return (
                                 <View key={`${group.template.id}-${index}`} style={styles.equipmentCard}>
                                     <View style={styles.itemRow}>
-                                        {firstItem.merchandise?.images?.[0]?.link ? (
-                                            <Image 
-                                                source={{ uri: firstItem.merchandise.images[0].link }}
-                                                style={styles.itemImage}
-                                                resizeMode="cover"
-                                            />
-                                        ) : (
-                                            <Image 
-                                                source={require('@/assets/images/replace-holder.png')}
-                                                style={styles.itemImage}
-                                                resizeMode="contain"
-                                            />
-                                        )}
+                                        <View style={styles.imageContainer}>
+                                            {firstItem.merchandise.data_json?.warranty_years && (
+                                                <View style={styles.warrantyTag}>
+                                                    <Text style={styles.warrantyText}>
+                                                        Bảo hành {firstItem.merchandise.data_json.warranty_years} năm
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            {firstItem.merchandise?.images?.[0]?.link ? (
+                                                <Image 
+                                                    source={{ uri: firstItem.merchandise.images[0].link }}
+                                                    style={styles.itemImage}
+                                                    resizeMode="cover"
+                                                />
+                                            ) : (
+                                                <Image 
+                                                    source={require('@/assets/images/replace-holder.png')}
+                                                    style={styles.itemImage}
+                                                    resizeMode="contain"
+                                                />
+                                            )}
+                                        </View>
                                         <View style={styles.itemContent}>
                                             <Text style={styles.itemName}>{firstItem.merchandise.name}</Text>
                                             {firstItem.merchandise.data_json && (
                                                 <View style={styles.specList}>
-                                                    {Object.entries(firstItem.merchandise.data_json).map(([key, value], idx) => {
+                                                    {Object.entries(firstItem.merchandise.data_json)
+                                                        .filter(([key]) => key !== 'price_vnd' && key !== 'area_m2' && key !== 'thickness_mm' && key !== 'height_mm' && key !== 'width_mm' && key !== 'warranty_years' && key !== 'phase_type' && key !== 'weight_kg' && key !== 'brand_ranking' && key !== 'installation_type' && key !== 'cell_brand' && key !== 'max_upgrade_kwh')
+                                                        .map(([key, value], idx) => {
                                                         const displayKey = key === 'power_watt' ? 'Công suất' 
                                                             : key === 'technology' ? 'Công nghệ'
+                                                            : key === 'installation_method' ? 'Lắp đặt'
+                                                            : key === 'dc_max_power_kw' ? 'Đầu vào DC Max'
+                                                            : key === 'ac_power_kw' ? 'Công suất AC'
+                                                            : key === 'storage_capacity_kwh' ? 'Dung lượng'
                                                             : key;
+                                                        
+                                                        const displayValue = key === 'dc_max_power_kw'
+                                                            ? `${String(value)} kW`
+                                                            : key === 'ac_power_kw'
+                                                            ? `${String(value)} kW`
+                                                            : key === 'storage_capacity_kwh'
+                                                            ? `${String(value)} kWh`
+                                                            : String(value);
+                                                            
                                                         return (
                                                             <Text key={idx} style={styles.specText}>
-                                                                {displayKey}: {String(value)}
+                                                                {displayKey}: {displayValue}
                                                             </Text>
                                                         );
                                                     })}
                                                 </View>
                                             )}
-                                            <Text style={styles.itemPrice}>
-                                                {firstItem.price?.toLocaleString('vi-VN')} đ
-                                            </Text>
-                                            <View style={styles.quantityContainer}>
-                                                <Text style={styles.quantityLabel}>Số lượng</Text>
-                                                <View style={styles.quantityBadge}>
-                                                    <Text style={styles.quantityValue}>
-                                                        {firstItem.quantity}
-                                                    </Text>
+                                            <View style={styles.priceQuantityRow}>
+                                                <Text style={styles.itemPrice}>
+                                                    {firstItem.price ? (Math.round(firstItem.price / 10000) * 10000).toLocaleString('vi-VN') : 0} đ
+                                                </Text>
+                                                <View style={styles.quantityContainer}>
+                                                    <Text style={styles.quantityLabel}>Số lượng</Text>
+                                                    <View style={styles.quantityBadge}>
+                                                        <Text style={styles.quantityValue}>
+                                                            {firstItem.quantity}
+                                                        </Text>
+                                                    </View>
                                                 </View>
                                             </View>
                                         </View>
@@ -238,9 +264,11 @@ export default function ProductQuoteScreen() {
 
                 {/* Price and Commitment */}
                 <View style={styles.priceCommitment}>
-                    <Text style={styles.commitmentText}>
-                        Trọn gói 100% Cam kết không phát sinh với mái ngói, mái tôn
-                    </Text>
+                    <View style={styles.commitmentTextContainer}>
+                        <Text style={styles.commitmentText}>Trọn gói 100%</Text>
+                        <Text style={styles.commitmentText}>Cam kết không phát sinh</Text>
+                        <Text style={styles.commitmentText}>với mái ngói, mái tôn</Text>
+                    </View>
                     <View style={styles.priceTag}>
                         <Text style={styles.price}>
                             {product.total_price ? roundToTenThousands(product.total_price).toLocaleString('vi-VN') : '0'}
@@ -266,21 +294,25 @@ export default function ProductQuoteScreen() {
                     ))}
                 </View>
 
+                {/* Tax Info and Hotline */}
+                <View style={styles.taxAndHotlineContainer}>
+                    <Text style={styles.taxInfoText}>
+                        Giá đã bao gồm thuế. Phí vận chuyển và các chi phí khác (nếu có) sẽ được thông báo tới quý khách hàng thông qua nhân viên tư vấn.
+                    </Text>
+                    <TouchableOpacity style={styles.phoneButton}>
+                        <Ionicons name="call" size={20} color="#fff" />
+                        <Text style={styles.phoneNumber}>0969 66 33 87</Text>
+                    </TouchableOpacity>
+                </View>
+
                 {/* Company Info */}
                 <View style={styles.companyInfo}>
-                    <View style={styles.companyDetails}>
+                    <View style={styles.companyInfoRow}>
                         <Text style={styles.companyName}>CÔNG TY CỔ PHẦN ĐẦU TƯ SLM</Text>
-                        <Text style={styles.companyAddress}>
-                            Tầng 5, Tòa nhà Diamond Flower Tower Số 01, Đ. Hoàng Đạo Thúy, P. Nhân Chính Quận Thanh Xuân, Hà Nội
-                        </Text>
                     </View>
-                    
-                    <View style={styles.contactInfo}>
-                        <TouchableOpacity style={styles.phoneButton}>
-                            <Ionicons name="call" size={20} color="#fff" />
-                            <Text style={styles.phoneNumber}>0969 66 33 87</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <Text style={styles.companyAddress}>
+                        Tầng 5, Tòa nhà Diamond Flower Tower Số 01, Đ. Hoàng Đạo Thúy, P. Nhân Chính Quận Thanh Xuân, Hà Nội
+                    </Text>
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -449,7 +481,6 @@ const styles = StyleSheet.create({
     itemName: {
         fontSize: 14,
         color: '#091E42',
-        marginHorizontal: 8,
         paddingTop: 4,
     },
     itemQuantity: {
@@ -475,11 +506,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
     },
-    commitmentText: {
+    commitmentTextContainer: {
         flex: 1,
+    },
+    commitmentText: {
         fontSize: 14,
         fontWeight: '700',
         color: '#27273E',
+        lineHeight: 20,
     },
     priceTag: {
         backgroundColor: '#ED1C24',
@@ -504,21 +538,20 @@ const styles = StyleSheet.create({
         padding: 16,
         backgroundColor: '#DCDCE6',
     },
-    companyDetails: {
-        marginBottom: 16,
+    companyInfoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
     },
     companyName: {
         fontSize: 10,
         fontWeight: '700',
         color: '#27273E',
-        marginBottom: 4,
     },
     companyAddress: {
         fontSize: 8,
         color: '#27273E',
-    },
-    contactInfo: {
-        alignItems: 'center',
     },
     phoneButton: {
         backgroundColor: '#ED1C24',
@@ -623,17 +656,55 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     itemPrice: {
-        fontSize: 12,
+        fontSize: 14,
         color: '#ED1C24',
         fontWeight: '500',
-        marginTop: 4,
     },
     specList: {
         marginTop: 2,
     },
     specText: {
-        fontSize: 10,
+        fontSize: 12,
         color: '#7B7D9D',
-        lineHeight: 16,
+        lineHeight: 20,
+    },
+    priceQuantityRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    imageContainer: {
+        position: 'relative',
+    },
+    warrantyTag: {
+        position: 'absolute',
+        bottom: 4,
+        left: 4,
+        backgroundColor: '#ED1C24',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+        zIndex: 1,
+    },
+    warrantyText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontWeight: '500',
+    },
+    taxAndHotlineContainer: {
+        backgroundColor: '#F5F5F8',
+        padding: 10,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 16,
+    },
+    taxInfoText: {
+        fontSize: 8,
+        lineHeight: 12,
+        color: '#7B7D9D',
+        flex: 1,
     },
 }); 
