@@ -512,10 +512,38 @@ export default function GalleryScreen() {
                     
                     <View style={styles.postTextOverlay}>
                       <View>
-                        <View style={styles.categoryContainer}>
-                          <View style={styles.redDot} />
-                          <Text style={styles.categoryText}>{post.category?.name || ''}</Text>
+                        <View style={styles.categoryRow}>
+                          <TouchableOpacity 
+                            style={styles.categoryTag}
+                            onPress={() => {
+                              if (post.category?.code) {
+                                router.push({
+                                  pathname: '/post-detail',
+                                  params: { id: post.id }
+                                });
+                              }
+                            }}
+                          >
+                            <Text style={styles.categoryText} numberOfLines={1}>
+                              {post.category?.name || ''}
+                            </Text>
+                          </TouchableOpacity>
+
+                          {post.media_contents && post.media_contents.length > 1 && (
+                            <View style={styles.dotsContainer}>
+                              {post.media_contents.map((_, index) => (
+                                <View 
+                                  key={index} 
+                                  style={[
+                                    styles.dot,
+                                    index === (currentImageIndexes[post.id] || 0) ? styles.activeDot : null
+                                  ]} 
+                                />
+                              ))}
+                            </View>
+                          )}
                         </View>
+
                         <View style={styles.descriptionContainer}>
                           <Text style={styles.postDescription} numberOfLines={2}>
                             {post.description && post.description.length > 80 ? (
@@ -548,22 +576,6 @@ export default function GalleryScreen() {
                           </Text>
                         </View>
                       </View>
-                      
-                      {post.media_contents && post.media_contents.length > 1 && (
-                        <View style={styles.postIndicators}>
-                          <View style={styles.dotsContainer}>
-                            {post.media_contents.map((_, index) => (
-                              <View 
-                                key={index} 
-                                style={[
-                                  styles.dot,
-                                  index === (currentImageIndexes[post.id] || 0) ? styles.activeDot : null
-                                ]} 
-                              />
-                            ))}
-                          </View>
-                        </View>
-                      )}
                     </View>
                   </View>
                 </View>
@@ -761,6 +773,7 @@ const styles = StyleSheet.create({
   dotsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingRight: 5,
   },
   dot: {
     width: 6,
@@ -830,21 +843,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
-  categoryContainer: {
+  categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 8,
   },
-  redDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#D9261C',
-    marginRight: 8,
+  categoryTag: {
+    backgroundColor: '#FFF1F0',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    maxWidth: '60%',
+    borderWidth: 1,
+    borderColor: '#FFE4E1',
   },
   categoryText: {
     fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
+    color: '#D9261C',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 }); 
