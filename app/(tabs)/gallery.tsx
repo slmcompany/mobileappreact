@@ -1,16 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Image, Linking, Alert, ImageStyle, StyleProp, ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Image, Linking, Alert, ImageStyle, StyleProp, ViewStyle, useWindowDimensions, Modal, FlatList, Dimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import RenderHtml from 'react-native-render-html';
+import WebView from 'react-native-webview';
 
 // Định nghĩa kiểu dữ liệu
+interface MediaContent {
+  id: number;
+  title: string;
+  kind: string;
+  content_id: number;
+  link: string;
+  created_at: string;
+}
+
 interface Post {
   id: number;
   title: string;
+  description?: string;
   hashtag?: string;
   imageUrl?: string;
-  brandId?: string;
+  media_contents?: MediaContent[];
+  category?: {
+    code: string;
+    id: number;
+    name: string;
+    sector: string;
+  };
+  content?: string;
+  created_at?: string;
+}
+
+interface Sector {
+  id: number;
+  name: string;
+  code: string;
+  image: string;
+  image_rectangular: string;
+  description: string | null;
+  tech_phone: string | null;
+  sale_phone: string | null;
 }
 
 // Dữ liệu người dùng
@@ -31,15 +62,22 @@ const users = [
 interface ImageWithFallbackProps {
   uri: string | undefined;
   style: StyleProp<ViewStyle & ImageStyle>;
+  priority?: boolean;
 }
 
 // Thêm component riêng để xử lý ảnh và lỗi CORS
-const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({ uri, style }) => {
+const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({ uri, style, priority = false }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   
-  // Sử dụng ảnh dự phòng local
   const fallbackImage = require('../../assets/images/replace-holder.png');
+  
+  useEffect(() => {
+    if (uri && priority) {
+      Image.prefetch(uri).catch(() => setHasError(true));
+    }
+  }, [uri, priority]);
   
   return (
     <View style={[style as ViewStyle, {overflow: 'hidden', position: 'relative'}]}>
@@ -54,15 +92,24 @@ const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({ uri, style }) => 
           source={fallbackImage}
           style={style}
           resizeMode="cover"
-          onLoadEnd={() => setIsLoading(false)}
+          onLoadEnd={() => {
+            setIsLoading(false);
+            setIsImageLoaded(true);
+          }}
         />
       ) : (
         <Image 
           source={{ uri: uri }}
-          style={style}
+          style={[
+            style,
+            !isImageLoaded && { opacity: 0 }
+          ]}
           resizeMode="cover"
           onLoadStart={() => setIsLoading(true)}
-          onLoadEnd={() => setIsLoading(false)}
+          onLoadEnd={() => {
+            setIsLoading(false);
+            setIsImageLoaded(true);
+          }}
           onError={() => {
             console.log("Lỗi khi tải ảnh:", uri);
             setHasError(true);
@@ -80,323 +127,251 @@ const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({ uri, style }) => 
   );
 };
 
+// Định nghĩa interface cho API response
+interface ContentItem {
+  id: number;
+  title: string;
+  description?: string;
+  content?: string;
+  hashtag?: string;
+  media_contents?: MediaContent[];
+  category?: {
+    code: string;
+    id: number;
+    name: string;
+    sector: string;
+  };
+  created_at?: string;
+}
+
+// Thêm hàm format thời gian
+const formatTimeAgo = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (isNaN(seconds)) {
+    return '0 phút trước';
+  }
+
+  let interval = Math.floor(seconds / 31536000);
+  if (interval >= 1) {
+    return `${interval} năm trước`;
+  }
+
+  interval = Math.floor(seconds / 2592000);
+  if (interval >= 1) {
+    return `${interval} tháng trước`;
+  }
+
+  interval = Math.floor(seconds / 86400);
+  if (interval >= 1) {
+    return `${interval} ngày trước`;
+  }
+
+  interval = Math.floor(seconds / 3600);
+  if (interval >= 1) {
+    return `${interval} giờ trước`;
+  }
+
+  interval = Math.floor(seconds / 60);
+  if (interval >= 1) {
+    return `${interval} phút trước`;
+  }
+
+  if (seconds < 10) return 'vừa xong';
+
+  return `${Math.floor(seconds)} giây trước`;
+};
+
+// Thêm hàm stripHtmlTags sau phần import
+const stripHtmlTags = (html: string) => {
+  if (!html) return '';
+  const text = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+  return text.length > 80 ? text.substring(0, 80) : text;
+};
+
 export default function GalleryScreen() {
+  const router = useRouter();
+  const { width } = useWindowDimensions();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentBrand, setCurrentBrand] = useState('solarmax');
+  const [sectors, setSectors] = useState<Sector[]>([]);
+  const [expandedPosts, setExpandedPosts] = useState<Set<number>>(new Set());
+  const [webViewVisible, setWebViewVisible] = useState(false);
+  const [webViewUrl, setWebViewUrl] = useState('');
+  const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: number]: number }>({});
   
   const insets = useSafeAreaInsets();
 
   // Fetch dữ liệu từ API
-  const fetchPosts = async (brand: string = 'solarmax') => {
-    // Tạo biến để lưu trữ ID timeout
+  const fetchPosts = async () => {
     let timeoutId: NodeJS.Timeout | null = null;
     
     try {
       setLoading(true);
       setError(null);
       
-      // Test trực tiếp với dữ liệu API cứng (mock data)
-      const mockApiData = [
-        {
-          "content": "<p>Bạn có tin: Chỉ 1 triệu đồng cho 1,000 số điện?</p>...",
-          "created_at": "2025-03-27T05:02:51.348947",
-          "id": 1,
-          "title": "Chỉ 1 triệu đồng",
-          "category_id": 1,
-          "hashtag": "#slmsolar #hieudungmuadung #post #bancotin #1trieudongcho1000sodien",
-          "category": {
-            "code": "HDMD",
-            "description": null,
-            "id": 1,
-            "name": "Hiểu đúng mua đúng"
-          },
-          "media_contents": [
-            {
-              "url": "https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/04.%20Content%20/HDMD/Post1_Chi1trieudong/Post1_Chi1trdong_1.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJzb2xhcm1heC8wNC4gQ29udGVudCAvSERNRC9Qb3N0MV9DaGkxdHJpZXVkb25nL1Bvc3QxX0NoaTF0cmRvbmdfMS5wbmciLCJpYXQiOjE3NDMwNTI3OTQsImV4cCI6MTc3NDU4ODc5NH0.clPUbkF2n0-un9VOgZXAzfRlMFACuzA8LngstW35sTI&t=2025-03-27T05%3A19%3A54.105Z"
-            }
-          ]
-        }
-      ];
-      
-      // Kiểm tra xem có cần thử kết nối API thực tế không
-      const shouldTryRealApi = false; // Đặt thành true để thử API thực, false để dùng dữ liệu mẫu
-      
-      let data;
-      
-      if (shouldTryRealApi) {
-        // Các URL API khác nhau để thử
-        const apiUrls = [
-          'https://id.slmsolar.com/api/content',
-          'http://id.slmsolar.com/api/content',
-          'https://slmsolar.com/api/content'
-        ];
-        
-        let successfulResponse = null;
-        let errorMessages = [];
-        
-        // Thử từng URL cho đến khi thành công
-        for (const apiUrl of apiUrls) {
-          try {
-            console.log(`Thử fetch dữ liệu từ: ${apiUrl}`);
-            
-            // Tạo AbortController để có thể hủy request
-            const controller = new AbortController();
-            
-            // Thiết lập timeout 10 giây
-            timeoutId = setTimeout(() => {
-              console.log(`Request timeout cho ${apiUrl} - đang hủy fetch`);
-              controller.abort();
-            }, 10000);
-            
-            // Gọi API
-            const response = await fetch(apiUrl, {
-              method: 'GET',
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              signal: controller.signal
-            });
-            
-            // Xóa timeout nếu request thành công
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-              timeoutId = null;
-            }
-            
-            if (response.ok) {
-              successfulResponse = response;
-              console.log(`Kết nối thành công tới ${apiUrl}`);
-              break;
-            } else {
-              errorMessages.push(`${apiUrl}: ${response.status} ${response.statusText}`);
-            }
-          } catch (urlError: any) {
-            // Đảm bảo timeout đã được xóa
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-              timeoutId = null;
-            }
-            errorMessages.push(`${apiUrl}: ${urlError.message}`);
-            console.error(`Lỗi khi kết nối đến ${apiUrl}:`, urlError);
-            continue;
-          }
-        }
-        
-        if (!successfulResponse) {
-          throw new Error(`Không thể kết nối đến bất kỳ API nào: ${errorMessages.join(', ')}`);
-        }
-        
-        // Parse JSON response từ API thành công
-        const text = await successfulResponse.text();
-        console.log("RAW API RESPONSE:", text.substring(0, 200) + "...");
-        
-        try {
-          data = JSON.parse(text);
-          console.log("Dữ liệu API đã được parse thành công");
-        } catch (jsonError) {
-          console.error("Lỗi khi parse JSON:", jsonError);
-          throw new Error("Dữ liệu API không đúng định dạng JSON");
-        }
-      } else {
-        // Sử dụng dữ liệu mẫu
-        console.log("Sử dụng dữ liệu mẫu thay vì gọi API");
-        data = mockApiData;
+      const response = await fetch('https://id.slmsolar.com/api/content');
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
+      const data = await response.json();
       
-      // Kiểm tra cấu trúc dữ liệu
-      console.log("Cấu trúc dữ liệu:", {
-        isArray: Array.isArray(data),
-        length: Array.isArray(data) ? data.length : 'không phải mảng',
-        type: typeof data,
-        sample: data && Array.isArray(data) && data.length > 0 ? JSON.stringify(data[0]).substring(0, 100) + "..." : "không có dữ liệu"
-      });
-      
-      // Chỉ lấy id và title từ mỗi bài viết
-      if (Array.isArray(data) && data.length > 0) {
-        console.log(`Số lượng bài viết: ${data.length}`);
-        
-        // Log dữ liệu chi tiết của bài viết đầu tiên
-        if (data[0]) {
-          console.log("Chi tiết bài viết đầu tiên:", {
-            id: data[0].id,
-            title: data[0].title,
-            hasTitle: Boolean(data[0].title),
-            hasId: Boolean(data[0].id)
-          });
-        }
-        
-        // Tạo mảng posts mới với chỉ id, title, hashtag và imageUrl
-        const simplifiedPosts = data
-          .filter(item => item && typeof item === 'object' && 'id' in item && 'title' in item) // Đảm bảo item hợp lệ
-          .map(item => {
-            console.log("----------------- CHI TIẾT ITEM -----------------");
-            console.log("ID:", item.id);
-            console.log("Title:", item.title);
-            console.log("Hashtag:", item.hashtag);
-            
-            // Debug chi tiết media_contents
-            if (item.media_contents) {
-              console.log("media_contents là mảng?", Array.isArray(item.media_contents));
-              console.log("media_contents độ dài:", item.media_contents.length);
-              
-              if (Array.isArray(item.media_contents) && item.media_contents.length > 0) {
-                const firstMedia = item.media_contents[0];
-                console.log("Media đầu tiên:", JSON.stringify(firstMedia));
-                
-                // Liệt kê tất cả các thuộc tính của firstMedia
-                console.log("Các thuộc tính của media đầu tiên:", Object.keys(firstMedia));
-                
-                // Kiểm tra các thuộc tính có thể chứa URL
-                const possibleImageFields = ['url', 'link', 'image_url', 'imageUrl', 'src', 'source', 'path'];
-                possibleImageFields.forEach(field => {
-                  if (field in firstMedia) {
-                    console.log(`Tìm thấy trường ${field}:`, firstMedia[field]);
-                  }
-                });
-              }
-            } else {
-              console.log("Item KHÔNG có media_contents");
+      const simplifiedPosts = data
+        .filter((item: ContentItem) => item && typeof item === 'object' && 'id' in item && 'title' in item)
+        .map((item: ContentItem) => {
+          console.log("----------------- CHI TIẾT ITEM -----------------");
+          console.log("ID:", item.id);
+          console.log("Title:", item.title);
+          console.log("Hashtag:", item.hashtag);
+          console.log("Category:", item.category);
+          
+          let imageUrl = "";
+          
+          if (item.media_contents && Array.isArray(item.media_contents)) {
+            const imageContent = item.media_contents.find((media: MediaContent) => media.kind === "image");
+            if (imageContent) {
+              imageUrl = imageContent.link;
+              console.log("Tìm thấy ảnh:", imageUrl);
             }
-            
-            let imageUrl = null;
-            
-            // Kiểm tra nhiều khả năng để tìm URL ảnh
-            if (item.media_contents && Array.isArray(item.media_contents) && item.media_contents.length > 0) {
-              const firstMedia = item.media_contents[0];
-              
-              // Cách 1: Kiểm tra các trường phổ biến
-              for (const field of ['url', 'link', 'image_url', 'imageUrl', 'src', 'source', 'path']) {
-                if (firstMedia[field]) {
-                  imageUrl = firstMedia[field];
-                  console.log(`Tìm thấy URL ảnh trong trường ${field}:`, imageUrl);
-                  break;
-                }
-              }
-              
-              // Cách 2: Nếu firstMedia là string, có thể đó chính là URL
-              if (!imageUrl && typeof firstMedia === 'string') {
-                imageUrl = firstMedia;
-                console.log("media_contents[0] là string, sử dụng làm URL:", imageUrl);
-              }
-              
-              // Cách 3: Thử lấy giá trị của thuộc tính đầu tiên nếu không có trường nào ở trên
-              if (!imageUrl && typeof firstMedia === 'object') {
-                const firstKey = Object.keys(firstMedia)[0];
-                if (firstKey && typeof firstMedia[firstKey] === 'string') {
-                  imageUrl = firstMedia[firstKey];
-                  console.log(`Không tìm thấy trường URL chuẩn, sử dụng giá trị đầu tiên (${firstKey}):`, imageUrl);
-                }
-              }
-            }
-            
-            // Sử dụng fallback nếu không tìm thấy URL
-            if (!imageUrl) {
-              imageUrl = "";  // Để trống để kích hoạt ảnh dự phòng
-              console.log("Sử dụng ảnh dự phòng local replace-holder.png do không tìm thấy URL trong media_contents");
-            }
-            
-            console.log("URL ảnh cuối cùng:", imageUrl);
-            console.log("----------------- HẾT CHI TIẾT -----------------");
-            
-            return {
-              id: item.id,
-              title: item.title,
-              hashtag: item.hashtag || '',
-              imageUrl: imageUrl,
-              brandId: brand === 'eliton' ? '2' : '1'
-            };
-          });
-        
-        console.log("Số bài viết hợp lệ:", simplifiedPosts.length);
-        console.log("Posts sau khi xử lý:", simplifiedPosts);
-        
-        if (simplifiedPosts.length > 0) {
-          setPosts(simplifiedPosts);
-          setCurrentBrand(brand);
-        } else {
-          console.warn("Không có bài viết nào với title hợp lệ");
-          // Sử dụng fallback
-          const fallbackPosts = [
-            {
-              id: 1,
-              title: "Chỉ 1 triệu đồng",
-              hashtag: "#slmsolar #hieudungmuadung #post #bancotin #1trieudongcho1000sodien",
-              imageUrl: "",  // Để trống để kích hoạt ảnh dự phòng
-              brandId: brand === 'eliton' ? '2' : '1'
-            }
-          ];
-          setPosts(fallbackPosts);
-          setCurrentBrand(brand);
-        }
-      } else {
-        console.log("Không có dữ liệu hoặc dữ liệu không phải mảng:", data);
-        
-        // Sử dụng fallback
-        const fallbackPosts = [
-          {
-            id: 1,
-            title: "Chỉ 1 triệu đồng",
-            hashtag: "#slmsolar #hieudungmuadung #post #bancotin #1trieudongcho1000sodien",
-            imageUrl: "",  // Để trống để kích hoạt ảnh dự phòng
-            brandId: brand === 'eliton' ? '2' : '1'
           }
-        ];
-        setPosts(fallbackPosts);
-        setCurrentBrand(brand);
-      }
+          
+          if (!imageUrl) {
+            imageUrl = "";
+            console.log("Sử dụng ảnh dự phòng do không tìm thấy ảnh trong media_contents");
+          }
+          
+          console.log("URL ảnh cuối cùng:", imageUrl);
+          console.log("----------------- HẾT CHI TIẾT -----------------");
+          
+          return {
+            id: item.id,
+            title: item.title,
+            description: stripHtmlTags(item.description || item.content || item.title),
+            content: item.content || '',
+            hashtag: item.hashtag || '',
+            imageUrl: imageUrl,
+            media_contents: item.media_contents?.filter((media: MediaContent) => media.kind === "image") || [],
+            category: item.category,
+            created_at: item.created_at
+          };
+        });
+      
+      setPosts(simplifiedPosts);
       
     } catch (err) {
-      // Đảm bảo timeout đã được xóa nếu có lỗi
       if (timeoutId) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
       
       console.error('Lỗi khi lấy dữ liệu:', err);
-      
-      // Xử lý các loại lỗi cụ thể
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        console.log('Lỗi AbortError - request bị hủy bỏ');
-        setError('Yêu cầu bị hủy do quá thời gian. Vui lòng kiểm tra kết nối mạng của bạn.');
-      } else if (err instanceof TypeError && err.message.includes('Network request failed')) {
-        console.log('Lỗi Network request failed');
-        setError('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại sau.');
-      } else {
       setError('Đã xảy ra lỗi khi tải dữ liệu: ' + (err instanceof Error ? err.message : String(err)));
-      }
       
-      // Nếu không lấy được dữ liệu từ API, hiển thị dữ liệu hardcode
-      console.log("Sử dụng dữ liệu fallback");
+      // Fallback data với category
       const fallbackPosts = [
         {
           id: 1,
           title: "Chỉ 1 triệu đồng",
+          content: "Bạn có tin: Chỉ 1 triệu đồng cho 1,000 số điện? Hãy cùng SolarMax tìm hiểu về cách tiết kiệm điện hiệu quả với năng lượng mặt trời...",
           hashtag: "#slmsolar #hieudungmuadung #post #bancotin #1trieudongcho1000sodien",
-          imageUrl: "",  // Để trống để kích hoạt ảnh dự phòng
-          brandId: brand === 'eliton' ? '2' : '1'
+          imageUrl: "",
+          category: {
+            code: "HDMD",
+            id: 1,
+            name: "Hiểu đúng mua đúng",
+            sector: "SLM"
+          }
         }
       ];
       setPosts(fallbackPosts);
-      setCurrentBrand(brand);
       setError(null);
     } finally {
       setLoading(false);
     }
   };
 
+  // Thêm hàm fetchSectors
+  const fetchSectors = async () => {
+    try {
+      const response = await fetch('https://id.slmsolar.com/api/sector');
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setSectors(data);
+    } catch (error) {
+      console.error('Error fetching sectors:', error);
+      // Fallback data
+      setSectors([
+        {
+          id: 1,
+          name: 'SolarMax',
+          code: 'SLM',
+          image: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/06.%20Brand/01.%20SolarMax/SolarMax.jpg',
+          image_rectangular: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/Logo/Logo_SolarMax.jpg',
+          description: null,
+          tech_phone: null,
+          sale_phone: null
+        },
+        {
+          id: 2,
+          name: 'Eliton',
+          code: 'ELT',
+          image: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/06.%20Brand/02.%20Eliton/Eliton.jpg',
+          image_rectangular: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/Logo/Logo_Eliton.jpg',
+          description: null,
+          tech_phone: null,
+          sale_phone: null
+        }
+      ]);
+    }
+  };
+
+  // Thêm useEffect để fetch sectors
+  useEffect(() => {
+    fetchSectors();
+  }, []);
+
   useEffect(() => {
     fetchPosts();
   }, []);
 
   const navigateToBrand = (brandId: string) => {
-    if (brandId === '1') {
-      fetchPosts('solarmax');
-    } else if (brandId === '2') {
-      fetchPosts('eliton');
+    const brandCode = brandId === '2' ? 'ELT' : 'SLM';
+    setCurrentBrand(brandCode.toLowerCase());
+  };
+
+  // Thêm hàm toggle expanded
+  const togglePostExpanded = (postId: number) => {
+    setExpandedPosts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+
+  // Thêm hàm xử lý khi scroll kết thúc
+  const handleViewableItemsChanged = React.useCallback(({ viewableItems, changed }: any) => {
+    if (viewableItems.length > 0) {
+      const postId = viewableItems[0].item.postId;
+      const index = viewableItems[0].index;
+      setCurrentImageIndexes(prev => ({
+        ...prev,
+        [postId]: index
+      }));
     }
+  }, []);
+
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 50
   };
 
   return (
@@ -434,33 +409,17 @@ export default function GalleryScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.usersList}
           >
-            {users.map((user) => (
+            {sectors.map((sector) => (
               <TouchableOpacity 
-                key={user.id} 
-                style={[
-                  styles.userItem, 
-                  (currentBrand === 'solarmax' && user.id === '1') || 
-                  (currentBrand === 'eliton' && user.id === '2') 
-                    ? styles.activeUserItem : null
-                ]}
-                onPress={() => navigateToBrand(user.id)}
+                key={sector.id} 
+                style={styles.userItem}
+                onPress={() => navigateToBrand(sector.id.toString())}
               >
-                <Image 
-                  source={user.avatar} 
-                  style={[
-                    styles.userAvatar,
-                    (currentBrand === 'solarmax' && user.id === '1') || 
-                    (currentBrand === 'eliton' && user.id === '2') 
-                      ? styles.activeUserAvatar : null
-                  ]} 
-                  resizeMode="contain"
+                <ImageWithFallback 
+                  uri={sector.image_rectangular}
+                  style={styles.userAvatar}
                 />
-                <Text style={[
-                  styles.userName,
-                  (currentBrand === 'solarmax' && user.id === '1') || 
-                  (currentBrand === 'eliton' && user.id === '2') 
-                    ? styles.activeUserName : null
-                ]}>{user.name}</Text>
+                <Text style={styles.userName}>{sector.name}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -478,7 +437,7 @@ export default function GalleryScreen() {
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity 
               style={styles.retryButton}
-              onPress={() => fetchPosts(currentBrand)}
+              onPress={() => fetchPosts()}
             >
               <Text style={styles.retryButtonText}>Thử lại</Text>
             </TouchableOpacity>
@@ -489,97 +448,122 @@ export default function GalleryScreen() {
               posts.map((post) => (
                 <View key={post.id} style={styles.postContainer}>
                   <View style={styles.postItem}>
-                    <View style={styles.postImageContainer}>
+                    <View style={styles.userInfoBar}>
                       <ImageWithFallback 
-                        uri={post.imageUrl}
-                        style={styles.postImage}
+                        uri={sectors.find(s => s.code === post.category?.sector)?.image_rectangular || ''}
+                        style={styles.smallLogo} 
                       />
-                      <TouchableOpacity 
-                        style={styles.imageOverlayButton}
-                        onPress={() => {
-                          if (post.imageUrl) {
-                            console.log('Đang mở link ảnh:', post.imageUrl);
-                            // Thử mở trong ứng dụng
-                            Linking.canOpenURL(post.imageUrl)
-                              .then(supported => {
-                                if (supported) {
-                                  if (post.imageUrl) {
-                                    return Linking.openURL(post.imageUrl);
-                                  }
-                                } else {
-                                  // Nếu không mở được, thử url khác
-                                  const imgUrl = post.imageUrl || ''; 
-                                  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imgUrl)}`;
-                                  Alert.alert(
-                                    'Thông báo',
-                                    'URL gốc không thể mở trực tiếp. Bạn có muốn thử mở qua proxy?',
-                                    [
-                                      {
-                                        text: 'Hủy',
-                                        style: 'cancel'
-                                      },
-                                      {
-                                        text: 'Thử',
-                                        onPress: () => Linking.openURL(proxyUrl)
-                                      }
-                                    ]
-                                  );
-                                }
-                              })
-                              .catch(err => {
-                                console.error('Lỗi khi mở URL:', err);
-                                Alert.alert('Lỗi', 'Đã xảy ra lỗi khi mở URL');
-                              });
-                          }
-                        }}
-                      >
-                        <Ionicons name="open-outline" size={20} color="#ffffff" />
+                      <Text style={styles.postAuthor}>
+                        {sectors.find(s => s.code === post.category?.sector)?.name || 'Unknown'}
+                      </Text>
+                      <Text style={styles.postTime}>
+                        {post.created_at ? formatTimeAgo(post.created_at) : '0 phút trước'}
+                      </Text>
+                      <TouchableOpacity style={styles.moreButton}>
+                        <Ionicons name="ellipsis-vertical" size={16} color="#666" />
                       </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.postImageContainer}>
+                      <FlatList
+                        data={post.media_contents?.map((media, index) => ({
+                          uri: media.link,
+                          postId: post.id,
+                          index
+                        })) || [{ uri: post.imageUrl, postId: post.id, index: 0 }]}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item, index) => `${item.postId}-${index}`}
+                        onViewableItemsChanged={handleViewableItemsChanged}
+                        viewabilityConfig={viewabilityConfig}
+                        initialNumToRender={1}
+                        maxToRenderPerBatch={2}
+                        windowSize={3}
+                        removeClippedSubviews={true}
+                        renderItem={({ item, index }) => (
+                          <View style={[styles.postImageContainer, { width: Dimensions.get('window').width }]}>
+                            <ImageWithFallback
+                              uri={item.uri}
+                              style={styles.postImage}
+                              priority={index === 0}
+                            />
+                          </View>
+                        )}
+                        onEndReachedThreshold={0.5}
+                        onEndReached={() => {
+                          // Prefetch next images if available
+                          const nextImages = post.media_contents?.slice((currentImageIndexes[post.id] || 0) + 1);
+                          nextImages?.forEach(media => {
+                            if (media.link) {
+                              Image.prefetch(media.link);
+                            }
+                          });
+                        }}
+                      />
+                      {post.media_contents && post.media_contents.length > 0 && (
+                        <View style={styles.imageCounter}>
+                          <Text style={styles.imageCounterText}>
+                            {((currentImageIndexes[post.id] || 0) + 1)}/{post.media_contents.length}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                     
                     <View style={styles.postTextOverlay}>
-                      <View style={styles.userInfoBar}>
-                        <Image 
-                          source={post.brandId === '2' ? require('../../assets/images/eliton-logo.png') : require('../../assets/images/solarmax-logo.png')} 
-                          style={styles.smallLogo} 
-                          resizeMode="contain"
-                        />
-                        <Text style={styles.postAuthor}>{post.brandId === '2' ? 'Eliton' : 'SolarMax'}</Text>
-                        <Text style={styles.postTime}>0 min ago</Text>
-                        <TouchableOpacity style={styles.moreButton}>
-                          <Ionicons name="ellipsis-vertical" size={16} color="#666" />
-                        </TouchableOpacity>
-                      </View>
-                      
-                      <Text 
-                        style={styles.postTitle} 
-                        numberOfLines={2}
-                        ellipsizeMode="tail"
-                      >
-                        {post.title}
-                      </Text>
-                      
-                      <View style={styles.postIndicators}>
-                        <View style={styles.dotsContainer}>
-                          <View style={[styles.dot, styles.activeDot]} />
-                          <View style={styles.dot} />
-                          <View style={styles.dot} />
+                      <View>
+                        <View style={styles.categoryContainer}>
+                          <View style={styles.redDot} />
+                          <Text style={styles.categoryText}>{post.category?.name || ''}</Text>
                         </View>
-                        <Text style={styles.pageIndicator}>1/3</Text>
+                        <View style={styles.descriptionContainer}>
+                          <Text style={styles.postDescription} numberOfLines={2}>
+                            {post.description && post.description.length > 80 ? (
+                              <>
+                                {post.description.substring(0, 80)}
+                                <Text 
+                                  onPress={() => router.push({
+                                    pathname: '/post-detail',
+                                    params: { id: post.id }
+                                  })}
+                                  style={styles.seeMoreText}
+                                >
+                                  ... Xem chi tiết
+                                </Text>
+                              </>
+                            ) : (
+                              <>
+                                {post.description}
+                                <Text 
+                                  onPress={() => router.push({
+                                    pathname: '/post-detail',
+                                    params: { id: post.id }
+                                  })}
+                                  style={styles.seeMoreText}
+                                >
+                                  ... Xem chi tiết
+                                </Text>
+                              </>
+                            )}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                    
-                    <View style={styles.postDetailContainer}>
-                      <Text 
-                        style={styles.postDetailText} 
-                        numberOfLines={2} 
-                        ellipsizeMode="tail"
-                      >
-                        {post.title} | Em biết không? | Phần 4 | DA296 - Hải Dương...
-                      </Text>
-                      <TouchableOpacity>
-                        <Text style={styles.seeMoreText}>xem thêm</Text>
-                      </TouchableOpacity>
+                      
+                      {post.media_contents && post.media_contents.length > 1 && (
+                        <View style={styles.postIndicators}>
+                          <View style={styles.dotsContainer}>
+                            {post.media_contents.map((_, index) => (
+                              <View 
+                                key={index} 
+                                style={[
+                                  styles.dot,
+                                  index === (currentImageIndexes[post.id] || 0) ? styles.activeDot : null
+                                ]} 
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -593,6 +577,32 @@ export default function GalleryScreen() {
           </ScrollView>
         )}
       </SafeAreaView>
+      <Modal
+        visible={webViewVisible}
+        animationType="slide"
+        onRequestClose={() => setWebViewVisible(false)}
+      >
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={styles.webViewHeader}>
+            <TouchableOpacity 
+              onPress={() => setWebViewVisible(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          <WebView 
+            source={{ uri: webViewUrl }}
+            style={{ flex: 1 }}
+            startInLoadingState={true}
+            renderLoading={() => (
+              <View style={styles.webViewLoading}>
+                <ActivityIndicator size="large" color="#D9261C" />
+              </View>
+            )}
+          />
+        </SafeAreaView>
+      </Modal>
     </>
   );
 }
@@ -621,7 +631,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 20,
     padding: 5,
-    borderRadius: 8,
   },
   userAvatar: {
     width: 50,
@@ -636,19 +645,6 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 12,
     color: '#000000',
-  },
-  activeUserItem: {
-    backgroundColor: 'rgba(217, 38, 28, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  activeUserAvatar: {
-    borderWidth: 2,
-    borderColor: '#D9261C',
-  },
-  activeUserName: {
-    fontWeight: 'bold',
-    color: '#D9261C',
   },
   loadingContainer: {
     flex: 1,
@@ -698,25 +694,28 @@ const styles = StyleSheet.create({
     height: undefined,
     aspectRatio: 1,
     backgroundColor: '#f5f5f5',
+    overflow: 'hidden',
   },
   postImage: {
     width: '100%',
     height: '100%',
     backgroundColor: '#f5f5f5',
+    resizeMode: 'cover',
   },
   postTextOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'white',
     paddingHorizontal: 15,
     paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   userInfoBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    padding: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   smallLogo: {
     width: 24,
@@ -738,11 +737,21 @@ const styles = StyleSheet.create({
   moreButton: {
     padding: 5,
   },
-  postTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+  descriptionContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 8,
+  },
+  postDescription: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    flex: 1,
+  },
+  seeMoreText: {
+    color: '#D9261C',
+    fontWeight: '500',
+    fontSize: 14,
   },
   postIndicators: {
     flexDirection: 'row',
@@ -766,39 +775,19 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
-  pageIndicator: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  postDetailContainer: {
-    padding: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  postDetailText: {
-    fontSize: 15,
-    color: '#333',
-    marginBottom: 4,
-  },
-  seeMoreText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  imageOverlayButton: {
+  imageCounter: {
     position: 'absolute',
     bottom: 10,
     right: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  imageCounterText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
   },
   emptyContainer: {
     height: 300,
@@ -818,5 +807,44 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 4,
     backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  webViewHeader: {
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  webViewLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  redDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#D9261C',
+    marginRight: 8,
+  },
+  categoryText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
   },
 }); 

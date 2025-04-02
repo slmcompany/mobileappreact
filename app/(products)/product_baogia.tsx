@@ -287,7 +287,10 @@ export default function ProductQuoteScreen() {
                                 <Text style={styles.itemNumber}>{index + 1}</Text>
                                 <Text style={[styles.itemName, { flex: 1 }]}>{group.template.name}</Text>
                                 <Text style={[styles.itemQuantity, { textAlign: 'right', minWidth: 60 }]}>
-                                    {group.pre_quote_merchandises[0]?.quantity} bộ
+                                    {group.template.is_main 
+                                        ? `${group.pre_quote_merchandises[0]?.quantity} ${group.pre_quote_merchandises[0]?.merchandise.unit}`
+                                        : '1 Bộ'
+                                    }
                                 </Text>
                             </View>
                         </View>
@@ -296,9 +299,11 @@ export default function ProductQuoteScreen() {
 
                 {/* Tax Info and Hotline */}
                 <View style={styles.taxAndHotlineContainer}>
-                    <Text style={styles.taxInfoText}>
-                        Giá đã bao gồm thuế. Phí vận chuyển và các chi phí khác (nếu có) sẽ được thông báo tới quý khách hàng thông qua nhân viên tư vấn.
-                    </Text>
+                    <View style={styles.taxInfoContainer}>
+                        <Text style={styles.taxInfoText}>Giá đã bao gồm thuế. Phí vận chuyển và các chi phí</Text>
+                        <Text style={styles.taxInfoText}>khác (nếu có) sẽ được thông báo tới quý khách hàng</Text>
+                        <Text style={styles.taxInfoText}>thông qua nhân viên tư vấn.</Text>
+                    </View>
                     <TouchableOpacity style={styles.phoneButton}>
                         <Ionicons name="call" size={20} color="#fff" />
                         <Text style={styles.phoneNumber}>0969 66 33 87</Text>
@@ -308,12 +313,59 @@ export default function ProductQuoteScreen() {
                 {/* Company Info */}
                 <View style={styles.companyInfo}>
                     <View style={styles.companyInfoRow}>
-                        <Text style={styles.companyName}>CÔNG TY CỔ PHẦN ĐẦU TƯ SLM</Text>
+                        <View style={styles.companyDetails}>
+                            <Text style={styles.companyName}>CÔNG TY CỔ PHẦN ĐẦU TƯ SLM</Text>
+                            <View style={styles.addressContainer}>
+                                <Text style={styles.companyAddress}>Tầng 5, Tòa nhà Diamond Flower Tower</Text>
+                                <Text style={styles.companyAddress}>Số 01, Đ. Hoàng Đạo Thúy, P. Nhân Chính</Text>
+                                <Text style={styles.companyAddress}>Quận Thanh Xuân, Hà Nội</Text>
+                            </View>
+                        </View>
+                        <Image 
+                            source={require('@/assets/images/qr-bank.png')}
+                            style={styles.qrCode}
+                            resizeMode="contain"
+                        />
                     </View>
-                    <Text style={styles.companyAddress}>
-                        Tầng 5, Tòa nhà Diamond Flower Tower Số 01, Đ. Hoàng Đạo Thúy, P. Nhân Chính Quận Thanh Xuân, Hà Nội
-                    </Text>
                 </View>
+
+                {/* Website and Social Media */}
+                <View style={styles.socialContainer}>
+                    <View style={styles.websiteRow}>
+                        <Ionicons name="globe-outline" size={12} color="#fff" />
+                        <Text style={styles.socialText}>www.slmsolar.com</Text>
+                    </View>
+                    <View style={styles.socialRow}>
+                        <View style={styles.socialIconsGroup}>
+                            <View style={styles.socialIconBox}>
+                                <Ionicons name="logo-facebook" size={8} color="#7B7D9D" />
+                            </View>
+                            <View style={styles.socialIconBox}>
+                                <Ionicons name="logo-youtube" size={8} color="#7B7D9D" />
+                            </View>
+                            <View style={styles.socialIconBox}>
+                                <Ionicons name="logo-tiktok" size={8} color="#7B7D9D" />
+                            </View>
+                        </View>
+                        <Text style={styles.socialText}>@solarmax87</Text>
+                    </View>
+                </View>
+
+                {/* Customer Info Button */}
+                <TouchableOpacity 
+                    style={styles.customerInfoButton}
+                    onPress={() => {
+                        router.push({
+                            pathname: "/(customer)/customer_info",
+                            params: { 
+                                product_id: product.id,
+                                return_path: "/product_baogia"
+                            }
+                        });
+                    }}
+                >
+                    <Text style={styles.customerInfoButtonText}>Thêm thông tin khách hàng</Text>
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
@@ -359,7 +411,8 @@ const styles = StyleSheet.create({
     },
     greenBanner: {
         backgroundColor: '#0F974A',
-        padding: 12,
+        padding: 4,
+        paddingHorizontal: 8,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -367,48 +420,51 @@ const styles = StyleSheet.create({
     bannerLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 4,
     },
     productImage: {
-        height: 64,
+        height: 40,
         aspectRatio: 1,
-        borderRadius: 4,
+        borderRadius: 3,
     },
     sectorLogo: {
-        width: 24,
-        height: 24,
+        width: 16,
+        height: 16,
     },
     bannerText: {
         color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
+        fontSize: 11,
+        fontWeight: '600',
         flex: 1,
         textAlign: 'right',
+        lineHeight: 14,
     },
     systemInfo: {
-        padding: 16,
+        padding: 12,
         position: 'relative',
     },
     systemType: {
-        marginBottom: 16,
+        marginBottom: 12,
         paddingRight: 100,
     },
     infoRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 8,
+        marginBottom: 4,
     },
     infoLabel: {
         fontSize: 18,
         fontWeight: '700',
         color: '#004B22',
+        lineHeight: 22,
     },
     productionNote: {
         fontSize: 14,
         color: '#7B7D9D',
         textAlign: 'left',
-        marginTop: 8,
+        marginTop: 4,
         fontWeight: '500',
+        lineHeight: 18,
     },
     systemTags: {
         flexDirection: 'column',
@@ -454,10 +510,11 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     sectionTitle: {
-        fontSize: 12,
+        fontSize: 16,
         fontWeight: '700',
         color: '#98A1B0',
         marginBottom: 16,
+        textAlign: 'center',
     },
     equipmentItem: {
         borderBottomWidth: 0.5,
@@ -467,10 +524,12 @@ const styles = StyleSheet.create({
     itemRow: {
         flexDirection: 'row',
         gap: 12,
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     itemNumber: {
         width: 24,
-        fontSize: 14,
+        fontSize: 16,
         color: '#091E42',
         textAlign: 'center',
     },
@@ -479,19 +538,19 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     itemName: {
-        fontSize: 14,
+        fontSize: 16,
         color: '#091E42',
-        paddingTop: 4,
+        flex: 1,
     },
     itemQuantity: {
-        fontSize: 14,
+        fontSize: 16,
         color: '#091E42',
         paddingHorizontal: 8,
         backgroundColor: '#F5F5F8',
         borderRadius: 4,
         overflow: 'hidden',
-        alignSelf: 'flex-end',
-        marginTop: 8,
+        minWidth: 60,
+        textAlign: 'right',
     },
     itemImage: {
         width: itemImageSize,
@@ -522,6 +581,8 @@ const styles = StyleSheet.create({
         padding: 8,
         borderRadius: 6,
         marginLeft: 16,
+        borderWidth: 1,
+        borderColor: '#FFFFFF',
     },
     price: {
         fontSize: 20,
@@ -541,17 +602,25 @@ const styles = StyleSheet.create({
     companyInfoRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
+        alignItems: 'flex-start',
+    },
+    companyDetails: {
+        flex: 1,
+        marginRight: 16,
     },
     companyName: {
-        fontSize: 10,
+        fontSize: 14,
         fontWeight: '700',
         color: '#27273E',
+        marginBottom: 8,
+    },
+    addressContainer: {
+        gap: 2,
     },
     companyAddress: {
-        fontSize: 8,
+        fontSize: 12,
         color: '#27273E',
+        lineHeight: 16,
     },
     phoneButton: {
         backgroundColor: '#ED1C24',
@@ -563,7 +632,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     phoneNumber: {
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: '700',
         color: '#fff',
     },
@@ -594,16 +663,18 @@ const styles = StyleSheet.create({
     },
     infoDetails: {
         flex: 1,
-        gap: 6,
+        gap: 8,
     },
-    infoRowContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
+    productTitle: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#27273E',
+        marginBottom: 8,
+        lineHeight: 20,
     },
     infoText: {
         fontSize: 12,
-        lineHeight: 20,
+        lineHeight: 24,
         color: '#7B7D9D',
     },
     priceRow: {
@@ -611,7 +682,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         alignSelf: 'stretch',
-        marginTop: 4,
+        marginTop: 8,
     },
     priceWrapper: {
         flexDirection: 'row',
@@ -621,12 +692,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         fontSize: 12,
         color: '#ED1C24',
-    },
-    productTitle: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#27273E',
-        marginBottom: 4,
     },
     quantityContainer: {
         flexDirection: 'row',
@@ -701,10 +766,72 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 16,
     },
-    taxInfoText: {
-        fontSize: 8,
-        lineHeight: 12,
-        color: '#7B7D9D',
+    taxInfoContainer: {
         flex: 1,
+    },
+    taxInfoText: {
+        fontSize: 10,
+        lineHeight: 16,
+        color: '#7B7D9D',
+    },
+    qrCode: {
+        width: 120,
+        height: 120,
+        borderRadius: 4,
+        maxHeight: 120,
+    },
+    socialContainer: {
+        backgroundColor: '#27273E',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 6,
+        paddingHorizontal: 16,
+        gap: 14,
+    },
+    websiteRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    socialRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
+    },
+    socialIconsGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    socialIconBox: {
+        width: 16,
+        height: 16,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    socialText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#fff',
+        lineHeight: 16,
+    },
+    customerInfoButton: {
+        backgroundColor: '#ED1C24',
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderRadius: 100,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginHorizontal: 16,
+        marginVertical: 16,
+    },
+    customerInfoButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '700',
+        lineHeight: 24,
     },
 }); 
