@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator, Dimensions } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCombo } from '../../hooks/useCombo';
 import { useSector } from '../../hooks/useSector';
 
 const SECTOR_LOGO = 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/logo/logo-white.png';
+
+const { width: screenWidth } = Dimensions.get('window');
+const itemImageSize = screenWidth / 4;
 
 export default function ProductQuoteScreen() {
     const router = useRouter();
@@ -45,6 +48,10 @@ export default function ProductQuoteScreen() {
 
     const getPhaseFromType = (type?: string) => {
         return type?.includes('BA_PHA') ? 3 : 1;
+    };
+
+    const roundToTenThousands = (price: number) => {
+        return Math.round(price / 10000) * 10000;
     };
 
     if (isLoading) {
@@ -97,6 +104,40 @@ export default function ProductQuoteScreen() {
             />
             
             <ScrollView style={styles.container}>
+                <View style={styles.infoSection}>
+                    <View style={styles.infoContent}>
+                        {product.image ? (
+                            <Image 
+                                source={{ uri: product.image }}
+                                style={styles.comboImage}
+                                resizeMode="cover"
+                                onError={handleImageError}
+                            />
+                        ) : renderPlaceholder()}
+                        <View style={styles.infoDetails}>
+                            <Text style={styles.productTitle}>{product.name}</Text>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoText}>
+                                    Sản lượng điện: {productionRange}
+                                </Text>
+                            </View>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoText}>
+                                    Thời gian hoàn vốn
+                                </Text>
+                            </View>
+                            <View style={styles.priceRow}>
+                                <View style={styles.priceWrapper}>
+                                    <Text style={styles.priceText}>
+                                        {product.total_price ? roundToTenThousands(product.total_price).toLocaleString('vi-VN') : '0'}
+                                    </Text>
+                                    <Text style={styles.priceText}>đ</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
                 {/* System Overview */}
                 <View style={styles.systemOverview}>
                     <View style={styles.greenBanner}>
@@ -140,19 +181,59 @@ export default function ProductQuoteScreen() {
 
                 {/* Equipment List */}
                 <View style={styles.equipmentList}>
-                    <Text style={styles.sectionTitle}>DANH MỤC THIẾT BỊ</Text>
-                    
-                    {product.grouped_merchandises?.map((group, index) => (
-                        <View key={`${group.template.id}-${index}`} style={styles.equipmentItem}>
-                            <View style={styles.itemRow}>
-                                <Text style={styles.itemNumber}>{index + 1}</Text>
-                                <Text style={styles.itemName}>{group.template.name}</Text>
-                                <Text style={styles.itemQuantity}>
-                                    {group.pre_quote_merchandises[0]?.quantity} bộ
-                                </Text>
-                            </View>
-                        </View>
-                    ))}
+                    {product.grouped_merchandises?.filter(group => group.template.is_main)
+                        .map((group, index) => {
+                            const firstItem = group.pre_quote_merchandises[0];
+                            if (!firstItem) return null;
+                            
+                            return (
+                                <View key={`${group.template.id}-${index}`} style={styles.equipmentCard}>
+                                    <View style={styles.itemRow}>
+                                        {firstItem.merchandise?.images?.[0]?.link ? (
+                                            <Image 
+                                                source={{ uri: firstItem.merchandise.images[0].link }}
+                                                style={styles.itemImage}
+                                                resizeMode="cover"
+                                            />
+                                        ) : (
+                                            <Image 
+                                                source={require('@/assets/images/replace-holder.png')}
+                                                style={styles.itemImage}
+                                                resizeMode="contain"
+                                            />
+                                        )}
+                                        <View style={styles.itemContent}>
+                                            <Text style={styles.itemName}>{firstItem.merchandise.name}</Text>
+                                            {firstItem.merchandise.data_json && (
+                                                <View style={styles.specList}>
+                                                    {Object.entries(firstItem.merchandise.data_json).map(([key, value], idx) => {
+                                                        const displayKey = key === 'power_watt' ? 'Công suất' 
+                                                            : key === 'technology' ? 'Công nghệ'
+                                                            : key;
+                                                        return (
+                                                            <Text key={idx} style={styles.specText}>
+                                                                {displayKey}: {String(value)}
+                                                            </Text>
+                                                        );
+                                                    })}
+                                                </View>
+                                            )}
+                                            <Text style={styles.itemPrice}>
+                                                {firstItem.price?.toLocaleString('vi-VN')} đ
+                                            </Text>
+                                            <View style={styles.quantityContainer}>
+                                                <Text style={styles.quantityLabel}>Số lượng</Text>
+                                                <View style={styles.quantityBadge}>
+                                                    <Text style={styles.quantityValue}>
+                                                        {firstItem.quantity}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </View>
+                            );
+                        })}
                 </View>
 
                 {/* Price and Commitment */}
@@ -162,10 +243,27 @@ export default function ProductQuoteScreen() {
                     </Text>
                     <View style={styles.priceTag}>
                         <Text style={styles.price}>
-                            {product.total_price?.toLocaleString('vi-VN')}
+                            {product.total_price ? roundToTenThousands(product.total_price).toLocaleString('vi-VN') : '0'}
                         </Text>
                         <Text style={styles.currency}>đ</Text>
                     </View>
+                </View>
+
+                {/* Equipment List (Duplicated) */}
+                <View style={styles.equipmentListDuplicate}>
+                    <Text style={styles.sectionTitle}>DANH MỤC THIẾT BỊ</Text>
+                    
+                    {product.grouped_merchandises?.map((group, index) => (
+                        <View key={`duplicate-${group.template.id}-${index}`} style={styles.equipmentItem}>
+                            <View style={styles.itemRow}>
+                                <Text style={styles.itemNumber}>{index + 1}</Text>
+                                <Text style={[styles.itemName, { flex: 1 }]}>{group.template.name}</Text>
+                                <Text style={[styles.itemQuantity, { textAlign: 'right', minWidth: 60 }]}>
+                                    {group.pre_quote_merchandises[0]?.quantity} bộ
+                                </Text>
+                            </View>
+                        </View>
+                    ))}
                 </View>
 
                 {/* Company Info */}
@@ -308,6 +406,20 @@ const styles = StyleSheet.create({
     },
     equipmentList: {
         padding: 16,
+        gap: 12,
+    },
+    equipmentCard: {
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        padding: 12,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
     },
     sectionTitle: {
         fontSize: 12,
@@ -322,7 +434,7 @@ const styles = StyleSheet.create({
     },
     itemRow: {
         flexDirection: 'row',
-        alignItems: 'center',
+        gap: 12,
     },
     itemNumber: {
         width: 24,
@@ -330,17 +442,31 @@ const styles = StyleSheet.create({
         color: '#091E42',
         textAlign: 'center',
     },
-    itemName: {
+    itemContent: {
         flex: 1,
+        justifyContent: 'space-between',
+    },
+    itemName: {
         fontSize: 14,
         color: '#091E42',
         marginHorizontal: 8,
+        paddingTop: 4,
     },
     itemQuantity: {
-        width: 60,
         fontSize: 14,
         color: '#091E42',
-        textAlign: 'center',
+        paddingHorizontal: 8,
+        backgroundColor: '#F5F5F8',
+        borderRadius: 4,
+        overflow: 'hidden',
+        alignSelf: 'flex-end',
+        marginTop: 8,
+    },
+    itemImage: {
+        width: itemImageSize,
+        height: itemImageSize,
+        borderRadius: 4,
+        backgroundColor: '#F5F5F8',
     },
     priceCommitment: {
         backgroundColor: '#f5f5f8',
@@ -411,5 +537,103 @@ const styles = StyleSheet.create({
     placeholderImage: {
         width: 200,
         height: 200,
+    },
+    equipmentListDuplicate: {
+        padding: 16,
+        backgroundColor: '#fff',
+        marginTop: 16,
+    },
+    infoSection: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: '#fff',
+    },
+    infoContent: {
+        flexDirection: 'row',
+        gap: 12,
+        alignItems: 'center',
+    },
+    comboImage: {
+        width: 80,
+        height: 80,
+        borderRadius: 8,
+        backgroundColor: '#F5F5F8',
+    },
+    infoDetails: {
+        flex: 1,
+        gap: 6,
+    },
+    infoRowContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    infoText: {
+        fontSize: 12,
+        lineHeight: 20,
+        color: '#7B7D9D',
+    },
+    priceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        alignSelf: 'stretch',
+        marginTop: 4,
+    },
+    priceWrapper: {
+        flexDirection: 'row',
+        gap: 2,
+    },
+    priceText: {
+        fontWeight: '700',
+        fontSize: 12,
+        color: '#ED1C24',
+    },
+    productTitle: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#27273E',
+        marginBottom: 4,
+    },
+    quantityContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        alignSelf: 'flex-end',
+        marginTop: 8,
+    },
+    quantityLabel: {
+        fontSize: 8,
+        lineHeight: 12,
+        color: '#7B7D9D',
+    },
+    quantityBadge: {
+        backgroundColor: '#7B7D9D',
+        paddingHorizontal: 6,
+        height: 16,
+        minWidth: 16,
+        borderRadius: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    quantityValue: {
+        fontSize: 8,
+        lineHeight: 12,
+        color: '#FFFFFF',
+        textAlign: 'center',
+    },
+    itemPrice: {
+        fontSize: 12,
+        color: '#ED1C24',
+        fontWeight: '500',
+        marginTop: 4,
+    },
+    specList: {
+        marginTop: 2,
+    },
+    specText: {
+        fontSize: 10,
+        color: '#7B7D9D',
+        lineHeight: 16,
     },
 }); 
