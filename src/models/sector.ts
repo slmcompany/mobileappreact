@@ -80,18 +80,19 @@ export interface GroupedMerchandise {
 }
 
 export interface Combo {
+  id: number;
   name: string;
-  description: string | null;
+  description?: string;
+  image?: string;
   total_price: number;
-  kind: string;
+  type?: 'DOC_LAP_MOT_PHA' | 'DOC_LAP_BA_PHA' | 'BAM_TAI_MOT_PHA' | 'BAM_TAI_BA_PHA';
+  power_output?: string;
   status: string;
   sector: string;
   code: string;
-  id: number;
   created_at: string;
   installation_type: string;
   customer_id: number | null;
-  image: string;
   customer: any;
   pre_quote_merchandises: any[];
   grouped_merchandises: GroupedMerchandise[];
@@ -100,12 +101,11 @@ export interface Combo {
 export interface Sector {
   id: number;
   name: string;
+  description?: string;
+  logo?: string;
   image: string;
+  image_rectangular: string;
   sale_phone: string | null;
-  description: string | null;
-  code: string;
-  image_rectangular: string | null;
-  tech_phone: string | null;
-  list_combos: Combo[];
+  list_combos?: Combo[];
   list_contents: Content[];
 } 

@@ -173,7 +173,10 @@ const ProductSection = ({ sector }: { sector: Sector }) => {
           type="primary"
           size="small"
           style={{ borderWidth: 0, backgroundColor: 'transparent', paddingRight: 8 }}
-          onPress={() => router.push('/(products)/product-line')}
+          onPress={() => router.push({
+            pathname: "/(products)/product_brand",
+            params: { id: sector.id }
+          })}
         >
           <Flex align="center">
             <Text style={styles.viewAllText}>Tất cả</Text>
@@ -446,7 +449,10 @@ export default function HomeScreen() {
                   key={sector.id}
                   style={styles.brandCard}
                   activeOpacity={0.8}
-                  onPress={() => router.push('/(products)/product-line')}
+                  onPress={() => router.push({
+                    pathname: "/(products)/product_brand",
+                    params: { id: sector.id }
+                  })}
                 >
                   <View style={styles.brandContent}>
                     <Image 
@@ -718,9 +724,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     width: '48%',
-    height: 64,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -746,7 +752,7 @@ const styles = StyleSheet.create({
   },
   brandLogo: {
     width: '100%',
-    height: 40,
+    height: 32,
   },
   promoCard: {
     backgroundColor: 'transparent',

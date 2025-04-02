@@ -1,106 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Dimensions, ActivityIndicator, Modal, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useCombo } from '../../hooks/useCombo';
 
-interface PreQuoteCombo {
-  id: number;
-  code: string;
-  description: string;
-  total_price: number;
-  kind: string;
-  status: string;
-  name: string;
-  created_at: string;
-  installation_type: string;
-  customer_id: number;
-  image_url?: string;
-  customer: {
-    id: number;
-    address: string;
-    created_at: string | null;
-    user_id: number | null;
-    name: string;
-    phone: string;
-    email: string;
-    description: string | null;
-  };
-  pre_quote_merchandises: Array<{
-    id: number;
-    merchandise_id: number;
-    quantity: number;
-    pre_quote_id: number;
-    note: string | null;
-    price: number;
-    merchandise: {
-      id: number;
-      supplier_id: number | null;
-      name: string;
-      unit: string;
-      data_json: {
-        power_watt?: string;
-        width_mm?: string;
-        height_mm?: string;
-        thickness_mm?: string;
-        area_m2?: string;
-        weight_kg?: string;
-        technology?: string;
-        warranty_years?: string;
-        price_vnd?: string;
-        ac_power_kw?: number;
-        dc_max_power_kw?: number;
-        installation_type?: string;
-        phase_type?: string;
-        brand_ranking?: number;
-      };
-      active: boolean;
-      template_id: number;
-      brand_id: number;
-      code: string;
-      data_sheet_link: string;
-      description_in_contract: string;
-      created_at: string;
-    };
-  }>;
-}
-
-export default function ProductPage() {
+export default function ProductDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [product, setProduct] = useState<PreQuoteCombo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    fetchProductDetails();
-  }, [id]);
-
-  const fetchProductDetails = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('https://id.slmsolar.com/api/pre_quote/combo');
-      const data: PreQuoteCombo[] = await response.json();
-      const foundProduct = data.find(p => p.id.toString() === id);
-      
-      if (foundProduct) {
-        setProduct(foundProduct);
-      } else {
-        setError('Không tìm thấy sản phẩm');
-      }
-    } catch (err) {
-      setError('Có lỗi xảy ra khi tải dữ liệu sản phẩm');
-      console.error('Error fetching product:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOpenDatasheet = (url: string) => {
-    Linking.openURL(url);
-  };
+  const { data: product, isLoading, error } = useCombo(Number(id));
 
   const handleImageError = () => {
     setImageError(true);
@@ -116,7 +25,7 @@ export default function ProductPage() {
     );
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
@@ -132,20 +41,21 @@ export default function ProductPage() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={48} color="#FF3B30" />
-          <Text style={styles.errorText}>{error || 'Không tìm thấy sản phẩm'}</Text>
+          <Text style={styles.errorText}>{error?.message || 'Không tìm thấy sản phẩm'}</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const totalPower = product.pre_quote_merchandises.reduce((sum, merch) => {
-    const power = merch.merchandise.data_json.power_watt || '0';
-    return sum + (parseInt(power) * merch.quantity);
-  }, 0);
-
-  const phaseType = product.pre_quote_merchandises.some(merch => 
-    merch.merchandise.data_json.phase_type === '3-phase'
-  ) ? 'BA PHA' : 'MỘT PHA';
+  const getTypeDisplay = (type?: string) => {
+    switch(type) {
+      case 'DOC_LAP_MOT_PHA': return 'ĐỘC LẬP - MỘT PHA';
+      case 'DOC_LAP_BA_PHA': return 'ĐỘC LẬP - BA PHA';
+      case 'BAM_TAI_MOT_PHA': return 'BÁM TẢI - MỘT PHA';
+      case 'BAM_TAI_BA_PHA': return 'BÁM TẢI - BA PHA';
+      default: return 'ĐỘC LẬP';
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -205,29 +115,17 @@ export default function ProductPage() {
       )}
       
       <ScrollView style={styles.container}>
-        {/* Product Images Carousel */}
+        {/* Product Images */}
         <View style={styles.carousel}>
           <View style={styles.imageContainer}>
-            {product?.image_url && !imageError ? (
+            {product.image && !imageError ? (
               <Image 
-                source={{ uri: product.image_url }}
+                source={{ uri: product.image }} 
                 style={styles.productImage}
                 resizeMode="contain"
                 onError={handleImageError}
               />
             ) : renderPlaceholder()}
-            
-            <View style={styles.imageIndicators}>
-              {[...Array(5)].map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.imageIndicator,
-                    index === currentImageIndex && styles.imageIndicatorActive
-                  ]}
-                />
-              ))}
-            </View>
           </View>
         </View>
 
@@ -240,9 +138,20 @@ export default function ProductPage() {
         
         {/* Product Information */}
         <View style={styles.productInfo}>
-          <Text style={styles.productName}>{product?.name || 'Hệ Độc lập Một pha 8kW'}</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.productName}>{product.name}</Text>
+            <TouchableOpacity 
+              style={styles.badgeContainer}
+              onPress={() => router.push({
+                pathname: "/product_baogia",
+                params: { id: product.id }
+              })}
+            >
+              <Text style={styles.badgeText}>Xem báo giá</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.productPrice}>
-            {product ? product.total_price.toLocaleString('vi-VN') : '124 570 689'} đ
+            {product.total_price.toLocaleString('vi-VN')} đ
           </Text>
           
           <View style={styles.priceInfo}>
@@ -256,62 +165,41 @@ export default function ProductPage() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>MÔ TẢ SẢN PHẨM</Text>
-              <TouchableOpacity 
-                style={styles.quoteButton}
-                onPress={() => {
-                  const productId = Array.isArray(id) ? id[0] : id;
-                  router.push(`/product_baogia/${productId}`);
-                }}
-              >
-                <Text style={styles.quoteButtonText}>Xem báo giá</Text>
-              </TouchableOpacity>
             </View>
             
             <View style={styles.descriptionItem}>
               <Text style={styles.descriptionLabel}>Tên sản phẩm</Text>
-              <Text style={styles.descriptionValue}>{product?.name || 'Hệ Độc lập Một pha 8kW'}</Text>
+              <Text style={styles.descriptionValue}>{product.name}</Text>
             </View>
             
             <View style={styles.descriptionItem}>
-              <Text style={styles.descriptionLabel}>Danh mục</Text>
-              <Text style={styles.descriptionValue}>Điện năng lượng mặt trời</Text>
+              <Text style={styles.descriptionLabel}>Loại</Text>
+              <Text style={styles.descriptionValue}>{getTypeDisplay(product.type)}</Text>
             </View>
-            
-            {/* Chi tiết thiết bị */}
+
             <View style={styles.descriptionItem}>
-              <Text style={styles.descriptionLabel}>Chi tiết thiết bị</Text>
-              <View style={styles.deviceDetails}>
-                {product?.pre_quote_merchandises.map((item, index) => (
-                  <Text key={index} style={styles.deviceDetailItem}>
-                    <Text style={styles.boldText}>{item.quantity} x </Text>
-                    {item.merchandise.name}
+              <Text style={styles.descriptionLabel}>Sản lượng điện</Text>
+              <Text style={styles.descriptionValue}>{product.power_output || '400-600 kWh/tháng'}</Text>
+            </View>
+
+            {/* Grouped Merchandises */}
+            {product.grouped_merchandises?.map((group, index) => (
+              <View key={index} style={styles.descriptionItem}>
+                <Text style={styles.descriptionLabel}>{group.template.name}</Text>
+                {group.pre_quote_merchandises.map((item, idx) => (
+                  <Text key={idx} style={styles.descriptionValue}>
+                    {item.quantity}x {item.merchandise.name}
                   </Text>
-                )) || (
-                  <>
-                    <Text style={styles.deviceDetailItem}>
-                      <Text style={styles.boldText}>10 x </Text>
-                      Tấm quang năng JASolar 580W, loại 01 mặt kính
-                    </Text>
-                    <Text style={styles.deviceDetailItem}>
-                      <Text style={styles.boldText}>01 x </Text>
-                      Biến tần Solis Hybrid 5kW
-                    </Text>
-                    <Text style={styles.deviceDetailItem}>
-                      <Text style={styles.boldText}>01 x </Text>
-                      Pin lưu trữ Lithium Dyness 5kWh - bản xếp tầng
-                    </Text>
-                    <Text style={styles.deviceDetailItem}>
-                      <Text style={styles.boldText}>01 x </Text>
-                      Hệ khung nhôm cao cấp: Full-rail
-                    </Text>
-                    <Text style={styles.deviceDetailItem}>
-                      <Text style={styles.boldText}>01 x </Text>
-                      Bộ tủ điện năng lượng mặt trời SolarMax
-                    </Text>
-                  </>
-                )}
+                ))}
               </View>
-            </View>
+            ))}
+            
+            {product.description && (
+              <View style={styles.descriptionItem}>
+                <Text style={styles.descriptionLabel}>Chi tiết</Text>
+                <Text style={styles.descriptionValue}>{product.description}</Text>
+              </View>
+            )}
             
             {/* Lưu ý */}
             <View style={styles.note}>
@@ -319,27 +207,6 @@ export default function ProductPage() {
                 Mọi thông tin trên đây chỉ mang tính chất tham khảo.
                 Để nhận báo giá chi tiết vui lòng liên hệ hotline 0969 66 33 87
               </Text>
-            </View>
-          </View>
-
-          {/* Datasheet Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>DATASHEET</Text>
-            <View style={styles.datasheetList}>
-              {product?.pre_quote_merchandises.map((item, index) => (
-                item.merchandise.data_sheet_link && (
-                  <TouchableOpacity 
-                    key={index}
-                    style={styles.datasheetItem}
-                    onPress={() => handleOpenDatasheet(item.merchandise.data_sheet_link)}
-                  >
-                    <Ionicons name="document-text-outline" size={24} color="#666" />
-                    <Text style={styles.datasheetText}>
-                      {item.merchandise.name} - Datasheet
-                    </Text>
-                  </TouchableOpacity>
-                )
-              ))}
             </View>
           </View>
         </View>
@@ -351,7 +218,13 @@ export default function ProductPage() {
           <Ionicons name="share-social-outline" size={24} color="#333" />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.addCustomerButton}>
+        <TouchableOpacity 
+          style={styles.addCustomerButton}
+          onPress={() => {
+            // TODO: Implement customer add navigation
+            console.log('Add customer for combo:', product.id);
+          }}
+        >
           <Ionicons name="add-circle-outline" size={22} color="#fff" style={{marginRight: 5}} />
           <Text style={styles.addCustomerButtonText}>Thêm thông tin khách hàng</Text>
         </TouchableOpacity>
@@ -368,11 +241,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
   },
   headerButton: {
     width: 40,
@@ -416,48 +284,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
     paddingVertical: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   productImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
+    borderRadius: 12,
   },
   placeholderImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
-  },
-  imageIndicators: {
-    position: 'absolute',
-    bottom: 15,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    marginHorizontal: 3,
-  },
-  imageIndicatorActive: {
-    backgroundColor: '#00A650',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    borderRadius: 12,
   },
   productInfo: {
     backgroundColor: '#fff',
     padding: 15,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
   productName: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    flex: 1,
+    marginRight: 10,
   },
   productPrice: {
     fontSize: 24,
@@ -487,15 +345,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  quoteButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  quoteButtonText: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   descriptionItem: {
     marginBottom: 15,
   },
@@ -509,19 +358,6 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
-  deviceDetails: {
-    marginTop: 5,
-  },
-  deviceDetailItem: {
-    fontSize: 15,
-    color: '#333',
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  boldText: {
-    fontWeight: 'bold',
-    color: '#000',
-  },
   note: {
     backgroundColor: '#f8f9fa',
     padding: 12,
@@ -533,22 +369,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
     lineHeight: 18,
-  },
-  datasheetList: {
-    marginTop: 10,
-  },
-  datasheetItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  datasheetText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#0066CC',
-    textDecorationLine: 'underline',
   },
   bottomActions: {
     flexDirection: 'row',
@@ -619,5 +439,16 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  badgeContainer: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 
