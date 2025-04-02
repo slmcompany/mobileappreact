@@ -118,7 +118,7 @@ export default function ProductDetailScreen() {
         {/* Product Images */}
         <View style={styles.carousel}>
           <View style={styles.imageContainer}>
-            {product.image && !imageError ? (
+            {product.image ? (
               <Image 
                 source={{ uri: product.image }} 
                 style={styles.productImage}
@@ -138,18 +138,7 @@ export default function ProductDetailScreen() {
         
         {/* Product Information */}
         <View style={styles.productInfo}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.productName}>{product.name}</Text>
-            <TouchableOpacity 
-              style={styles.badgeContainer}
-              onPress={() => router.push({
-                pathname: "/product_baogia",
-                params: { id: product.id }
-              })}
-            >
-              <Text style={styles.badgeText}>Xem báo giá</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.productName}>{product.name}</Text>
           <Text style={styles.productPrice}>
             {product.total_price.toLocaleString('vi-VN')} đ
           </Text>
@@ -164,49 +153,46 @@ export default function ProductDetailScreen() {
           {/* Description */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>MÔ TẢ SẢN PHẨM</Text>
-            </View>
-            
-            <View style={styles.descriptionItem}>
-              <Text style={styles.descriptionLabel}>Tên sản phẩm</Text>
-              <Text style={styles.descriptionValue}>{product.name}</Text>
-            </View>
-            
-            <View style={styles.descriptionItem}>
-              <Text style={styles.descriptionLabel}>Loại</Text>
-              <Text style={styles.descriptionValue}>{getTypeDisplay(product.type)}</Text>
-            </View>
-
-            <View style={styles.descriptionItem}>
-              <Text style={styles.descriptionLabel}>Sản lượng điện</Text>
-              <Text style={styles.descriptionValue}>{product.power_output || '400-600 kWh/tháng'}</Text>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>MÔ TẢ SẢN PHẨM</Text>
+                <TouchableOpacity 
+                  onPress={() => router.push({
+                    pathname: "/product_baogia",
+                    params: { id: product.id }
+                  })}
+                >
+                  <Text style={styles.quoteLink}>Xem báo giá</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
-            {/* Grouped Merchandises */}
-            {product.grouped_merchandises?.map((group, index) => (
-              <View key={index} style={styles.descriptionItem}>
-                <Text style={styles.descriptionLabel}>{group.template.name}</Text>
-                {group.pre_quote_merchandises.map((item, idx) => (
-                  <Text key={idx} style={styles.descriptionValue}>
-                    {item.quantity}x {item.merchandise.name}
+            <View style={styles.descriptionContent}>
+              <View style={styles.descriptionItem}>
+                <Text style={styles.descriptionLabel}>Tên sản phẩm</Text>
+                <Text style={styles.descriptionValue}>{product.name}</Text>
+              </View>
+
+              <View style={styles.descriptionItem}>
+                <Text style={styles.descriptionLabel}>Loại</Text>
+                <Text style={styles.descriptionValue}>{getTypeDisplay(product.type)}</Text>
+              </View>
+
+              <View style={styles.descriptionItem}>
+                <Text style={styles.descriptionLabel}>Chi tiết thiết bị</Text>
+                {product.grouped_merchandises?.map((group, index) => (
+                  <Text key={index} style={styles.descriptionValue}>
+                    {group.pre_quote_merchandises[0]?.quantity} x {group.template.name}
                   </Text>
                 ))}
               </View>
-            ))}
-            
-            {product.description && (
+
               <View style={styles.descriptionItem}>
-                <Text style={styles.descriptionLabel}>Chi tiết</Text>
-                <Text style={styles.descriptionValue}>{product.description}</Text>
+                <Text style={styles.descriptionLabel}>Lưu ý</Text>
+                <Text style={styles.descriptionValue}>
+                  Mọi thông tin trên đây chỉ mang tính chất tham khảo.
+                  Để nhận báo giá chi tiết vui lòng liên hệ hotline 0969 66 33 87
+                </Text>
               </View>
-            )}
-            
-            {/* Lưu ý */}
-            <View style={styles.note}>
-              <Text style={styles.noteText}>
-                Mọi thông tin trên đây chỉ mang tính chất tham khảo.
-                Để nhận báo giá chi tiết vui lòng liên hệ hotline 0969 66 33 87
-              </Text>
             </View>
           </View>
         </View>
@@ -332,43 +318,41 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   section: {
-    marginTop: 20,
+    marginTop: 16,
   },
   sectionHeader: {
+    marginBottom: 12,
+  },
+  sectionTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7B7D9D',
+    textTransform: 'uppercase',
+  },
+  quoteLink: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#FF3B30',
+  },
+  descriptionContent: {
+    gap: 12,
   },
   descriptionItem: {
-    marginBottom: 15,
+    gap: 4,
   },
   descriptionLabel: {
     fontSize: 14,
-    color: '#888',
-    marginBottom: 5,
+    fontWeight: '700',
+    color: '#27273E',
   },
   descriptionValue: {
-    fontSize: 15,
-    color: '#333',
-    fontWeight: '500',
-  },
-  note: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 6,
-    marginTop: 5,
-    marginBottom: 20,
-  },
-  noteText: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
+    fontSize: 14,
+    color: '#27273E',
   },
   bottomActions: {
     flexDirection: 'row',
@@ -439,16 +423,5 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     fontStyle: 'italic',
-  },
-  badgeContainer: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 16,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
   },
 }); 
