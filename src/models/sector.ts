@@ -75,6 +75,7 @@ export interface GroupedMerchandise {
     name: string;
     code: string;
     structure_json: any;
+    image_rectangular?: string;
   };
   pre_quote_merchandises: PreQuoteMerchandise[];
 }
@@ -84,6 +85,7 @@ export interface Combo {
   name: string;
   description?: string;
   image?: string;
+  image_rectangular?: string;
   total_price: number;
   type?: 'DOC_LAP_MOT_PHA' | 'DOC_LAP_BA_PHA' | 'BAM_TAI_MOT_PHA' | 'BAM_TAI_BA_PHA';
   power_output?: string;
