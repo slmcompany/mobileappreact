@@ -1,5 +1,5 @@
 import React, { useState, useRef, Fragment, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, FlatList, Text as RNText, Image, SafeAreaView, Platform, StatusBar, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, View, ScrollView, FlatList, Text as RNText, Image, SafeAreaView, Platform, StatusBar, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { 
@@ -16,21 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Mock data cho sản phẩm
-const brandData = [
-  {
-    id: '1',
-    name: 'SOLAR MAX',
-    logo: require('../../assets/images/solarmax-logo.png'),
-  },
-  {
-    id: '2',
-    name: 'ELITON',
-    logo: require('../../assets/images/eliton-logo.png'),
-    
-  },
-];
+import { useSectors } from '../../hooks/useSector';
+import { Sector, Combo } from '../../models/sector';
 
 // Mock data cho promo cards
 const promoCards = [
@@ -49,28 +36,6 @@ const promoCards = [
     buttonText: 'Bắt đầu ngay',
     backgroundColor: '#D9261C',
     image: require('../../assets/images/team-promo.png'),
-  },
-];
-
-// Mock data cho sản phẩm bán chạy
-const bestSellerProducts = [
-  {
-    id: '1',
-    title: 'Hệ Độc lập Một pha 8kW',
-    description: 'Thang máy cao cấp dành cho gia đình',
-    image: require('../../assets/images/replace-holder.png'),
-  },
-  {
-    id: '2',
-    title: 'Hệ Độc lập Một pha 8kW',
-    description: 'Thang máy cao cấp dành cho gia đình',
-    image: require('../../assets/images/replace-holder.png'),
-  },
-  {
-    id: '3',
-    title: 'Hệ Độc lập Một pha 8kW',
-    description: 'Thang máy cao cấp dành cho gia đình',
-    image: require('../../assets/images/replace-holder.png'),
   },
 ];
 
@@ -155,13 +120,13 @@ const ArticleItem = ({ item }: { item: any }) => {
 };
 
 // Thêm component ProductItem
-const ProductItem = ({ item, width }: { item: any, width: number }) => {
+const ProductItem = ({ item, width }: { item: Combo, width: number }) => {
   return (
     <View style={[styles.productCard, { width: (width - 48) / 2.5, marginHorizontal: 4, marginBottom: 16 }]}>
       <View style={{ padding: 0, width: '100%', aspectRatio: 1, overflow: 'hidden' }}>
         {item.image ? (
           <Image 
-            source={item.image} 
+            source={{ uri: item.image }} 
             style={{ 
               width: '100%', 
               height: '100%', 
@@ -178,24 +143,37 @@ const ProductItem = ({ item, width }: { item: any, width: number }) => {
         )}
       </View>
       <View style={{ padding: 12, flex: 1 }}>
-        <Text style={styles.productTitle}>{item.title}</Text>
-        <Text style={styles.productPrice}>12.650.000đ</Text>
+        <Text style={styles.productTitle} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.productPrice}>
+          {new Intl.NumberFormat('vi-VN', { 
+            style: 'currency', 
+            currency: 'VND' 
+          }).format(item.total_price)}
+        </Text>
       </View>
     </View>
   );
 };
 
 // Thêm component ProductSection
-const ProductSection = ({ title, products, width, flatListRef }: { title: string, products: any[], width: number, flatListRef: any }) => {
+const ProductSection = ({ sector }: { sector: Sector }) => {
+  const { width } = Dimensions.get('window');
+  const flatListRef = useRef<FlatList>(null);
+
+  if (!sector.list_combos || sector.list_combos.length === 0) {
+    return null;
+  }
+
   return (
     <>
       <WhiteSpace size="lg" />
       <Flex justify="between" align="center">
-        <Text style={styles.sectionSubtitle}>{title}</Text>
+        <Text style={styles.sectionSubtitle}>{sector.name.toUpperCase()}</Text>
         <Button
           type="primary"
           size="small"
           style={{ borderWidth: 0, backgroundColor: 'transparent', paddingRight: 8 }}
+          onPress={() => router.push('/(products)/product-line')}
         >
           <Flex align="center">
             <Text style={styles.viewAllText}>Tất cả</Text>
@@ -213,11 +191,11 @@ const ProductSection = ({ title, products, width, flatListRef }: { title: string
         <FlatList
           ref={flatListRef}
           horizontal
-          data={products}
+          data={sector.list_combos}
           renderItem={({item}) => (
             <ProductItem item={item} width={width} />
           )}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item.id.toString()}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16 }}
         />
@@ -236,6 +214,13 @@ export default function HomeScreen() {
   const { authState } = useAuth();
   const [userName, setUserName] = useState<string>('');
   const [userPhone, setUserPhone] = useState<string>('');
+  const { data: sectors, isLoading: isSectorsLoading, error: sectorsError } = useSectors();
+  
+  useEffect(() => {
+    if (sectorsError) {
+      console.error('Error loading sectors:', sectorsError);
+    }
+  }, [sectorsError]);
   
   useEffect(() => {
     const loadUserData = async () => {
@@ -334,6 +319,32 @@ export default function HomeScreen() {
     }
   };
 
+  if (isSectorsLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#D9261C" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Đang tải dữ liệu...</Text>
+      </View>
+    );
+  }
+
+  if (sectorsError) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Có lỗi xảy ra khi tải dữ liệu</Text>
+        <Text style={styles.errorSubText}>{sectorsError.message}</Text>
+      </View>
+    );
+  }
+
+  if (!sectors || sectors.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>Không có dữ liệu</Text>
+      </View>
+    );
+  }
+
   return (
     <React.Fragment>
       <Stack.Screen options={{ headerShown: false }} />
@@ -430,19 +441,19 @@ export default function HomeScreen() {
             {/* Sản phẩm Section */}
             <WhiteSpace size="lg" />
             <Flex justify="between" style={[styles.brandContainer, { paddingVertical: 16 }]}>
-              {brandData.map((brand) => (
+              {sectors?.map((sector) => (
                 <TouchableOpacity
-                  key={brand.id}
+                  key={sector.id}
                   style={styles.brandCard}
                   activeOpacity={0.8}
-                  onPress={() => brand.name === 'SOLAR MAX' ? router.push('/(products)/product-line') : null}
+                  onPress={() => router.push('/(products)/product-line')}
                 >
                   <View style={styles.brandContent}>
-                    {brand.logo ? (
-                      <Image source={brand.logo} style={styles.brandLogo} resizeMode="contain" />
-                    ) : (
-                      <Text style={styles.brandText}>{brand.name}</Text>
-                    )}
+                    <Image 
+                      source={{ uri: sector.image }} 
+                      style={styles.brandLogo} 
+                      resizeMode="contain" 
+                    />
                   </View>
                 </TouchableOpacity>
               ))}
@@ -507,23 +518,9 @@ export default function HomeScreen() {
             <WhiteSpace size="lg" />
             <Text style={styles.sectionTitle}>Bán chạy</Text>
             <WhiteSpace size="xs" />
-            <ProductSection 
-              title="ĐIỆN MẶT TRỜI SOLARMAX" 
-              products={bestSellerProducts} 
-              width={width}
-              flatListRef={flatListRef}
-            />
-
-            {/* Thang máy Eliton Section */}
-            <ProductSection 
-              title="THANG MÁY ELITON" 
-              products={bestSellerProducts.map(item => ({
-                ...item,
-                title: 'Dragonfly Gold'
-              }))} 
-              width={width}
-              flatListRef={flatListRef}
-            />
+            {sectors.map((sector) => (
+              <ProductSection key={sector.id} sector={sector} />
+            ))}
           </WingBlank>
           
           {/* Chat Support Section */}
@@ -722,7 +719,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: '48%',
     height: 64,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -748,12 +745,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandLogo: {
-    width: 100,
-    height: 32,
-  },
-  brandText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    width: '100%',
+    height: 40,
   },
   promoCard: {
     backgroundColor: 'transparent',
@@ -1203,5 +1196,40 @@ const styles = StyleSheet.create({
     color: '#ED1C24',
     marginTop: 16,
     marginBottom: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#D9261C',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorSubText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });

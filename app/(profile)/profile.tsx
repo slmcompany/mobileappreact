@@ -5,6 +5,8 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 
+type SectionKey = 'home' | 'news' | 'products' | 'about';
+
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { logout, authState, updateUser, getUser } = useAuth();
@@ -17,6 +19,20 @@ const ProfileScreen = () => {
   const [idNumber, setIdNumber] = useState(authState.user?.idNumber || '1234 5678 9000');
   const [birthDate, setBirthDate] = useState(authState.user?.birthDate || '14/01/1993');
   const [gender, setGender] = useState(authState.user?.gender || 'Nam');
+
+  const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({
+    home: false,
+    news: false,
+    products: false,
+    about: false
+  });
+
+  const toggleSection = (section: SectionKey) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   // Lấy thông tin người dùng khi component được tạo
   useEffect(() => {
@@ -38,64 +54,6 @@ const ProfileScreen = () => {
     fetchUserData();
   }, [getUser]);
 
-  const toggleBiometric = () => {
-    // Implementation of toggleBiometric function
-  };
-
-  const openEditDrawer = () => {
-    // Cập nhật trạng thái ban đầu từ authState
-    setEmail(authState.user?.email || '');
-    setAddress(authState.user?.address || 'Somewhere over the rainbow');
-    setIdNumber(authState.user?.idNumber || '1234 5678 9000');
-    setBirthDate(authState.user?.birthDate || '14/01/1993');
-    setGender(authState.user?.gender || 'Nam');
-    
-    setEditDrawerVisible(true);
-  };
-
-  const closeEditDrawer = () => {
-    setEditDrawerVisible(false);
-  };
-
-  const saveUserInfo = async () => {
-    try {
-      // Hiển thị loading hoặc thông báo đang xử lý
-      
-      const updatedUser = await updateUser({
-        email,
-        address,
-        idNumber,
-        birthDate,
-        gender
-      });
-      
-      if (updatedUser) {
-        // Hiển thị thông báo thành công
-        Alert.alert(
-          'Thành công',
-          'Thông tin cá nhân đã được cập nhật',
-          [{ text: 'OK' }]
-        );
-      } else {
-        // Hiển thị thông báo lỗi
-        Alert.alert(
-          'Lỗi',
-          'Có lỗi xảy ra khi cập nhật thông tin',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      console.error('Lỗi khi cập nhật thông tin người dùng:', error);
-      Alert.alert(
-        'Lỗi',
-        'Có lỗi xảy ra khi cập nhật thông tin',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      closeEditDrawer();
-    }
-  };
-  
   const handleLogout = async () => {
     try {
       Alert.alert(
@@ -129,146 +87,112 @@ const ProfileScreen = () => {
           headerShown: false,
         }} 
       />
-      <View style={styles.mainContent}>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerContainer}>
           <ImageBackground 
             source={require('../../assets/images/info_bg.png')} 
-            style={styles.profileHeaderBg}
-            resizeMode="cover"
+            style={styles.headerBackground}
           >
-            <View style={styles.profileHeader}>
+            <TouchableOpacity 
+              style={[styles.backButton, { marginTop: insets.top }]}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="chevron-back" size={24} color="white" />
+            </TouchableOpacity>
+
+            <View style={styles.profileInfo}>
               <View style={styles.avatarContainer}>
-                <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={24} color="#999" />
-                </View>
+                <Image 
+                  source={require('../../assets/images/avatar.png')}
+                  style={styles.avatar}
+                />
               </View>
-              <Text style={styles.name}>{authState.user?.name || 'Người dùng'}</Text>
-              <Text style={styles.phoneNumber}>{authState.user?.phone || ''}</Text>
+              <Text style={styles.name}>{authState.user?.name || 'Tùy Phong'}</Text>
+              <Text style={styles.phone}>{authState.user?.phone || '0384 123 456'}</Text>
             </View>
 
-            <View style={styles.salesManagementContainer}>
-              <TouchableOpacity style={styles.salesManagementButton}>
-                <View style={styles.salesManagementInner}>
-                  <Text style={styles.salesManagementText}>Quản lý bán hàng</Text>
+            <View style={styles.roleContainer}>
+              <TouchableOpacity style={styles.roleButton}>
+                <View style={styles.roleButtonContent}>
+                  <Text style={styles.agentLevel}>ĐẠI LÝ CẤP 1</Text>
+                  <View style={styles.roleSwitch}>
+                    <Text style={styles.roleButtonText}>Xem với vai trò Khách hàng</Text>
+                    <Ionicons name="swap-horizontal" size={20} color="white" />
+                  </View>
                 </View>
               </TouchableOpacity>
             </View>
           </ImageBackground>
+        </View>
 
-          <View style={[styles.section, { 
-            backgroundColor: 'white',
-            borderTopWidth: 1,
-            borderBottomWidth: 1,
-            borderColor: '#eee',
-            marginTop: 0,
-          }]}>
-            <Text style={styles.sectionTitle}>TÀI KHOẢN</Text>
-            <View style={styles.editButtonContainer}>
-              <TouchableOpacity onPress={openEditDrawer}>
+        <View style={styles.content}>
+          {/* Account Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>TÀI KHOẢN</Text>
+              <TouchableOpacity onPress={() => setEditDrawerVisible(true)}>
                 <Text style={styles.changeRequestText}>YÊU CẦU THAY ĐỔI</Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          <View style={styles.infoSection}>
-            <TouchableOpacity 
-              style={styles.menuItem}
-              onPress={openEditDrawer}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/personal-information')}>
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="person-outline" size={24} color="#666" />
+                  <Ionicons name="person-outline" size={24} color="#7B7D9D" />
                 </View>
                 <Text style={styles.menuLabel}>Thông tin cá nhân</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
+              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
             </TouchableOpacity>
 
-            {/* Hiển thị thông tin cá nhân đã cập nhật */}
-            {(authState.user?.email || authState.user?.address || authState.user?.idNumber || authState.user?.birthDate) && (
-              <View style={styles.userInfoPreview}>
-                {authState.user?.email && (
-                  <View style={styles.infoPreviewItem}>
-                    <Text style={styles.infoPreviewLabel}>Email:</Text>
-                    <Text style={styles.infoPreviewValue}>{authState.user.email}</Text>
-                  </View>
-                )}
-                
-                {authState.user?.address && (
-                  <View style={styles.infoPreviewItem}>
-                    <Text style={styles.infoPreviewLabel}>Địa chỉ:</Text>
-                    <Text style={styles.infoPreviewValue}>{authState.user.address}</Text>
-                  </View>
-                )}
-                
-                {authState.user?.idNumber && (
-                  <View style={styles.infoPreviewItem}>
-                    <Text style={styles.infoPreviewLabel}>CCCD/Hộ chiếu:</Text>
-                    <Text style={styles.infoPreviewValue}>{authState.user.idNumber}</Text>
-                  </View>
-                )}
-                
-                {authState.user?.birthDate && (
-                  <View style={styles.infoPreviewItem}>
-                    <Text style={styles.infoPreviewLabel}>Ngày sinh:</Text>
-                    <Text style={styles.infoPreviewValue}>{authState.user.birthDate}</Text>
-                  </View>
-                )}
-                
-                {authState.user?.gender && (
-                  <View style={styles.infoPreviewItem}>
-                    <Text style={styles.infoPreviewLabel}>Giới tính:</Text>
-                    <Text style={styles.infoPreviewValue}>{authState.user.gender}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>CÀI ĐẶT</Text>
-          </View>
-
-          <View style={styles.infoSection}>
-            <TouchableOpacity 
-              style={styles.menuItem}
-              onPress={() => router.push('/password')}
-            >
+            <TouchableOpacity style={styles.menuItem}>
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="lock-closed-outline" size={24} color="#666" />
+                  <Ionicons name="card-outline" size={24} color="#7B7D9D" />
+                </View>
+                <Text style={styles.menuLabel}>Tài khoản thụ hưởng</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Settings Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>CÀI ĐẶT</Text>
+            </View>
+
+            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/password')}>
+              <View style={styles.menuItemLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons name="lock-closed-outline" size={24} color="#7B7D9D" />
                 </View>
                 <Text style={styles.menuLabel}>Mật khẩu</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
+              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
             </TouchableOpacity>
 
             <View style={styles.menuItem}>
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="notifications-outline" size={24} color="#666" />
+                  <Ionicons name="notifications-outline" size={24} color="#7B7D9D" />
                 </View>
                 <Text style={styles.menuLabel}>Thông báo</Text>
               </View>
-              <Switch
-                trackColor={{ false: "#dddddd", true: "#f45b69" }}
-                thumbColor={notificationsEnabled ? "#ffffff" : "#f4f3f4"}
-                ios_backgroundColor="#dddddd"
-                onValueChange={() => setNotificationsEnabled(prev => !prev)}
-                value={notificationsEnabled}
-              />
+              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
             </View>
           </View>
 
+          {/* App Info Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>THÔNG TIN ỨNG DỤNG</Text>
-          </View>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>THÔNG TIN ỨNG DỤNG</Text>
+            </View>
 
-          <View style={styles.infoSection}>
             <View style={styles.menuItem}>
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="information-circle-outline" size={24} color="#666" />
+                  <Ionicons name="information-circle-outline" size={24} color="#7B7D9D" />
                 </View>
                 <Text style={styles.menuLabel}>Phiên bản ứng dụng</Text>
               </View>
@@ -278,59 +202,67 @@ const ProfileScreen = () => {
             <TouchableOpacity style={styles.menuItem}>
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="document-text-outline" size={24} color="#666" />
+                  <Ionicons name="document-text-outline" size={24} color="#7B7D9D" />
                 </View>
                 <Text style={styles.menuLabel}>Điều khoản sử dụng</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
+              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem}>
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="help-circle-outline" size={24} color="#666" />
+                  <Ionicons name="help-circle-outline" size={24} color="#7B7D9D" />
                 </View>
                 <Text style={styles.menuLabel}>Liên hệ hỗ trợ</Text>
               </View>
               <View style={styles.chatBubbleIcon}>
-                <Ionicons name="chatbubble-ellipses" size={20} color="#999" />
+                <Ionicons name="chatbubble-ellipses" size={20} color="#7B7D9D" />
               </View>
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <View style={styles.menuItemLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons name="log-out-outline" size={24} color="white" />
+                </View>
+                <Text style={styles.logoutText}>Đăng xuất</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => router.push('/(profile)/pages-list')}
+            >
+              <View style={styles.menuItemLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons name="list-outline" size={24} color="#7B7D9D" />
+                </View>
+                <Text style={styles.menuLabel}>Danh sách trang</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
+            </TouchableOpacity>
           </View>
+        </View>
+      </ScrollView>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#666" />
-            <Text style={styles.logoutText}>Đăng xuất</Text>
-          </TouchableOpacity>
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </View>
-
-      {/* Floating Header */}
-      <View style={[styles.floatingHeader, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Edit Drawer */}
+      {/* Edit Profile Modal */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={editDrawerVisible}
-        onRequestClose={closeEditDrawer}
+        onRequestClose={() => setEditDrawerVisible(false)}
       >
         <Pressable 
           style={styles.drawerBackdrop}
-          onPress={closeEditDrawer} 
+          onPress={() => setEditDrawerVisible(false)} 
         />
         <View style={[styles.drawerContainer, { paddingBottom: insets.bottom }]}>
           <View style={styles.drawerHandle} />
           
           <View style={styles.drawerHeader}>
             <Text style={styles.drawerTitle}>Chỉnh sửa thông tin</Text>
-            <TouchableOpacity onPress={closeEditDrawer}>
+            <TouchableOpacity onPress={() => setEditDrawerVisible(false)}>
               <Ionicons name="close" size={24} color="#666" />
             </TouchableOpacity>
           </View>
@@ -425,13 +357,27 @@ const ProfileScreen = () => {
           <View style={styles.drawerActions}>
             <TouchableOpacity 
               style={styles.cancelButton} 
-              onPress={closeEditDrawer}
+              onPress={() => setEditDrawerVisible(false)}
             >
               <Text style={styles.cancelButtonText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.saveButton} 
-              onPress={saveUserInfo}
+              onPress={async () => {
+                try {
+                  await updateUser({
+                    email,
+                    address,
+                    idNumber,
+                    birthDate,
+                    gender
+                  });
+                  Alert.alert('Thành công', 'Thông tin đã được cập nhật');
+                  setEditDrawerVisible(false);
+                } catch (error) {
+                  Alert.alert('Lỗi', 'Không thể cập nhật thông tin');
+                }
+              }}
             >
               <Text style={styles.saveButtonText}>Lưu</Text>
             </TouchableOpacity>
@@ -445,160 +391,172 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  mainContent: {
-    flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  floatingHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    zIndex: 100,
-  },
-  backButton: {
-    padding: 8,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#F5F5F8',
   },
   scrollView: {
     flex: 1,
   },
-  profileHeaderBg: {
-    width: '100%',
+  headerContainer: {
     height: 280,
-    overflow: 'hidden',
   },
-  profileHeader: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    height: '100%',
+  headerBackground: {
+    flex: 1,
+    width: '100%',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+  profileInfo: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    marginTop: -20,
   },
   avatarContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    overflow: 'hidden',
-    backgroundColor: '#eee',
-    marginBottom: 16,
-    borderWidth: 2,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
     borderColor: 'white',
+    overflow: 'hidden',
+    marginBottom: 8,
   },
-  avatarPlaceholder: {
+  avatar: {
     width: '100%',
     height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#e0e0e0',
   },
   name: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '500',
     color: 'white',
     marginBottom: 4,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  phoneNumber: {
-    fontSize: 16,
+  phone: {
+    fontSize: 12,
     color: 'white',
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
+  roleContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  roleButton: {
+    backgroundColor: '#ED1C24',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  roleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  roleSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  roleButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  agentLevel: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  content: {
+    flex: 1,
+  },
   section: {
+    backgroundColor: 'white',
+    marginTop: 8,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginTop: 16,
+    paddingVertical: 8,
   },
   sectionTitle: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7B7D9D',
   },
   changeRequestText: {
-    color: '#D9261C',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  infoSection: {
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#F04437',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F8',
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   iconContainer: {
-    width: 40,
+    width: 24,
+    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
   },
   menuLabel: {
-    fontSize: 15,
-    color: '#333',
+    fontSize: 14,
     fontWeight: '500',
-    marginLeft: 8,
+    color: '#27273E',
   },
   versionText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 12,
+    color: '#7B7D9D',
   },
   chatBubbleIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#f0f0f0',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFECED',
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 32,
-    marginHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F8',
     backgroundColor: '#7B7D9D',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
   },
   logoutText: {
-    marginLeft: 8,
-    fontSize: 15,
-    color: '#666',
+    fontSize: 14,
     fontWeight: '500',
+    color: 'white',
   },
   drawerBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   drawerContainer: {
-    position: 'absolute', 
+    position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
@@ -682,8 +640,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   genderButtonActive: {
-    backgroundColor: '#D9261C',
-    borderColor: '#D9261C',
+    backgroundColor: '#ED1C24',
+    borderColor: '#ED1C24',
   },
   genderButtonText: {
     color: '#333',
@@ -713,7 +671,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     padding: 15,
-    backgroundColor: '#D9261C',
+    backgroundColor: '#ED1C24',
     borderRadius: 10,
     flex: 1,
     marginLeft: 10,
@@ -723,53 +681,21 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  editButtonContainer: {
-    justifyContent: 'center',
-  },
-  salesManagementContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  salesManagementButton: {
-    backgroundColor: '#F79009',
-    width: '100%',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  salesManagementInner: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  salesManagementText: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: '500',
-    textAlign: 'left',
-  },
-  userInfoPreview: {
-    padding: 16,
-    backgroundColor: '#f9f9f9',
+  submenuContainer: {
+    backgroundColor: '#F8F8FA',
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: '#F0F0F3',
   },
-  infoPreviewItem: {
-    flexDirection: 'row',
-    marginBottom: 8,
-    flexWrap: 'wrap',
+  submenuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 52,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F3',
   },
-  infoPreviewLabel: {
+  submenuText: {
     fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-    marginRight: 8,
-    minWidth: 100,
-  },
-  infoPreviewValue: {
-    fontSize: 14,
-    color: '#333',
-    flex: 1,
+    color: '#27273E',
+    fontWeight: '400',
   },
 });
 

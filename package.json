@@ -26,6 +26,7 @@
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
+    "@tanstack/react-query": "^5.71.1",
     "axios": "^1.8.4",
     "dotenv": "^16.4.7",
     "expo": "~52.0.39",
