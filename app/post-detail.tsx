@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, Text, View, ScrollView, 
   TouchableOpacity, Image, Dimensions, 
-  ActivityIndicator, FlatList, StatusBar, Linking 
+  ActivityIndicator, FlatList, StatusBar, Linking, Modal
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { API_CONFIG } from '@/config/api';
 import RenderHtml, { CustomRendererProps, Element } from 'react-native-render-html';
 import * as ExpoLinking from 'expo-linking';
+import WebView from 'react-native-webview';
 
 // Định nghĩa kiểu dữ liệu
 interface MediaContent {
@@ -18,6 +19,7 @@ interface MediaContent {
   title: string;
   kind: string;
   content_id: number;
+  thumbnail: string | null;
 }
 
 interface Category {
@@ -38,6 +40,15 @@ interface Post {
   media_contents: MediaContent[];
 }
 
+// Thêm interface cho FlatList item
+interface GalleryItem {
+  uri: string;
+  id: number;
+  index: number;
+  kind: string;
+  videoId: string | null;
+}
+
 const stripFirstH1Tag = (html: string) => {
   // Tìm và xóa thẻ H1 đầu tiên và nội dung của nó
   return html.replace(/<h1[^>]*>.*?<\/h1>/, '');
@@ -48,6 +59,8 @@ export default function PostDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentSlide, setCurrentSlide] = useState(1);
+  const [webViewVisible, setWebViewVisible] = useState(false);
+  const [webViewUrl, setWebViewUrl] = useState('');
   
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -160,11 +173,21 @@ export default function PostDetailScreen() {
       );
     }
 
+    const galleryItems: GalleryItem[] = post.media_contents.map((media, index) => ({
+      uri: media.kind === 'video' 
+        ? (media.thumbnail || `https://img.youtube.com/vi/${media.link}/hqdefault.jpg`) 
+        : media.link,
+      id: media.id,
+      index,
+      kind: media.kind,
+      videoId: media.kind === 'video' ? media.link : null
+    }));
+
     return (
       <View style={styles.slideshowContainer}>
         <FlatList
           ref={slideshowRef}
-          data={post.media_contents}
+          data={galleryItems}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -175,11 +198,28 @@ export default function PostDetailScreen() {
             setCurrentSlide(newIndex);
           }}
           renderItem={({ item }) => (
-            <Image 
-              source={{ uri: item.link }} 
-              style={styles.postImage}
-              resizeMode="cover"
-            />
+            <View style={styles.slideItemContainer}>
+              <Image 
+                source={{ uri: item.uri }} 
+                style={styles.postImage}
+                resizeMode="cover"
+              />
+              {item.kind === 'video' && (
+                <View style={styles.playButtonOverlay}>
+                  <TouchableOpacity 
+                    style={styles.playButton}
+                    onPress={() => {
+                      if (item.videoId) {
+                        setWebViewUrl(`https://www.youtube.com/embed/${item.videoId}`);
+                        setWebViewVisible(true);
+                      }
+                    }}
+                  >
+                    <Ionicons name="play-circle" size={64} color="white" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           )}
         />
         
@@ -249,66 +289,98 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
         </View>
       ) : post ? (
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          <View style={styles.postContainer}>
-            <View style={styles.postHeader}>
-              <View style={styles.userContainer}>
-                <Image 
-                  source={require('../assets/images/solarmax-logo.png')} 
-                  style={styles.avatar}
-                  resizeMode="contain"
-                />
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>SolarMax</Text>
-                  <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
+        <>
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <View style={styles.postContainer}>
+              <View style={styles.postHeader}>
+                <View style={styles.userContainer}>
+                  <Image 
+                    source={require('../assets/images/solarmax-logo.png')} 
+                    style={styles.avatar}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>SolarMax</Text>
+                    <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
+                  </View>
+                </View>
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryText}>{post.category.name}</Text>
                 </View>
               </View>
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>{post.category.name}</Text>
-              </View>
-            </View>
-            
-            {/* Images */}
-            <View style={styles.imageContainer}>
-              {renderSlides()}
-            </View>
-            
-            {/* Content */}
-            <View style={styles.contentContainer}>
-              <Text style={styles.title}>{post.title}</Text>
               
-              <View style={styles.htmlContent}>
-                <RenderHtml 
-                  contentWidth={width - 32} 
-                  source={{ html: stripFirstH1Tag(post.content) }} 
-                  tagsStyles={{
-                    p: { fontSize: 16, lineHeight: 24, color: '#333', marginBottom: 10 },
-                    a: { color: '#0066cc', textDecorationLine: 'underline' },
-                    br: { height: 10 }
-                  }}
-                  defaultTextProps={{
-                    selectable: true
-                  }}
-                  enableExperimentalBRCollapsing
-                  enableExperimentalMarginCollapsing
-                  renderersProps={{
-                    a: {
-                      onPress: (_, href) => {
-                        if (href) {
-                          Linking.openURL(href).catch(error => {
-                            console.warn('Không thể mở link:', error);
-                          });
+              {/* Images */}
+              <View style={styles.imageContainer}>
+                {renderSlides()}
+              </View>
+              
+              {/* Content */}
+              <View style={styles.contentContainer}>
+                <Text style={styles.title}>{post.title}</Text>
+                
+                <View style={styles.htmlContent}>
+                  <RenderHtml 
+                    contentWidth={width - 32} 
+                    source={{ html: stripFirstH1Tag(post.content) }} 
+                    tagsStyles={{
+                      p: { fontSize: 16, lineHeight: 24, color: '#333', marginBottom: 10 },
+                      a: { color: '#0066cc', textDecorationLine: 'underline' },
+                      br: { height: 10 }
+                    }}
+                    defaultTextProps={{
+                      selectable: true
+                    }}
+                    enableExperimentalBRCollapsing
+                    enableExperimentalMarginCollapsing
+                    renderersProps={{
+                      a: {
+                        onPress: (_, href) => {
+                          if (href) {
+                            Linking.openURL(href).catch(error => {
+                              console.warn('Không thể mở link:', error);
+                            });
+                          }
                         }
                       }
-                    }
-                  }}
-                />
+                    }}
+                  />
+                </View>
+                
+                <Text style={styles.hashtags}>{post.hashtag}</Text>
               </View>
-              
-              <Text style={styles.hashtags}>{post.hashtag}</Text>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+
+          {/* Video Modal */}
+          <Modal
+            visible={webViewVisible}
+            animationType="slide"
+            onRequestClose={() => setWebViewVisible(false)}
+          >
+            <SafeAreaView style={styles.webViewContainer}>
+              <View style={styles.webViewHeader}>
+                <TouchableOpacity 
+                  onPress={() => setWebViewVisible(false)}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color="#333" />
+                </TouchableOpacity>
+                <Text style={styles.webViewTitle}>Video</Text>
+                <View style={styles.headerSpacer} />
+              </View>
+              <WebView 
+                source={{ uri: webViewUrl }}
+                style={styles.webView}
+                startInLoadingState={true}
+                renderLoading={() => (
+                  <View style={styles.webViewLoading}>
+                    <ActivityIndicator size="large" color="#D9261C" />
+                  </View>
+                )}
+              />
+            </SafeAreaView>
+          </Modal>
+        </>
       ) : (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Không có dữ liệu</Text>
@@ -496,5 +568,64 @@ const styles = StyleSheet.create({
     color: '#0066cc',
     fontSize: 14,
     marginTop: 16,
-  }
+  },
+  slideItemContainer: {
+    position: 'relative',
+    width: width,
+    height: width,
+  },
+  playButtonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  playButton: {
+    width: 64,
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  webViewContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  webViewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  webViewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  webViewLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
 }); 

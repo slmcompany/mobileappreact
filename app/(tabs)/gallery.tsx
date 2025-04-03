@@ -13,6 +13,7 @@ interface MediaContent {
   kind: string;
   content_id: number;
   link: string;
+  thumbnail: string | null;
   created_at: string;
 }
 
@@ -31,6 +32,7 @@ interface Post {
   };
   content?: string;
   created_at?: string;
+  hasImage: boolean;
 }
 
 interface Sector {
@@ -191,6 +193,15 @@ const stripHtmlTags = (html: string) => {
   return text.length > 80 ? text.substring(0, 80) : text;
 };
 
+// Thêm interface cho FlatList item
+interface GalleryItem {
+  uri: string;
+  postId: number;
+  index: number;
+  kind: string;
+  videoId: string | null;
+}
+
 export default function GalleryScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -228,20 +239,36 @@ export default function GalleryScreen() {
           console.log("Title:", item.title);
           console.log("Hashtag:", item.hashtag);
           console.log("Category:", item.category);
+          console.log("Media Contents:", item.media_contents);
           
           let imageUrl = "";
+          let hasImage = false;
           
           if (item.media_contents && Array.isArray(item.media_contents)) {
+            // Tìm media có kind là image trước
             const imageContent = item.media_contents.find((media: MediaContent) => media.kind === "image");
-            if (imageContent) {
+            if (imageContent && imageContent.link) {
               imageUrl = imageContent.link;
+              hasImage = true;
               console.log("Tìm thấy ảnh:", imageUrl);
             }
-          }
-          
-          if (!imageUrl) {
-            imageUrl = "";
-            console.log("Sử dụng ảnh dự phòng do không tìm thấy ảnh trong media_contents");
+            
+            // Nếu không có ảnh, tìm video
+            if (!hasImage) {
+              const videoContent = item.media_contents.find((media: MediaContent) => media.kind === "video");
+              if (videoContent) {
+                if (videoContent.thumbnail) {
+                  imageUrl = videoContent.thumbnail;
+                  hasImage = true;
+                  console.log("Sử dụng thumbnail của video:", imageUrl);
+                } else if (videoContent.link && !videoContent.link.startsWith('https://')) {
+                  // Nếu link video không bắt đầu bằng https://, giả định là YouTube ID
+                  imageUrl = `https://img.youtube.com/vi/${videoContent.link}/hqdefault.jpg`;
+                  hasImage = true;
+                  console.log("Tạo thumbnail từ YouTube ID:", imageUrl);
+                }
+              }
+            }
           }
           
           console.log("URL ảnh cuối cùng:", imageUrl);
@@ -254,11 +281,13 @@ export default function GalleryScreen() {
             content: item.content || '',
             hashtag: item.hashtag || '',
             imageUrl: imageUrl,
-            media_contents: item.media_contents?.filter((media: MediaContent) => media.kind === "image") || [],
+            hasImage: hasImage,
+            media_contents: item.media_contents || [],
             category: item.category,
             created_at: item.created_at
           };
-        });
+        })
+        .filter((post: Post | null): post is Post => post !== null);
       
       setPosts(simplifiedPosts);
       
@@ -284,7 +313,8 @@ export default function GalleryScreen() {
             id: 1,
             name: "Hiểu đúng mua đúng",
             sector: "SLM"
-          }
+          },
+          hasImage: false
         }
       ];
       setPosts(fallbackPosts);
@@ -467,53 +497,72 @@ export default function GalleryScreen() {
                       </TouchableOpacity>
                     </View>
 
-                    <View style={styles.postImageContainer}>
-                      <FlatList
-                        data={post.media_contents?.map((media, index) => ({
-                          uri: media.link,
-                          postId: post.id,
-                          index
-                        })) || [{ uri: post.imageUrl, postId: post.id, index: 0 }]}
-                        horizontal
-                        pagingEnabled
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={(item, index) => `${item.postId}-${index}`}
-                        onViewableItemsChanged={handleViewableItemsChanged}
-                        viewabilityConfig={viewabilityConfig}
-                        initialNumToRender={1}
-                        maxToRenderPerBatch={2}
-                        windowSize={3}
-                        removeClippedSubviews={true}
-                        renderItem={({ item, index }) => (
-                          <View style={[styles.postImageContainer, { width: Dimensions.get('window').width }]}>
-                            <ImageWithFallback
-                              uri={item.uri}
-                              style={styles.postImage}
-                              priority={index === 0}
-                            />
+                    {post.hasImage && (
+                      <View style={styles.postImageContainer}>
+                        <FlatList
+                          data={post.media_contents?.map((media, index): GalleryItem => ({
+                            uri: media.kind === 'video' 
+                              ? (media.thumbnail || `https://img.youtube.com/vi/${media.link}/hqdefault.jpg`) 
+                              : (media.link || ''),
+                            postId: post.id,
+                            index,
+                            kind: media.kind,
+                            videoId: media.kind === 'video' ? media.link : null
+                          })) || (post.imageUrl ? [{
+                            uri: post.imageUrl,
+                            postId: post.id,
+                            index: 0,
+                            kind: 'image',
+                            videoId: null
+                          }] : [])}
+                          horizontal
+                          pagingEnabled
+                          showsHorizontalScrollIndicator={false}
+                          keyExtractor={(item, index) => `${item.postId}-${index}`}
+                          onViewableItemsChanged={handleViewableItemsChanged}
+                          viewabilityConfig={viewabilityConfig}
+                          initialNumToRender={1}
+                          maxToRenderPerBatch={2}
+                          windowSize={3}
+                          removeClippedSubviews={true}
+                          renderItem={({ item }) => (
+                            <View style={[styles.postImageContainer, { width: Dimensions.get('window').width }]}>
+                              <ImageWithFallback
+                                uri={item.uri}
+                                style={styles.postImage}
+                                priority={item.index === 0}
+                              />
+                              {item.kind === 'video' && (
+                                <View style={styles.playButtonOverlay}>
+                                  <TouchableOpacity 
+                                    style={styles.playButton}
+                                    onPress={() => {
+                                      // Xử lý khi click vào nút play
+                                      const videoId = item.videoId;
+                                      if (videoId) {
+                                        setWebViewUrl(`https://www.youtube.com/embed/${videoId}`);
+                                        setWebViewVisible(true);
+                                      }
+                                    }}
+                                  >
+                                    <Ionicons name="play-circle" size={64} color="white" />
+                                  </TouchableOpacity>
+                                </View>
+                              )}
+                            </View>
+                          )}
+                        />
+                        {post.media_contents && post.media_contents.length > 1 && (
+                          <View style={styles.imageCounter}>
+                            <Text style={styles.imageCounterText}>
+                              {((currentImageIndexes[post.id] || 0) + 1)}/{post.media_contents.length}
+                            </Text>
                           </View>
                         )}
-                        onEndReachedThreshold={0.5}
-                        onEndReached={() => {
-                          // Prefetch next images if available
-                          const nextImages = post.media_contents?.slice((currentImageIndexes[post.id] || 0) + 1);
-                          nextImages?.forEach(media => {
-                            if (media.link) {
-                              Image.prefetch(media.link);
-                            }
-                          });
-                        }}
-                      />
-                      {post.media_contents && post.media_contents.length > 0 && (
-                        <View style={styles.imageCounter}>
-                          <Text style={styles.imageCounterText}>
-                            {((currentImageIndexes[post.id] || 0) + 1)}/{post.media_contents.length}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                      </View>
+                    )}
                     
-                    <View style={styles.postTextOverlay}>
+                    <View style={[styles.postTextOverlay, !post.hasImage && styles.postTextOnly]}>
                       <View>
                         <View style={styles.categoryRow}>
                           <TouchableOpacity 
@@ -531,51 +580,20 @@ export default function GalleryScreen() {
                               {post.category?.name || ''}
                             </Text>
                           </TouchableOpacity>
-
-                          {post.media_contents && post.media_contents.length > 1 && (
-                            <View style={styles.dotsContainer}>
-                              {post.media_contents.map((_, index) => (
-                                <View 
-                                  key={index} 
-                                  style={[
-                                    styles.dot,
-                                    index === (currentImageIndexes[post.id] || 0) ? styles.activeDot : null
-                                  ]} 
-                                />
-                              ))}
-                            </View>
-                          )}
                         </View>
 
                         <View style={styles.descriptionContainer}>
-                          <Text style={styles.postDescription} numberOfLines={2}>
-                            {post.description && post.description.length > 80 ? (
-                              <>
-                                {post.description.substring(0, 80)}
-                                <Text 
-                                  onPress={() => router.push({
-                                    pathname: '/post-detail',
-                                    params: { id: post.id }
-                                  })}
-                                  style={styles.seeMoreText}
-                                >
-                                  ... Xem chi tiết
-                                </Text>
-                              </>
-                            ) : (
-                              <>
-                                {post.description}
-                                <Text 
-                                  onPress={() => router.push({
-                                    pathname: '/post-detail',
-                                    params: { id: post.id }
-                                  })}
-                                  style={styles.seeMoreText}
-                                >
-                                  ... Xem chi tiết
-                                </Text>
-                              </>
-                            )}
+                          <Text style={[styles.postDescription, !post.hasImage && styles.postDescriptionLarge]} numberOfLines={post.hasImage ? 2 : 4}>
+                            {post.description}
+                            <Text 
+                              onPress={() => router.push({
+                                pathname: '/post-detail',
+                                params: { id: post.id }
+                              })}
+                              style={styles.seeMoreText}
+                            >
+                              ... Xem chi tiết
+                            </Text>
                           </Text>
                         </View>
                       </View>
@@ -866,5 +884,34 @@ const styles = StyleSheet.create({
     color: '#D9261C',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  postTextOnly: {
+    paddingVertical: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    margin: 15,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  postDescriptionLarge: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#212529',
+  },
+  playButtonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  playButton: {
+    width: 64,
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }); 
