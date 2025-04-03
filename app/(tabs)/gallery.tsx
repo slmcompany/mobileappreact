@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Image, Linking, Alert, ImageStyle, StyleProp, ViewStyle, useWindowDimensions, Modal, FlatList, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Image, Linking, Alert, ImageStyle, StyleProp, ViewStyle, useWindowDimensions, Modal, FlatList, Dimensions, Platform, StatusBar } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
@@ -51,6 +51,7 @@ interface Sector {
   description: string | null;
   tech_phone: string | null;
   sale_phone: string | null;
+  post_count?: number;
 }
 
 // Dữ liệu người dùng
@@ -418,12 +419,34 @@ export default function GalleryScreen() {
   // Thêm hàm fetchSectors
   const fetchSectors = async () => {
     try {
-      const response = await fetch('https://id.slmsolar.com/api/sector');
-      if (!response.ok) {
+      const [sectorResponse, contentResponse] = await Promise.all([
+        fetch('https://id.slmsolar.com/api/sector'),
+        fetch('https://id.slmsolar.com/api/content')
+      ]);
+
+      if (!sectorResponse.ok || !contentResponse.ok) {
         throw new Error('Network response was not ok');
       }
-      const data = await response.json();
-      setSectors(data);
+
+      const sectorData = await sectorResponse.json();
+      const contentData = await contentResponse.json();
+
+      // Đếm số bài viết cho mỗi sector
+      const postCounts = contentData.reduce((acc: { [key: string]: number }, post: any) => {
+        const sectorCode = post.category?.sector;
+        if (sectorCode) {
+          acc[sectorCode] = (acc[sectorCode] || 0) + 1;
+        }
+        return acc;
+      }, {});
+
+      // Thêm số lượng bài viết vào dữ liệu sector
+      const sectorsWithPostCount = sectorData.map((sector: Sector) => ({
+        ...sector,
+        post_count: postCounts[sector.code] || 0
+      }));
+
+      setSectors(sectorsWithPostCount);
     } catch (error) {
       console.error('Error fetching sectors:', error);
       // Fallback data
@@ -436,7 +459,8 @@ export default function GalleryScreen() {
           image_rectangular: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/Logo/Logo_SolarMax.jpg',
           description: null,
           tech_phone: null,
-          sale_phone: null
+          sale_phone: null,
+          post_count: 0
         },
         {
           id: 2,
@@ -446,7 +470,8 @@ export default function GalleryScreen() {
           image_rectangular: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/Logo/Logo_Eliton.jpg',
           description: null,
           tech_phone: null,
-          sale_phone: null
+          sale_phone: null,
+          post_count: 0
         }
       ]);
     }
@@ -497,79 +522,76 @@ export default function GalleryScreen() {
 
   return (
     <>
+      <StatusBar barStyle="light-content" backgroundColor="#27273E" />
       <Stack.Screen
         options={{
           title: 'Thư viện nội dung',
           headerTitleAlign: 'center',
           headerTitleStyle: {
-            fontSize: 20,
-            fontWeight: '600',
-            color: '#333',
+            fontSize: 18,
+            fontWeight: '700',
+            color: '#FFFFFF',
+            fontFamily: 'Roboto Flex',
           },
           headerStyle: {
-            backgroundColor: 'white',
+            backgroundColor: '#27273E',
           },
-          headerShadowVisible: true,
+          headerShadowVisible: false,
           headerLeft: () => (
             <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="chevron-back" size={24} color="#333" />
+              <Ionicons name="chevron-back" size={24} color="#7B7D9D" />
             </TouchableOpacity>
           ),
-          headerRight: () => (
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="search-outline" size={24} color="#333" />
-            </TouchableOpacity>
-          ),
+          headerRight: () => null,
+          contentStyle: {
+            backgroundColor: '#27273E',
+          },
         }}
       />
-      <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
-        {/* Danh sách người dùng */}
-        <View style={styles.usersContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.usersList}
-          >
-            {sectors.map((sector) => (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+          <View style={[styles.usersContainer, { paddingTop: insets.top + 16 }]}>
+            <View style={styles.usersList}>
+              {sectors.map((sector) => (
+                <TouchableOpacity 
+                  key={sector.id} 
+                  style={styles.userItem}
+                  onPress={() => router.push({
+                    pathname: '/post_brand',
+                    params: { brandId: sector.id.toString() }
+                  })}
+                >
+                  <ImageWithFallback 
+                    uri={sector.image_rectangular}
+                    style={styles.userAvatar}
+                  />
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>{sector.name}</Text>
+                    <Text style={styles.postCount}>{sector.post_count || 0} bài viết</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#D9261C" />
+              <Text style={styles.loadingText}>Đang tải nội dung...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={48} color="#D9261C" />
+              <Text style={styles.errorText}>{error}</Text>
               <TouchableOpacity 
-                key={sector.id} 
-                style={styles.userItem}
-                onPress={() => router.push({
-                  pathname: '/post_brand',
-                  params: { brandId: sector.id.toString() }
-                })}
+                style={styles.retryButton}
+                onPress={() => fetchPosts()}
               >
-                <ImageWithFallback 
-                  uri={sector.image_rectangular}
-                  style={styles.userAvatar}
-                />
-                <Text style={styles.userName}>{sector.name}</Text>
+                <Text style={styles.retryButtonText}>Thử lại</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-        
-        {/* Nội dung */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#D9261C" />
-            <Text style={styles.loadingText}>Đang tải nội dung...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle-outline" size={48} color="#D9261C" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={() => fetchPosts()}
-            >
-              <Text style={styles.retryButtonText}>Thử lại</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-            {posts.length > 0 ? (
-              posts.map((post) => (
+            </View>
+          ) : (
+            <View style={styles.contentContainer}>
+              {posts.map((post) => (
                 <View key={post.id} style={styles.postContainer}>
                   <View style={styles.postItem}>
                     <View style={styles.userInfoBar}>
@@ -590,143 +612,54 @@ export default function GalleryScreen() {
 
                     {post.hasImage && (
                       <View style={styles.postImageContainer}>
-                        <FlatList
-                          data={post.media_contents?.map((media, index): GalleryItem => ({
-                            uri: media.kind === 'video' 
-                              ? (media.thumbnail || `https://img.youtube.com/vi/${media.link}/hqdefault.jpg`) 
-                              : (media.link || ''),
-                            postId: post.id,
-                            index,
-                            kind: media.kind,
-                            videoId: media.kind === 'video' ? media.link : null
-                          })) || (post.imageUrl ? [{
-                            uri: post.imageUrl,
-                            postId: post.id,
-                            index: 0,
-                            kind: 'image',
-                            videoId: null
-                          }] : [])}
-                          horizontal
-                          pagingEnabled
-                          showsHorizontalScrollIndicator={false}
-                          keyExtractor={(item, index) => `${item.postId}-${index}`}
-                          onViewableItemsChanged={handleViewableItemsChanged}
-                          viewabilityConfig={viewabilityConfig}
-                          initialNumToRender={1}
-                          maxToRenderPerBatch={2}
-                          windowSize={3}
-                          removeClippedSubviews={true}
-                          renderItem={({ item }) => (
-                            <View style={[styles.postImageContainer, { width: Dimensions.get('window').width }]}>
-                              <ImageWithFallback
-                                uri={item.uri}
-                                style={styles.postImage}
-                                priority={item.index === 0}
-                              />
-                              {item.kind === 'video' && (
-                                <View style={styles.playButtonOverlay}>
-                                  <TouchableOpacity 
-                                    style={styles.playButton}
-                                    onPress={() => {
-                                      // Xử lý khi click vào nút play
-                                      const videoId = item.videoId;
-                                      if (videoId) {
-                                        setWebViewUrl(`https://www.youtube.com/embed/${videoId}`);
-                                        setWebViewVisible(true);
-                                      }
-                                    }}
-                                  >
-                                    <Ionicons name="play-circle" size={64} color="white" />
-                                  </TouchableOpacity>
-                                </View>
-                              )}
-                            </View>
-                          )}
+                        <ImageWithFallback
+                          uri={post.imageUrl}
+                          style={styles.postImage}
                         />
-                        {post.media_contents && post.media_contents.length > 1 && (
-                          <View style={styles.imageCounter}>
-                            <Text style={styles.imageCounterText}>
-                              {((currentImageIndexes[post.id] || 0) + 1)}/{post.media_contents.length}
-                            </Text>
-                          </View>
-                        )}
                       </View>
                     )}
                     
                     <View style={[styles.postTextOverlay, !post.hasImage && styles.postTextOnly]}>
-                      <View>
-                        <View style={styles.categoryRow}>
-                          <TouchableOpacity 
-                            style={styles.categoryTag}
-                            onPress={() => {
-                              if (post.category?.code) {
-                                router.push({
-                                  pathname: '/post-detail',
-                                  params: { id: post.id }
-                                });
-                              }
-                            }}
-                          >
-                            <Text style={styles.categoryText} numberOfLines={1}>
-                              {post.category?.name || ''}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.descriptionContainer}>
-                          <Text style={[styles.postDescription, !post.hasImage && styles.postDescriptionLarge]} numberOfLines={post.hasImage ? 2 : 4}>
-                            {post.description}
-                            <Text 
-                              onPress={() => router.push({
+                      <View style={styles.categoryRow}>
+                        <TouchableOpacity 
+                          style={styles.categoryTag}
+                          onPress={() => {
+                            if (post.category?.code) {
+                              router.push({
                                 pathname: '/post-detail',
                                 params: { id: post.id }
-                              })}
-                              style={styles.seeMoreText}
-                            >
-                              ... Xem chi tiết
-                            </Text>
+                              });
+                            }
+                          }}
+                        >
+                          <Text style={styles.categoryText} numberOfLines={1}>
+                            {post.category?.name || ''}
                           </Text>
-                        </View>
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.descriptionContainer}>
+                        <Text style={[styles.postDescription, !post.hasImage && styles.postDescriptionLarge]} numberOfLines={post.hasImage ? 2 : 4}>
+                          {post.description}
+                          <Text 
+                            onPress={() => router.push({
+                              pathname: '/post-detail',
+                              params: { id: post.id }
+                            })}
+                            style={styles.seeMoreText}
+                          >
+                            ... Xem chi tiết
+                          </Text>
+                        </Text>
                       </View>
                     </View>
                   </View>
                 </View>
-              ))
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="document-outline" size={48} color="#ddd" />
-                <Text style={styles.emptyText}>Không có bài viết nào</Text>
-              </View>
-            )}
-          </ScrollView>
-        )}
+              ))}
+            </View>
+          )}
+        </ScrollView>
       </SafeAreaView>
-      <Modal
-        visible={webViewVisible}
-        animationType="slide"
-        onRequestClose={() => setWebViewVisible(false)}
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={styles.webViewHeader}>
-            <TouchableOpacity 
-              onPress={() => setWebViewVisible(false)}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <WebView 
-            source={{ uri: webViewUrl }}
-            style={{ flex: 1 }}
-            startInLoadingState={true}
-            renderLoading={() => (
-              <View style={styles.webViewLoading}>
-                <ActivityIndicator size="large" color="#D9261C" />
-              </View>
-            )}
-          />
-        </SafeAreaView>
-      </Modal>
     </>
   );
 }
@@ -734,41 +667,69 @@ export default function GalleryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#27273E',
   },
   headerButton: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 8,
+    marginLeft: 8,
   },
   usersContainer: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
+    paddingBottom: 24,
+    paddingHorizontal: 16,
   },
   usersList: {
-    paddingHorizontal: 15,
+    flexDirection: 'row',
+    gap: 12,
   },
   userItem: {
+    backgroundColor: '#363652',
+    borderRadius: 12,
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
-    padding: 5,
+    gap: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(39, 39, 62, 0.16)',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginBottom: 5,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginBottom: 0,
     overflow: 'hidden',
-    backgroundColor: 'white',
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#eeeeee',
+    borderColor: '#FFFFFF',
+  },
+  userInfo: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   userName: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    fontFamily: 'Roboto Flex',
+  },
+  postCount: {
     fontSize: 12,
-    color: '#000000',
+    color: '#666',
   },
   loadingContainer: {
     flex: 1,
@@ -1009,5 +970,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-end'
-  }
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
 }); 
