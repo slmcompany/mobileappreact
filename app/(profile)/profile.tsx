@@ -15,10 +15,12 @@ const ProfileScreen = () => {
   
   // User info states
   const [email, setEmail] = useState(authState.user?.email || '');
-  const [address, setAddress] = useState(authState.user?.address || 'Somewhere over the rainbow');
-  const [idNumber, setIdNumber] = useState(authState.user?.idNumber || '1234 5678 9000');
-  const [birthDate, setBirthDate] = useState(authState.user?.birthDate || '14/01/1993');
-  const [gender, setGender] = useState(authState.user?.gender || 'Nam');
+  const [address, setAddress] = useState(authState.user?.address || '');
+  const [idNumber, setIdNumber] = useState(authState.user?.idNumber || '');
+  const [birthDate, setBirthDate] = useState(authState.user?.birthDate || '');
+  const [gender, setGender] = useState(authState.user?.gender || '');
+  const [name, setName] = useState(authState.user?.name || '');
+  const [phone, setPhone] = useState(authState.user?.phone || '');
 
   const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({
     home: false,
@@ -41,10 +43,12 @@ const ProfileScreen = () => {
         const userData = await getUser();
         if (userData) {
           setEmail(userData.email || '');
-          setAddress(userData.address || 'Somewhere over the rainbow');
-          setIdNumber(userData.idNumber || '1234 5678 9000');
-          setBirthDate(userData.birthDate || '14/01/1993');
-          setGender(userData.gender || 'Nam');
+          setAddress(userData.address || '');
+          setIdNumber(userData.idNumber || '');
+          setBirthDate(userData.birthDate || '');
+          setGender(userData.gender || '');
+          setName(userData.name || '');
+          setPhone(userData.phone || '');
         }
       } catch (error) {
         console.error('Lỗi khi lấy thông tin người dùng:', error);
@@ -107,8 +111,8 @@ const ProfileScreen = () => {
                   style={styles.avatar}
                 />
               </View>
-              <Text style={styles.name}>{authState.user?.name || 'Tùy Phong'}</Text>
-              <Text style={styles.phone}>{authState.user?.phone || '0384 123 456'}</Text>
+              <Text style={styles.name}>{name || ''}</Text>
+              <Text style={styles.phone}>{phone || ''}</Text>
             </View>
 
             <View style={styles.roleContainer}>
@@ -151,6 +155,19 @@ const ProfileScreen = () => {
                   <Ionicons name="card-outline" size={24} color="#7B7D9D" />
                 </View>
                 <Text style={styles.menuLabel}>Tài khoản thụ hưởng</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => router.push('/profile_contract')}
+            >
+              <View style={styles.menuItemLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons name="phone-portrait-outline" size={24} color="#7B7D9D" />
+                </View>
+                <Text style={styles.menuLabel}>Hợp đồng của bạn</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
             </TouchableOpacity>
@@ -272,7 +289,7 @@ const ProfileScreen = () => {
               <View style={styles.formField}>
                 <Text style={styles.fieldLabel}>Số điện thoại</Text>
                 <View style={styles.fieldDisabled}>
-                  <Text style={styles.fieldDisabledText}>{authState.user?.phone || ''}</Text>
+                  <Text style={styles.fieldDisabledText}>{phone || ''}</Text>
                 </View>
                 <Text style={styles.fieldNote}>Số điện thoại không thể thay đổi</Text>
               </View>
