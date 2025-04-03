@@ -106,6 +106,7 @@ export default function TabLayout() {
         name="gallery"
         options={{
           title: 'Thư viện',
+          href: '/(gallery)',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
               <Image 

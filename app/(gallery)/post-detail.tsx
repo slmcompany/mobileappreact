@@ -386,7 +386,7 @@ export default function PostDetailScreen() {
               <View style={styles.postHeader}>
                 <View style={styles.userContainer}>
                   <Image 
-                    source={require('../assets/images/solarmax-logo.png')} 
+                    source={require('../../assets/images/solarmax-logo.png')} 
                     style={styles.avatar}
                     resizeMode="contain"
                   />

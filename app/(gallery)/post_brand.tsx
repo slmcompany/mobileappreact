@@ -76,7 +76,7 @@ const ImageWithFallback: React.FC<{
   const [isLoading, setIsLoading] = useState(true);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   
-  const fallbackImage = require('../assets/images/replace-holder.png');
+  const fallbackImage = require('../../assets/images/replace-holder.png');
   
   useEffect(() => {
     if (uri && priority) {
@@ -184,7 +184,7 @@ export default function PostBrandScreen() {
       title: 'Hiểu Đúng Mua Đúng',
       postCount: 0,
       backgroundColor: '#363652',
-      image: require('../assets/images/category_1.png'),
+      image: require('../../assets/images/category_1.png'),
       code: 'HDMD'
     },
     {
@@ -192,7 +192,7 @@ export default function PostBrandScreen() {
       title: 'RìViu',
       postCount: 0,
       backgroundColor: '#363652',
-      image: require('../assets/images/category_2.png'),
+      image: require('../../assets/images/category_2.png'),
       code: 'REVIEW'
     },
     {
@@ -200,7 +200,7 @@ export default function PostBrandScreen() {
       title: 'Hỏi Xoay Hỏi Xoáy',
       postCount: 0,
       backgroundColor: '#363652',
-      image: require('../assets/images/category_3.png'),
+      image: require('../../assets/images/category_3.png'),
       code: 'HXHX'
     },
     {
@@ -208,7 +208,7 @@ export default function PostBrandScreen() {
       title: 'Em Biết Không?',
       postCount: 0,
       backgroundColor: '#363652',
-      image: require('../assets/images/category_4.png'),
+      image: require('../../assets/images/category_4.png'),
       code: 'EBK'
     },
   ]);
@@ -316,7 +316,7 @@ export default function PostBrandScreen() {
             <View style={styles.brandProfile}>
               <View style={styles.brandInfo}>
                 <Image 
-                  source={require('../assets/images/brand_logo.png')}
+                  source={require('../../assets/images/solarmax-logo.png')}
                   style={styles.brandLogo}
                   resizeMode="contain"
                 />
