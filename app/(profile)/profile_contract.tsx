@@ -30,7 +30,7 @@ interface PreQuoteMerchandise {
   merchandise_id: number;
   pre_quote_id: number;
   name: string;
-  warranty_period: number;
+  warranty_years: number;
   warranty_period_unit: string;
   activation_date?: string;
   created_at: string;
@@ -55,6 +55,7 @@ export default function ProfileContractScreen() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [contractCode, setContractCode] = useState<string>('');
+  const [contractActivationDate, setContractActivationDate] = useState<string>('');
 
   // Lấy 2 ký tự đầu của tên
   const getInitials = (name: string) => {
@@ -65,7 +66,7 @@ export default function ProfileContractScreen() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const response = await fetch('https://id.slmsolar.com/api/users/9', {
+        const response = await fetch('https://id.slmsolar.com/api/users/14', {
           headers: {
             'Accept': 'application/json'
           }
@@ -78,16 +79,17 @@ export default function ProfileContractScreen() {
         const data = await response.json();
         if (data) {
           setUser({
-            id: data.id || 9,
-            name: data.name || 'Nguyễn Tráng',
-            phone: data.phone || '0947776662',
-            address: data.address || 'Pháo Đài Láng',
+            id: data.id || 0,
+            name: data.name || '',
+            phone: data.phone || '',
+            address: data.address || '',
             avatar: data.avatar || ''
           });
 
           // Nếu có contracts trong dữ liệu user, lấy contract đầu tiên
           if (data.contracts && data.contracts.length > 0) {
-            setContractCode(data.contracts[0].code || 'SOLARMAX_HOP_DONG_TEST2');
+            setContractCode(data.contracts[0].code || '');
+            setContractActivationDate(data.contracts[0].created_at || '');
             
             // Lấy merchandises từ contract
             if (data.contracts[0].pre_quote_merchandises && 
@@ -99,9 +101,9 @@ export default function ProfileContractScreen() {
                   merchandise_id: item.merchandise_id,
                   pre_quote_id: item.pre_quote_id,
                   name: item.merchandise?.name || '',
-                  warranty_period: item.warranty_years || 0,
+                  warranty_years: item.warranty_years || 0,
                   warranty_period_unit: 'year',
-                  activation_date: item.created_at || new Date().toISOString(),
+                  activation_date: item.created_at || '',
                   created_at: item.created_at || '',
                   updated_at: item.updated_at || ''
                 }));
@@ -118,14 +120,7 @@ export default function ProfileContractScreen() {
         }
       } catch (error) {
         console.error('Error fetching user:', error);
-        // Fallback to default user
-        setUser({
-          id: 9,
-          name: 'Nguyễn Tráng',
-          phone: '0947776662',
-          address: 'Pháo Đài Láng',
-          avatar: ''
-        });
+        setUser(null);
         // Vẫn phải fetch contract nếu user API không trả về contract
         fetchContract();
       }
@@ -146,7 +141,8 @@ export default function ProfileContractScreen() {
         
         const data = await response.json();
         if (data && data.data && data.data.length > 0) {
-          setContractCode(data.data[0].code || 'SOLARMAX_HOP_DONG_TEST2');
+          setContractCode(data.data[0].code || '');
+          setContractActivationDate(data.data[0].created_at || '');
           
           // Fetch merchandises based on contract
           if (data.data[0].id) {
@@ -155,7 +151,7 @@ export default function ProfileContractScreen() {
         }
       } catch (error) {
         console.error('Error fetching contract:', error);
-        setContractCode('SOLARMAX_HOP_DONG_TEST2');
+        setContractCode('');
         setLoading(false);
       }
     };
@@ -208,9 +204,9 @@ export default function ProfileContractScreen() {
         if (data && data.data) {
           const mappedArticles = data.data.map((article: any, index: number) => ({
             id: article.id,
-            author: article.author || (index % 2 === 0 ? 'SolarMax' : 'Eliton'),
-            title: article.title || 'Điện mặt trời SoLarMax | Em biết không?',
-            time: article.created_at ? formatTimeAgo(new Date(article.created_at)) : '0 min ago',
+            author: article.author || '',
+            title: article.title || '',
+            time: article.created_at ? formatTimeAgo(new Date(article.created_at)) : '',
             isLight: index % 2 === 0,
             hasIndicator: index % 2 === 0
           }));
@@ -218,25 +214,7 @@ export default function ProfileContractScreen() {
         }
       } catch (error) {
         console.error('Error fetching articles:', error);
-        // Fallback to default articles
-        setArticles([
-          {
-            id: 1,
-            author: 'SolarMax',
-            title: 'Điện mặt trời SoLarMax | Em biết không? | Phần 4',
-            time: '0 min ago',
-            isLight: true,
-            hasIndicator: true,
-          },
-          {
-            id: 2,
-            author: 'Eliton',
-            title: 'Điện mặt trời SoLarMax | Em biết không? | Phần 4',
-            time: '0 min ago',
-            isLight: false,
-            hasIndicator: false,
-          }
-        ]);
+        setArticles([]);
       }
     };
 
@@ -249,9 +227,9 @@ export default function ProfileContractScreen() {
       // Chuyển đổi dữ liệu từ PreQuoteMerchandise sang Device
       const mappedDevices = merchandises.map((item) => {
         // Tính toán ngày hết hạn bảo hành
-        const activationDate = item.activation_date ? new Date(item.activation_date) : new Date();
+        const activationDate = contractActivationDate ? new Date(contractActivationDate) : (item.activation_date ? new Date(item.activation_date) : new Date());
         const expireDate = new Date(activationDate);
-        expireDate.setFullYear(expireDate.getFullYear() + item.warranty_period);
+        expireDate.setFullYear(expireDate.getFullYear() + item.warranty_years);
         
         // Tính phần trăm thời gian bảo hành đã trôi qua
         const now = new Date();
@@ -268,7 +246,7 @@ export default function ProfileContractScreen() {
           id: item.id,
           name: item.name,
           activationDate: formatDate(activationDate),
-          warrantyPeriod: `${item.warranty_period} năm`,
+          warrantyPeriod: `${item.warranty_years} năm`,
           expireDate: formatDate(expireDate),
           progressPercent: progressPercent
         };
@@ -276,7 +254,7 @@ export default function ProfileContractScreen() {
 
       setDevices(mappedDevices);
     }
-  }, [merchandises]);
+  }, [merchandises, contractActivationDate]);
 
   // Helper function to format time ago
   const formatTimeAgo = (date: Date) => {
@@ -331,7 +309,13 @@ export default function ProfileContractScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Thiết bị của bạn</Text>
-        <TouchableOpacity style={styles.sectionButton}>
+        <TouchableOpacity 
+          style={styles.sectionButton}
+          onPress={() => router.push({
+            pathname: "/profile_contract_detail",
+            params: { contractCode }
+          })}
+        >
           <Text style={styles.sectionButtonText}>Chi tiết</Text>
           <Ionicons name="arrow-forward-circle" size={20} color="#ED1C24" />
         </TouchableOpacity>
@@ -388,7 +372,7 @@ export default function ProfileContractScreen() {
         <>
           <View style={styles.articleHeader}>
             <Image 
-              source={{ uri: 'https://randomuser.me/api/portraits/men/41.jpg' }} 
+              source={{ uri: '' }} 
               style={styles.articleAvatar} 
             />
             <Text style={styles.articleAuthor}>{article.author}</Text>
@@ -412,7 +396,7 @@ export default function ProfileContractScreen() {
         >
           <View style={styles.articleHeaderDark}>
             <Image 
-              source={{ uri: 'https://randomuser.me/api/portraits/men/41.jpg' }} 
+              source={{ uri: '' }} 
               style={styles.articleAvatar} 
             />
             <Text style={styles.articleAuthorDark}>{article.author}</Text>
