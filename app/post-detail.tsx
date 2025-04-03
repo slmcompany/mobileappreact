@@ -8,7 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { API_CONFIG } from '@/config/api';
-import RenderHtml from 'react-native-render-html';
+import RenderHtml, { CustomRendererProps, Element } from 'react-native-render-html';
 import * as ExpoLinking from 'expo-linking';
 
 // Định nghĩa kiểu dữ liệu
@@ -37,6 +37,11 @@ interface Post {
   category: Category;
   media_contents: MediaContent[];
 }
+
+const stripFirstH1Tag = (html: string) => {
+  // Tìm và xóa thẻ H1 đầu tiên và nội dung của nó
+  return html.replace(/<h1[^>]*>.*?<\/h1>/, '');
+};
 
 export default function PostDetailScreen() {
   const [post, setPost] = useState<Post | null>(null);
@@ -275,16 +280,25 @@ export default function PostDetailScreen() {
               <View style={styles.htmlContent}>
                 <RenderHtml 
                   contentWidth={width - 32} 
-                  source={{ html: post.content }} 
+                  source={{ html: stripFirstH1Tag(post.content) }} 
                   tagsStyles={{
                     p: { fontSize: 16, lineHeight: 24, color: '#333', marginBottom: 10 },
                     a: { color: '#0066cc', textDecorationLine: 'underline' },
                     br: { height: 10 }
                   }}
+                  defaultTextProps={{
+                    selectable: true
+                  }}
+                  enableExperimentalBRCollapsing
+                  enableExperimentalMarginCollapsing
                   renderersProps={{
                     a: {
                       onPress: (_, href) => {
-                        Linking.openURL(href);
+                        if (href) {
+                          Linking.openURL(href).catch(error => {
+                            console.warn('Không thể mở link:', error);
+                          });
+                        }
                       }
                     }
                   }}
@@ -473,10 +487,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#000',
-    marginBottom: 12,
+    marginBottom: 0,
   },
   htmlContent: {
-    marginBottom: 20,
+    marginBottom: 0,
   },
   hashtags: {
     color: '#0066cc',

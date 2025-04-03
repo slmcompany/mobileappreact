@@ -1,80 +1,103 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Dimensions, StatusBar, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Image, Dimensions, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 
 // Định nghĩa kiểu dữ liệu
-interface CategoryItem {
-  id: string;
-  name: string;
-  count: number;
-  logo: any;
+interface MediaContent {
+  id: number;
+  title: string;
+  kind: string;
+  content_id: number;
+  link: string;
+  created_at: string;
 }
 
-// Định nghĩa kiểu cho đối tượng dữ liệu danh mục
-interface CategoryDataType {
-  [key: string]: CategoryItem;
+interface Post {
+  id: number;
+  title: string;
+  imageUrl?: string;
+  media_contents?: MediaContent[];
+  category?: {
+    code: string;
+    id: number;
+    name: string;
+    sector: string;
+  };
 }
-
-// Dữ liệu các danh mục
-const categoryData: CategoryDataType = {
-  '1': {
-    id: '1',
-    name: 'Hiểu Đúng Mua Đúng',
-    count: 12,
-    logo: require('../../assets/images/sales-promo.png')
-  },
-  '2': {
-    id: '2',
-    name: 'RiViu',
-    count: 12,
-    logo: require('../../assets/images/team-promo.png')
-  },
-  '3': {
-    id: '3',
-    name: 'Hỏi Xoay Hỏi Xoắy',
-    count: 12,
-    logo: require('../../assets/images/sales-promo.png')
-  },
-  '4': {
-    id: '4',
-    name: 'Em Biết Không?',
-    count: 12,
-    logo: require('../../assets/images/team-promo.png')
-  }
-};
-
-// Dữ liệu grid
-const gridItems = [
-  { id: '1', image: require('../../assets/images/sales-promo.png') },
-  { id: '2', image: require('../../assets/images/team-promo.png') },
-  { id: '3', image: require('../../assets/images/sales-promo.png') },
-  { id: '4', image: require('../../assets/images/team-promo.png') },
-  { id: '5', image: require('../../assets/images/sales-promo.png') },
-  { id: '6', image: require('../../assets/images/team-promo.png') },
-  { id: '7', image: require('../../assets/images/sales-promo.png') },
-  { id: '8', image: require('../../assets/images/team-promo.png') },
-  { id: '9', image: require('../../assets/images/sales-promo.png') }
-];
 
 export default function CategoryDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const categoryId = typeof id === 'string' ? id : '1';
-  const category = categoryData[categoryId];
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('https://id.slmsolar.com/api/content');
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      
+      // Lọc bài viết theo category ID và chỉ lấy những bài có ảnh
+      const filteredPosts = data
+        .filter((item: Post) => 
+          item.category?.id.toString() === categoryId &&
+          item.media_contents?.some(media => media.kind === "image")
+        )
+        .map((item: Post) => {
+          const firstImage = item.media_contents?.find(media => media.kind === "image");
+          return {
+            id: item.id,
+            title: item.title,
+            imageUrl: firstImage?.link || '',
+            category: item.category,
+          };
+        });
+      
+      setPosts(filteredPosts);
+      
+    } catch (err) {
+      console.error('Lỗi khi lấy dữ liệu:', err);
+      setError('Đã xảy ra lỗi khi tải dữ liệu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, [categoryId]);
+
+  const renderGridItem = ({ item }: { item: Post }) => (
+    <TouchableOpacity 
+      style={styles.gridItem}
+      onPress={() => router.push({
+        pathname: '/post-detail',
+        params: { id: item.id }
+      })}
+    >
+      <Image 
+        source={item.imageUrl ? { uri: item.imageUrl } : require('../../assets/images/replace-holder.png')}
+        style={styles.gridImage}
+        defaultSource={require('../../assets/images/replace-holder.png')}
+      />
+    </TouchableOpacity>
+  );
 
   return (
     <>
-      <StatusBar barStyle="dark-content" />
       <Stack.Screen
         options={{
           headerTitle: () => (
-            <Image 
-              source={require('../../assets/images/solarmax-logo.png')} 
-              style={styles.headerLogo}
-              resizeMode="contain"
-            />
+            <Text style={styles.headerTitle}>{posts[0]?.category?.name || 'Bài viết'}</Text>
           ),
           headerStyle: {
             backgroundColor: '#FFFFFF',
@@ -88,51 +111,46 @@ export default function CategoryDetailScreen() {
               <Ionicons name="chevron-back" size={24} color="#333" />
             </TouchableOpacity>
           ),
-          headerRight: () => (
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="ellipsis-vertical" size={24} color="#333" />
-            </TouchableOpacity>
-          ),
         }}
       />
-      <SafeAreaView style={styles.container} edges={['right', 'left', 'bottom']}>
-        {/* Category Profile */}
-        <View style={styles.categoryProfile}>
-          <View style={styles.categoryLogo}>
-            <Image 
-              source={category.logo} 
-              style={styles.categoryLogoImage} 
-              resizeMode="contain"
-            />
+      <SafeAreaView style={styles.container}>
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#D9261C" />
           </View>
-          <View style={styles.categoryInfo}>
-            <Text style={styles.categoryName}>{category.name}</Text>
-            <Text style={styles.categoryCount}>{category.count} bài viết</Text>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={fetchPosts}
+            >
+              <Text style={styles.retryButtonText}>Thử lại</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-        
-        {/* Grid Content */}
-        <FlatList
-          style={styles.gridContainer}
-          data={gridItems}
-          numColumns={3}
-          renderItem={({ item }) => (
-            <View style={styles.gridItemContainer}>
-              <Image source={item.image} style={styles.gridItemImage} />
-              <View style={styles.videoIconContainer}>
-                <Ionicons name="videocam" size={24} color="white" />
-              </View>
-            </View>
-          )}
-          keyExtractor={(item) => item.id}
-        />
+        ) : posts.length === 0 ? (
+          <View style={styles.centerContainer}>
+            <Ionicons name="images-outline" size={48} color="#ddd" />
+            <Text style={styles.emptyText}>Không có ảnh nào</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={posts}
+            renderItem={renderGridItem}
+            keyExtractor={item => item.id.toString()}
+            numColumns={3}
+            contentContainerStyle={styles.gridContainer}
+            onRefresh={fetchPosts}
+            refreshing={loading}
+          />
+        )}
       </SafeAreaView>
     </>
   );
 }
 
 const { width } = Dimensions.get('window');
-const gridItemWidth = width / 3;
+const itemSize = width / 3;
 
 const styles = StyleSheet.create({
   container: {
@@ -140,65 +158,55 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   headerButton: {
-    width: 24,
-    marginHorizontal: 8,
-  },
-  headerLogo: {
-    width: 120,
-    height: 30,
-  },
-  categoryProfile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
-  },
-  categoryLogo: {
-    width: 70,
-    height: 70,
-    borderRadius: 8,
-    backgroundColor: '#383B50',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
-    overflow: 'hidden',
   },
-  categoryLogoImage: {
-    width: 50,
-    height: 50,
-  },
-  categoryInfo: {
-    flex: 1,
-  },
-  categoryName: {
+  headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
+    textAlign: 'center',
   },
-  categoryCount: {
-    fontSize: 14,
-    color: '#999',
-  },
-  // Grid View Styles
-  gridContainer: {
+  centerContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  gridItemContainer: {
-    width: gridItemWidth,
-    height: gridItemWidth,
-    position: 'relative',
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
   },
-  gridItemImage: {
-    width: gridItemWidth,
-    height: gridItemWidth,
-    borderWidth: 0.5,
-    borderColor: '#fff',
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 12,
   },
-  videoIconContainer: {
-    position: 'absolute',
-    right: 8,
-    bottom: 8,
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#D9261C',
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  gridContainer: {
+    flexGrow: 1,
+  },
+  gridItem: {
+    width: itemSize,
+    height: itemSize,
+    padding: 1,
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f5f5f5',
   },
 }); 

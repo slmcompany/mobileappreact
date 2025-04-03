@@ -413,7 +413,10 @@ export default function GalleryScreen() {
               <TouchableOpacity 
                 key={sector.id} 
                 style={styles.userItem}
-                onPress={() => navigateToBrand(sector.id.toString())}
+                onPress={() => router.push({
+                  pathname: '/post_brand',
+                  params: { brandId: sector.id.toString() }
+                })}
               >
                 <ImageWithFallback 
                   uri={sector.image_rectangular}
