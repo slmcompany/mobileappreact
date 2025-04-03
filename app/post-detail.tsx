@@ -8,7 +8,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { API_CONFIG } from '@/config/api';
-import RenderHtml, { CustomRendererProps, Element } from 'react-native-render-html';
+import RenderHtml, { 
+  HTMLElementModel,
+  HTMLContentModel,
+  defaultSystemFonts,
+  useContentWidth,
+  TRenderEngineConfig,
+  MixedStyleDeclaration
+} from 'react-native-render-html';
 import * as ExpoLinking from 'expo-linking';
 import WebView from 'react-native-webview';
 
@@ -54,6 +61,87 @@ const stripFirstH1Tag = (html: string) => {
   return html.replace(/<h1[^>]*>.*?<\/h1>/, '');
 };
 
+// Add custom renderers configuration
+const customHTMLElementModels = {
+  iframe: HTMLElementModel.fromCustomModel({
+    contentModel: HTMLContentModel.block,
+    isVoid: true,
+    tagName: 'iframe'
+  })
+};
+
+const renderersProps = {
+  a: {
+    onPress: (event: any, href: string) => {
+      if (href) {
+        Linking.openURL(href).catch(error => {
+          console.warn('Không thể mở link:', error);
+        });
+      }
+    }
+  },
+  img: {
+    enableExperimentalPercentWidth: true
+  }
+};
+
+const systemFonts = [...defaultSystemFonts, 'Roboto', 'Roboto-Bold'];
+
+const baseStyle = {
+  fontSize: 16,
+  lineHeight: 24,
+  color: '#333'
+};
+
+const tagsStyles: Record<string, MixedStyleDeclaration> = {
+  body: {
+    ...baseStyle,
+    fontFamily: 'Roboto'
+  },
+  p: {
+    ...baseStyle,
+    marginBottom: 10
+  },
+  a: {
+    color: '#0066cc',
+    textDecorationLine: 'underline' as const
+  },
+  strong: {
+    ...baseStyle,
+    fontFamily: 'Roboto-Bold',
+    fontWeight: 'bold'
+  },
+  h1: {
+    ...baseStyle,
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: 'bold',
+    marginBottom: 16
+  },
+  h2: {
+    ...baseStyle,
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: 'bold',
+    marginBottom: 12
+  },
+  img: {
+    marginVertical: 8
+  },
+  ul: {
+    ...baseStyle,
+    marginBottom: 10
+  },
+  ol: {
+    ...baseStyle,
+    marginBottom: 10
+  },
+  li: {
+    ...baseStyle,
+    marginBottom: 5
+  }
+};
+
 export default function PostDetailScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,6 +155,9 @@ export default function PostDetailScreen() {
   const { id } = useLocalSearchParams();
   const slideshowRef = useRef<FlatList>(null);
   const { width } = Dimensions.get('window');
+
+  // Add contentWidth hook for responsive rendering
+  const contentWidth = useContentWidth();
 
   // Fetch dữ liệu từ API
   const fetchPostDetails = async () => {
@@ -318,30 +409,24 @@ export default function PostDetailScreen() {
               <View style={styles.contentContainer}>
                 <Text style={styles.title}>{post.title}</Text>
                 
+                <View style={styles.descriptionContainer}>
+                  <Text style={styles.postDescription} numberOfLines={3}>
+                    {stripFirstH1Tag(post.content).replace(/<[^>]*>/g, '')}
+                  </Text>
+                </View>
+                
                 <View style={styles.htmlContent}>
-                  <RenderHtml 
-                    contentWidth={width - 32} 
-                    source={{ html: stripFirstH1Tag(post.content) }} 
-                    tagsStyles={{
-                      p: { fontSize: 16, lineHeight: 24, color: '#333', marginBottom: 10 },
-                      a: { color: '#0066cc', textDecorationLine: 'underline' },
-                      br: { height: 10 }
-                    }}
+                  <RenderHtml
+                    contentWidth={contentWidth}
+                    source={{ html: stripFirstH1Tag(post.content) }}
+                    systemFonts={systemFonts}
+                    customHTMLElementModels={customHTMLElementModels}
+                    renderersProps={renderersProps}
+                    tagsStyles={tagsStyles}
+                    enableExperimentalMarginCollapsing
+                    enableExperimentalGhostLinesPrevention
                     defaultTextProps={{
                       selectable: true
-                    }}
-                    enableExperimentalBRCollapsing
-                    enableExperimentalMarginCollapsing
-                    renderersProps={{
-                      a: {
-                        onPress: (_, href) => {
-                          if (href) {
-                            Linking.openURL(href).catch(error => {
-                              console.warn('Không thể mở link:', error);
-                            });
-                          }
-                        }
-                      }
                     }}
                   />
                 </View>
@@ -560,6 +645,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
     marginBottom: 0,
+  },
+  descriptionContainer: {
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  postDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
   },
   htmlContent: {
     marginBottom: 0,

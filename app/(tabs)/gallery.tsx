@@ -3,7 +3,14 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import RenderHtml from 'react-native-render-html';
+import RenderHtml, { 
+  HTMLElementModel,
+  HTMLContentModel,
+  defaultSystemFonts,
+  useContentWidth,
+  TRenderEngineConfig,
+  MixedStyleDeclaration
+} from 'react-native-render-html';
 import WebView from 'react-native-webview';
 
 // Định nghĩa kiểu dữ liệu
@@ -202,6 +209,87 @@ interface GalleryItem {
   videoId: string | null;
 }
 
+// Add custom renderers configuration
+const customHTMLElementModels = {
+  iframe: HTMLElementModel.fromCustomModel({
+    contentModel: HTMLContentModel.block,
+    isVoid: true,
+    tagName: 'iframe'
+  })
+};
+
+const renderersProps = {
+  a: {
+    onPress: (event: any, href: string) => {
+      if (href) {
+        Linking.openURL(href).catch(error => {
+          console.warn('Không thể mở link:', error);
+        });
+      }
+    }
+  },
+  img: {
+    enableExperimentalPercentWidth: true
+  }
+};
+
+const systemFonts = [...defaultSystemFonts, 'Roboto', 'Roboto-Bold'];
+
+const baseStyle = {
+  fontSize: 16,
+  lineHeight: 24,
+  color: '#333'
+};
+
+const tagsStyles: Record<string, MixedStyleDeclaration> = {
+  body: {
+    ...baseStyle,
+    fontFamily: 'Roboto'
+  },
+  p: {
+    ...baseStyle,
+    marginBottom: 10
+  },
+  a: {
+    color: '#0066cc',
+    textDecorationLine: 'underline' as const
+  },
+  strong: {
+    ...baseStyle,
+    fontFamily: 'Roboto-Bold',
+    fontWeight: 'bold'
+  },
+  h1: {
+    ...baseStyle,
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: 'bold',
+    marginBottom: 16
+  },
+  h2: {
+    ...baseStyle,
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: 'bold',
+    marginBottom: 12
+  },
+  img: {
+    marginVertical: 8
+  },
+  ul: {
+    ...baseStyle,
+    marginBottom: 10
+  },
+  ol: {
+    ...baseStyle,
+    marginBottom: 10
+  },
+  li: {
+    ...baseStyle,
+    marginBottom: 5
+  }
+};
+
 export default function GalleryScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -216,6 +304,9 @@ export default function GalleryScreen() {
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: number]: number }>({});
   
   const insets = useSafeAreaInsets();
+
+  // Add contentWidth hook for responsive rendering
+  const contentWidth = useContentWidth();
 
   // Fetch dữ liệu từ API
   const fetchPosts = async () => {
@@ -914,4 +1005,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  contentPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end'
+  }
 }); 
