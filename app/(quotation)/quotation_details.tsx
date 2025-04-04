@@ -14,15 +14,22 @@ type Product = {
     value: string;
   }[];
   price: number;
+  importPrice: number;
+  gmRate: number;
   quantity: number;
   imageUrl?: string;
   category?: string;
   tags?: string[];
   warranty_years?: number;
+  template?: {
+    gm: number;
+    code: string;
+    name: string;
+  };
 };
 
 // Định nghĩa category type
-type Category = 'PANEL' | 'INVERTER' | 'BATTERY';
+type Category = 'PANEL' | 'INVERTER' | 'BATTERY' | 'ACCESSORY';
 
 // Định nghĩa filter type
 type FilterState = {
@@ -94,6 +101,11 @@ type ProductApiItem = {
     import_price_include_vat: number;
     created_at: string;
   }[];
+  images?: {
+    id: number;
+    merchandise_id: number;
+    link: string;
+  }[];
 };
 
 export default function QuotationDetails() {
@@ -111,16 +123,7 @@ export default function QuotationDetails() {
   });
   
   // State cho số lượng sản phẩm
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 1,
-      name: 'Tủ điện NLMT SolarMax',
-      description: 'Hệ điện: 1 pha, Phụ kiện: AT AC 2P-63A (LS), ATS 4P-63A (Aisikai)',
-      price: 124570689,
-      quantity: 1,
-      imageUrl: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/06.%20Logo/01.%20SolarMax/SolarMax_ngang.jpg'
-    }
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
 
   // State cho hình thức lắp đặt
   const [installationType, setInstallationType] = useState<'AP_MAI' | 'KHUNG_SAT'>('AP_MAI');
@@ -157,6 +160,13 @@ export default function QuotationDetails() {
     );
   };
 
+  // Xử lý xóa sản phẩm
+  const handleDeleteProduct = (productId: number) => {
+    setProducts(prevProducts => 
+      prevProducts.filter(product => product.id !== productId)
+    );
+  };
+
   // Tính tổng tiền
   const totalPrice = products.reduce((sum, product) => sum + (product.price * product.quantity), 0);
 
@@ -180,7 +190,7 @@ export default function QuotationDetails() {
   // Fetch tất cả sản phẩm
   const fetchAllProducts = async () => {
     try {
-      const response = await fetch('https://id.slmsolar.com/api/products');
+      const response = await fetch('https://id.slmsolar.com/api/products/with-images');
       if (!response.ok) {
         throw new Error('Failed to fetch products');
       }
@@ -197,20 +207,75 @@ export default function QuotationDetails() {
     const categoryToTemplateCode: Record<Category, string> = {
       'PANEL': 'PIN_PV',
       'INVERTER': 'INVERTER_DC_AC',
-      'BATTERY': 'BATTERY_STORAGE'
+      'BATTERY': 'BATTERY_STORAGE',
+      'ACCESSORY': 'ACCESSORY'
     };
     
     const templateCode = categoryToTemplateCode[category];
+    
+    if (category === 'ACCESSORY') {
+      // Phụ kiện là những sản phẩm active không thuộc 3 loại chính
+      return allProducts.filter(product => {
+        const code = product.template?.code;
+        return product.active && code !== 'PIN_PV' && code !== 'INVERTER_DC_AC' && code !== 'BATTERY_STORAGE';
+      });
+    }
     
     return allProducts.filter(product => 
       product.template?.code === templateCode && product.active
     );
   };
 
-  // Chuyển đổi từ ProductApiItem sang Product
+  // Thêm hàm tính giá bán từ giá nhập và GM
+  const calculateSellingPrice = (importPrice: number, gmRate: number): number => {
+    return importPrice / (1 - gmRate/100);
+  };
+
+  // Cập nhật hàm fetchCategoryProducts
+  const fetchCategoryProducts = async (category: Category) => {
+    setLoading(true);
+    try {
+      // Nếu đã có danh sách tất cả sản phẩm
+      if (allProducts.length > 0) {
+        const filteredApiProducts = filterProductsByCategory(category);
+        const convertedProducts = filteredApiProducts.map(convertApiItemToProduct);
+        setCategoryProducts(convertedProducts);
+      } else {
+        // Fetch lại nếu chưa có
+        const response = await fetch('https://id.slmsolar.com/api/products/with-images');
+        if (!response.ok) throw new Error('Failed to fetch products');
+        
+        const data: ProductApiItem[] = await response.json();
+        setAllProducts(data);
+        
+        const filteredApiProducts = data.filter(product => {
+          const templateCode = product.template?.code;
+          if (category === 'PANEL') return templateCode === 'PIN_PV';
+          if (category === 'INVERTER') return templateCode === 'INVERTER_DC_AC';
+          if (category === 'BATTERY') return templateCode === 'BATTERY_STORAGE';
+          if (category === 'ACCESSORY') {
+            return product.active && 
+              templateCode !== 'PIN_PV' && 
+              templateCode !== 'INVERTER_DC_AC' && 
+              templateCode !== 'BATTERY_STORAGE';
+          }
+          return false;
+        });
+        
+        const convertedProducts = filteredApiProducts.map(convertApiItemToProduct);
+        setCategoryProducts(convertedProducts);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Trong hàm convertApiItemToProduct
   const convertApiItemToProduct = (item: ProductApiItem): Product => {
     // Tạo specs từ data_json
-    const specs = item.data_json ? Object.entries(item.data_json).map(([key, value]) => {
+    const specs = item.data_json ? Object.entries(item.data_json).slice(0, 2).map(([key, value]) => {
       // Xác định label dựa trên key
       let label = key;
       if (key === 'power_watt') label = 'Công suất';
@@ -238,61 +303,43 @@ export default function QuotationDetails() {
     else if (item.template?.code === 'INVERTER_DC_AC') category = 'INVERTER';
     else if (item.template?.code === 'BATTERY_STORAGE') category = 'BATTERY';
     
-    // Lấy giá bán từ price_infos nếu có
-    const price = item.price_infos && item.price_infos.length > 0 
-      ? item.price_infos[0].import_price_include_vat 
-      : 0;
+    // Lấy giá nhập từ price_infos
+    let importPrice = 0;
+    if (item.price_infos && item.price_infos.length > 0) {
+      importPrice = item.price_infos[0].import_price_include_vat;
+    }
+    
+    // Tính giá bán bao gồm GM
+    const gmRate = item.template?.gm || 10; // Mặc định GM là 10% nếu không có
+    const sellingPrice = importPrice / (1 - gmRate/100);
+    
+    // Ưu tiên lấy hình ảnh từ thuộc tính images, nếu không có thì lấy từ brand.image
+    const imageUrl = item.images && item.images.length > 0 
+      ? item.images[0].link
+      : item.brand?.image || undefined;
     
     return {
       id: item.id,
       name: item.name,
       description: item.description_in_quotation,
       specs,
-      price,
+      price: sellingPrice,
+      importPrice,
+      gmRate,
       quantity: 1,
-      imageUrl: item.brand?.image || undefined,
+      imageUrl,
       category,
       tags: [], // API không có tags
-      warranty_years: item.data_json?.warranty_years || 0
+      warranty_years: item.data_json?.warranty_years || 0,
+      template: item.template ? {
+        gm: item.template.gm,
+        code: item.template.code,
+        name: item.template.name
+      } : undefined
     };
   };
 
-  // Fetch sản phẩm theo danh mục
-  const fetchCategoryProducts = async (category: Category) => {
-    setLoading(true);
-    try {
-      // Nếu đã có danh sách tất cả sản phẩm
-      if (allProducts.length > 0) {
-        const filteredApiProducts = filterProductsByCategory(category);
-        const convertedProducts = filteredApiProducts.map(convertApiItemToProduct);
-        setCategoryProducts(convertedProducts);
-      } else {
-        // Fetch lại nếu chưa có
-        const response = await fetch('https://id.slmsolar.com/api/products');
-        if (!response.ok) throw new Error('Failed to fetch products');
-        
-        const data: ProductApiItem[] = await response.json();
-        setAllProducts(data);
-        
-        const filteredApiProducts = data.filter(product => {
-          const templateCode = product.template?.code;
-          if (category === 'PANEL') return templateCode === 'PIN_PV';
-          if (category === 'INVERTER') return templateCode === 'INVERTER_DC_AC';
-          if (category === 'BATTERY') return templateCode === 'BATTERY_STORAGE';
-          return false;
-        });
-        
-        const convertedProducts = filteredApiProducts.map(convertApiItemToProduct);
-        setCategoryProducts(convertedProducts);
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Thêm sản phẩm vào danh sách đã chọn
+  // Cập nhật hàm addProductToSelection
   const addProductToSelection = (product: Product) => {
     // Kiểm tra xem sản phẩm đã tồn tại chưa
     const existingProduct = products.find(p => p.id === product.id);
@@ -338,6 +385,8 @@ export default function QuotationDetails() {
           return 'Biến tần';
         case 'BATTERY':
           return 'Pin lưu trữ';
+        case 'ACCESSORY':
+          return 'Phụ kiện và vật tư đi kèm';
         default:
           return 'Chọn sản phẩm';
       }
@@ -414,13 +463,13 @@ export default function QuotationDetails() {
                       </View>
                       
                       <View style={styles.drawerProductSpecsContainer}>
-                        {product.specs?.slice(0, 4).map((spec, index) => (
+                        {product.specs?.slice(0, 2).map((spec, index) => (
                           <View key={index} style={styles.drawerProductSpec}>
                             <Text style={styles.drawerProductSpecLabel}>{spec.label}:</Text>
                             <Text style={styles.drawerProductSpecValue}>{spec.value}</Text>
                           </View>
                         ))}
-                        {product.warranty_years && (!product.specs || product.specs.length < 4) && (
+                        {product.warranty_years && (!product.specs || product.specs.length < 2) && (
                           <View style={styles.drawerProductSpec}>
                             <Text style={styles.drawerProductSpecLabel}>Bảo hành:</Text>
                             <Text style={styles.drawerProductSpecValue}>{product.warranty_years} năm</Text>
@@ -430,12 +479,17 @@ export default function QuotationDetails() {
                       
                       <View style={styles.drawerProductFooter}>
                         <View style={styles.drawerProductPrice}>
-                          <Text style={styles.drawerProductPriceValue}>{roundToThousand(product.price).toLocaleString()}</Text>
+                          <Text style={styles.drawerProductPriceValue}>
+                            {roundToThousand(product.importPrice / (1 - (product.gmRate || 10) / 100)).toLocaleString()}
+                          </Text>
                           <Text style={styles.drawerProductPriceCurrency}>đ</Text>
                         </View>
                         <TouchableOpacity 
                           style={styles.drawerAddButton}
-                          onPress={() => addProductToSelection(product)}
+                          onPress={() => addProductToSelection({
+                            ...product,
+                            price: roundToThousand(product.importPrice / (1 - (product.gmRate || 10) / 100))
+                          })}
                         >
                           <Ionicons name="add" size={16} color="#FFFFFF" />
                         </TouchableOpacity>
@@ -529,15 +583,23 @@ export default function QuotationDetails() {
                         )}
                       </View>
                       <View style={styles.productDetails}>
-                        <Text style={styles.productName}>{product.name}</Text>
+                        <View style={styles.productHeader}>
+                          <Text style={styles.productName}>{product.name}</Text>
+                          <TouchableOpacity 
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteProduct(product.id)}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
                         
                         <View style={styles.productSpecsContainer}>
-                          {product.description?.split(',').slice(0, 4).map((spec, index) => (
+                          {product.description?.split(',').slice(0, 2).map((spec, index) => (
                             <View key={index} style={styles.productSpec}>
                               <Text style={styles.productSpecText}>{spec.trim()}</Text>
                             </View>
                           ))}
-                          {product.specs?.slice(0, 4 - (product.description?.split(',').slice(0, 4).length || 0)).map((spec, index) => (
+                          {product.specs?.slice(0, 2 - (product.description?.split(',').slice(0, 2).length || 0)).map((spec, index) => (
                             <View key={`spec-${index}`} style={styles.productSpec}>
                               <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
                             </View>
@@ -555,24 +617,26 @@ export default function QuotationDetails() {
                             <Text style={styles.productCurrency}>đ</Text>
                           </View>
                           
-                          <View style={styles.quantityControl}>
-                            <TouchableOpacity 
-                              style={styles.decreaseButton}
-                              onPress={() => handleDecreaseQuantity(product.id)}
-                            >
-                              <Ionicons name="remove" size={16} color="#FFFFFF" />
-                            </TouchableOpacity>
-                            
-                            <View style={styles.quantityDisplay}>
-                              <Text style={styles.quantityText}>{product.quantity}</Text>
+                          <View style={styles.productActions}>
+                            <View style={styles.quantityControl}>
+                              <TouchableOpacity 
+                                style={styles.decreaseButton}
+                                onPress={() => handleDecreaseQuantity(product.id)}
+                              >
+                                <Ionicons name="remove" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
+                              
+                              <View style={styles.quantityDisplay}>
+                                <Text style={styles.quantityText}>{product.quantity}</Text>
+                              </View>
+                              
+                              <TouchableOpacity 
+                                style={styles.increaseButton}
+                                onPress={() => handleIncreaseQuantity(product.id)}
+                              >
+                                <Ionicons name="add" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
                             </View>
-                            
-                            <TouchableOpacity 
-                              style={styles.increaseButton}
-                              onPress={() => handleIncreaseQuantity(product.id)}
-                            >
-                              <Ionicons name="add" size={16} color="#FFFFFF" />
-                            </TouchableOpacity>
                           </View>
                         </View>
                       </View>
@@ -612,15 +676,23 @@ export default function QuotationDetails() {
                         )}
                       </View>
                       <View style={styles.productDetails}>
-                        <Text style={styles.productName}>{product.name}</Text>
+                        <View style={styles.productHeader}>
+                          <Text style={styles.productName}>{product.name}</Text>
+                          <TouchableOpacity 
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteProduct(product.id)}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
                         
                         <View style={styles.productSpecsContainer}>
-                          {product.description?.split(',').slice(0, 4).map((spec, index) => (
+                          {product.description?.split(',').slice(0, 2).map((spec, index) => (
                             <View key={index} style={styles.productSpec}>
                               <Text style={styles.productSpecText}>{spec.trim()}</Text>
                             </View>
                           ))}
-                          {product.specs?.slice(0, 4 - (product.description?.split(',').slice(0, 4).length || 0)).map((spec, index) => (
+                          {product.specs?.slice(0, 2 - (product.description?.split(',').slice(0, 2).length || 0)).map((spec, index) => (
                             <View key={`spec-${index}`} style={styles.productSpec}>
                               <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
                             </View>
@@ -638,24 +710,26 @@ export default function QuotationDetails() {
                             <Text style={styles.productCurrency}>đ</Text>
                           </View>
                           
-                          <View style={styles.quantityControl}>
-                            <TouchableOpacity 
-                              style={styles.decreaseButton}
-                              onPress={() => handleDecreaseQuantity(product.id)}
-                            >
-                              <Ionicons name="remove" size={16} color="#FFFFFF" />
-                            </TouchableOpacity>
-                            
-                            <View style={styles.quantityDisplay}>
-                              <Text style={styles.quantityText}>{product.quantity}</Text>
+                          <View style={styles.productActions}>
+                            <View style={styles.quantityControl}>
+                              <TouchableOpacity 
+                                style={styles.decreaseButton}
+                                onPress={() => handleDecreaseQuantity(product.id)}
+                              >
+                                <Ionicons name="remove" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
+                              
+                              <View style={styles.quantityDisplay}>
+                                <Text style={styles.quantityText}>{product.quantity}</Text>
+                              </View>
+                              
+                              <TouchableOpacity 
+                                style={styles.increaseButton}
+                                onPress={() => handleIncreaseQuantity(product.id)}
+                              >
+                                <Ionicons name="add" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
                             </View>
-                            
-                            <TouchableOpacity 
-                              style={styles.increaseButton}
-                              onPress={() => handleIncreaseQuantity(product.id)}
-                            >
-                              <Ionicons name="add" size={16} color="#FFFFFF" />
-                            </TouchableOpacity>
                           </View>
                         </View>
                       </View>
@@ -695,15 +769,23 @@ export default function QuotationDetails() {
                         )}
                       </View>
                       <View style={styles.productDetails}>
-                        <Text style={styles.productName}>{product.name}</Text>
+                        <View style={styles.productHeader}>
+                          <Text style={styles.productName}>{product.name}</Text>
+                          <TouchableOpacity 
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteProduct(product.id)}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
                         
                         <View style={styles.productSpecsContainer}>
-                          {product.description?.split(',').slice(0, 4).map((spec, index) => (
+                          {product.description?.split(',').slice(0, 2).map((spec, index) => (
                             <View key={index} style={styles.productSpec}>
                               <Text style={styles.productSpecText}>{spec.trim()}</Text>
                             </View>
                           ))}
-                          {product.specs?.slice(0, 4 - (product.description?.split(',').slice(0, 4).length || 0)).map((spec, index) => (
+                          {product.specs?.slice(0, 2 - (product.description?.split(',').slice(0, 2).length || 0)).map((spec, index) => (
                             <View key={`spec-${index}`} style={styles.productSpec}>
                               <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
                             </View>
@@ -721,24 +803,26 @@ export default function QuotationDetails() {
                             <Text style={styles.productCurrency}>đ</Text>
                           </View>
                           
-                          <View style={styles.quantityControl}>
-                            <TouchableOpacity 
-                              style={styles.decreaseButton}
-                              onPress={() => handleDecreaseQuantity(product.id)}
-                            >
-                              <Ionicons name="remove" size={16} color="#FFFFFF" />
-                            </TouchableOpacity>
-                            
-                            <View style={styles.quantityDisplay}>
-                              <Text style={styles.quantityText}>{product.quantity}</Text>
+                          <View style={styles.productActions}>
+                            <View style={styles.quantityControl}>
+                              <TouchableOpacity 
+                                style={styles.decreaseButton}
+                                onPress={() => handleDecreaseQuantity(product.id)}
+                              >
+                                <Ionicons name="remove" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
+                              
+                              <View style={styles.quantityDisplay}>
+                                <Text style={styles.quantityText}>{product.quantity}</Text>
+                              </View>
+                              
+                              <TouchableOpacity 
+                                style={styles.increaseButton}
+                                onPress={() => handleIncreaseQuantity(product.id)}
+                              >
+                                <Ionicons name="add" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
                             </View>
-                            
-                            <TouchableOpacity 
-                              style={styles.increaseButton}
-                              onPress={() => handleIncreaseQuantity(product.id)}
-                            >
-                              <Ionicons name="add" size={16} color="#FFFFFF" />
-                            </TouchableOpacity>
                           </View>
                         </View>
                       </View>
@@ -828,74 +912,93 @@ export default function QuotationDetails() {
             <View style={styles.categoryItem}>
               <View style={styles.categoryHeader}>
                 <Text style={styles.categoryTitle}>PHỤ KIỆN VÀ VẬT TƯ ĐI KÈM</Text>
+                <TouchableOpacity 
+                  style={styles.addButton}
+                  onPress={() => openCategoryDrawer('ACCESSORY')}
+                >
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
               </View>
-              <View style={styles.accessoriesContainer}>
-                {products.filter(p => !p.category).map((product) => (
-                  <View key={product.id} style={styles.productCard}>
-                    <View style={styles.productImageContainer}>
-                      {product.imageUrl ? (
-                        <Image 
-                          source={{ uri: product.imageUrl }} 
-                          style={styles.productImage}
-                          resizeMode="contain" 
-                        />
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <Ionicons name="image-outline" size={24} color="#ABACC2" />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.productDetails}>
-                      <Text style={styles.productName}>{product.name}</Text>
-                      
-                      <View style={styles.productSpecsContainer}>
-                        {product.description?.split(',').slice(0, 4).map((spec, index) => (
-                          <View key={index} style={styles.productSpec}>
-                            <Text style={styles.productSpecText}>{spec.trim()}</Text>
-                          </View>
-                        ))}
-                        {product.specs?.slice(0, 4 - (product.description?.split(',').slice(0, 4).length || 0)).map((spec, index) => (
-                          <View key={`spec-${index}`} style={styles.productSpec}>
-                            <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
-                          </View>
-                        ))}
-                        {product.warranty_years && product.specs?.length === 0 && !product.description && (
-                          <View style={styles.productSpec}>
-                            <Text style={styles.productSpecText}>Bảo hành: {product.warranty_years} năm</Text>
+              {/* Hiển thị các sản phẩm đã chọn thuộc danh mục này */}
+              {products.filter(p => !p.category || p.category === 'ACCESSORY').length > 0 && (
+                <View style={styles.accessoriesContainer}>
+                  {products.filter(p => !p.category || p.category === 'ACCESSORY').map((product) => (
+                    <View key={product.id} style={styles.productCard}>
+                      <View style={styles.productImageContainer}>
+                        {product.imageUrl ? (
+                          <Image 
+                            source={{ uri: product.imageUrl }} 
+                            style={styles.productImage}
+                            resizeMode="contain" 
+                          />
+                        ) : (
+                          <View style={styles.imagePlaceholder}>
+                            <Ionicons name="image-outline" size={24} color="#ABACC2" />
                           </View>
                         )}
                       </View>
-                      
-                      <View style={styles.productPriceContainer}>
-                        <View style={styles.priceWrapper}>
-                          <Text style={styles.productPrice}>{roundToThousand(product.price).toLocaleString()}</Text>
-                          <Text style={styles.productCurrency}>đ</Text>
+                      <View style={styles.productDetails}>
+                        <View style={styles.productHeader}>
+                          <Text style={styles.productName}>{product.name}</Text>
+                          <TouchableOpacity 
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteProduct(product.id)}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+                          </TouchableOpacity>
                         </View>
                         
-                        <View style={styles.quantityControl}>
-                          <TouchableOpacity 
-                            style={styles.decreaseButton}
-                            onPress={() => handleDecreaseQuantity(product.id)}
-                          >
-                            <Ionicons name="remove" size={16} color="#FFFFFF" />
-                          </TouchableOpacity>
-                          
-                          <View style={styles.quantityDisplay}>
-                            <Text style={styles.quantityText}>{product.quantity}</Text>
+                        <View style={styles.productSpecsContainer}>
+                          {product.description?.split(',').slice(0, 2).map((spec, index) => (
+                            <View key={index} style={styles.productSpec}>
+                              <Text style={styles.productSpecText}>{spec.trim()}</Text>
+                            </View>
+                          ))}
+                          {product.specs?.slice(0, 2 - (product.description?.split(',').slice(0, 2).length || 0)).map((spec, index) => (
+                            <View key={`spec-${index}`} style={styles.productSpec}>
+                              <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
+                            </View>
+                          ))}
+                          {product.warranty_years && product.specs?.length === 0 && !product.description && (
+                            <View style={styles.productSpec}>
+                              <Text style={styles.productSpecText}>Bảo hành: {product.warranty_years} năm</Text>
+                            </View>
+                          )}
+                        </View>
+                        
+                        <View style={styles.productPriceContainer}>
+                          <View style={styles.priceWrapper}>
+                            <Text style={styles.productPrice}>{roundToThousand(product.price).toLocaleString()}</Text>
+                            <Text style={styles.productCurrency}>đ</Text>
                           </View>
                           
-                          <TouchableOpacity 
-                            style={styles.increaseButton}
-                            onPress={() => handleIncreaseQuantity(product.id)}
-                          >
-                            <Ionicons name="add" size={16} color="#FFFFFF" />
-                          </TouchableOpacity>
+                          <View style={styles.productActions}>
+                            <View style={styles.quantityControl}>
+                              <TouchableOpacity 
+                                style={styles.decreaseButton}
+                                onPress={() => handleDecreaseQuantity(product.id)}
+                              >
+                                <Ionicons name="remove" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
+                              
+                              <View style={styles.quantityDisplay}>
+                                <Text style={styles.quantityText}>{product.quantity}</Text>
+                              </View>
+                              
+                              <TouchableOpacity 
+                                style={styles.increaseButton}
+                                onPress={() => handleIncreaseQuantity(product.id)}
+                              >
+                                <Ionicons name="add" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
                         </View>
                       </View>
                     </View>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
         </ScrollView>
@@ -1099,8 +1202,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   productImageContainer: {
-    width: 70,
-    height: 70,
+    width: 100,
+    height: 100,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1124,6 +1227,12 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     gap: 4,
+  },
+  productHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   productName: {
     fontSize: 10,
@@ -1152,12 +1261,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   productPrice: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '700',
     color: '#ED1C24',
   },
   productCurrency: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '700',
     color: '#ED1C24',
   },
@@ -1225,7 +1334,7 @@ const styles = StyleSheet.create({
     color: '#7B7D9D',
   },
   totalPriceValue: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '700',
     color: '#ED1C24',
   },
@@ -1354,8 +1463,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   drawerProductImageContainer: {
-    width: 80,
-    height: 80,
+    width: 120,
+    height: 120,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1427,12 +1536,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   drawerProductPriceValue: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '700',
     color: '#ED1C24',
   },
   drawerProductPriceCurrency: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '700',
     color: '#ED1C24',
   },
@@ -1455,5 +1564,23 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: '#0A0E15',
     borderRadius: 100,
+  },
+  drawerProductActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deleteButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#9C1C21',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  productActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
 }); 
