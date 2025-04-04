@@ -111,6 +111,7 @@ type ProductApiItem = {
 export default function QuotationDetails() {
   // Nhận params từ màn hình trước (có thể không nhận được do lỗi điều hướng)
   const params = useLocalSearchParams();
+  const { comboId, comboName, comboPrice, systemType, phaseType } = params;
   
   // State hiển thị drawer và danh mục đang chọn
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -133,10 +134,20 @@ export default function QuotationDetails() {
   // State cho danh sách tất cả sản phẩm từ API
   const [allProducts, setAllProducts] = useState<ProductApiItem[]>([]);
   
+  // Khai báo state mới để lưu trạng thái đã xử lý combo
+  const [comboProcessed, setComboProcessed] = useState(false);
+
   // Fetch tất cả sản phẩm từ API khi component mount
   useEffect(() => {
     fetchAllProducts();
   }, []);
+
+  // Thêm useEffect để xử lý combo được chọn
+  useEffect(() => {
+    if (comboId && !comboProcessed && allProducts.length > 0) {
+      fetchComboProducts(comboId.toString());
+    }
+  }, [comboId, allProducts, comboProcessed]);
 
   // Xử lý tăng số lượng sản phẩm
   const handleIncreaseQuantity = (productId: number) => {
@@ -198,6 +209,49 @@ export default function QuotationDetails() {
       setAllProducts(data);
     } catch (error) {
       console.error('Error fetching products:', error);
+    }
+  };
+
+  // Thêm hàm để fetch sản phẩm của combo
+  const fetchComboProducts = async (comboId: string) => {
+    try {
+      setLoading(true);
+      // Gọi API để lấy danh sách sản phẩm trong combo
+      const response = await fetch(`https://id.slmsolar.com/api/combos/${comboId}/products`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch combo products');
+      }
+      
+      const data = await response.json();
+      console.log('Combo products:', data);
+      
+      // Xử lý sản phẩm từ combo
+      if (data && Array.isArray(data)) {
+        const comboProducts: Product[] = [];
+        
+        // Tìm sản phẩm tương ứng trong allProducts và thêm vào comboProducts
+        data.forEach((comboProduct: any) => {
+          const matchingProduct = allProducts.find(p => p.id === comboProduct.merchandise_id);
+          
+          if (matchingProduct) {
+            const product = convertApiItemToProduct(matchingProduct);
+            // Sử dụng số lượng từ combo
+            product.quantity = comboProduct.quantity || 1;
+            comboProducts.push(product);
+          }
+        });
+        
+        // Thêm các sản phẩm từ combo vào danh sách đã chọn
+        setProducts(prevProducts => [...prevProducts, ...comboProducts]);
+      }
+      
+      // Đánh dấu đã xử lý combo để không xử lý lại
+      setComboProcessed(true);
+    } catch (error) {
+      console.error('Error fetching combo products:', error);
+    } finally {
+      setLoading(false);
     }
   };
 

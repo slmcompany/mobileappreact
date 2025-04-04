@@ -44,6 +44,7 @@ export default function QuotationBasicInfo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filteredCombos, setFilteredCombos] = useState<Combo[]>([]);
+  const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
 
   // Lấy thông tin sector từ API
   useEffect(() => {
@@ -112,17 +113,38 @@ export default function QuotationBasicInfo() {
     console.log('Lọc theo:', { systemType, phaseType });
   }, [systemType, phaseType, sector]);
 
+  // Thêm hàm để chọn combo
+  const handleComboSelect = (combo: Combo) => {
+    setSelectedCombo(combo);
+  };
+
   const handleContinue = () => {
     // Logic để xử lý khi người dùng nhấn nút tiếp tục
     console.log('Lọc theo:', { systemType, phaseType });
     console.log('Thông tin khách hàng:', { customerId, phoneNumber, isNewCustomer });
     console.log('Sector:', sectorId);
     
-    // Lưu thông tin lọc vào AsyncStorage hoặc context trước khi chuyển trang
-    
-    // Chuyển đến bước tiếp theo - trang danh mục thiết bị và vật tư
-    // Đường dẫn phải nằm trong danh sách các đường dẫn đã khai báo
-    router.push('/quotation_details');
+    // Nếu đã chọn combo, truyền thông tin combo sang bước 4
+    if (selectedCombo) {
+      console.log('Combo đã chọn:', selectedCombo);
+      
+      router.push({
+        pathname: '/quotation_details',
+        params: { 
+          systemType,
+          phaseType,
+          comboId: selectedCombo.id.toString(),
+          comboName: selectedCombo.name,
+          comboPrice: selectedCombo.price.toString()
+        }
+      });
+    } else {
+      // Nếu không chọn combo, vẫn chuyển sang bước 4 nhưng không có thông tin combo
+      router.push({
+        pathname: '/quotation_details',
+        params: { systemType, phaseType }
+      });
+    }
   };
 
   // Hiển thị màn hình loading
@@ -272,40 +294,43 @@ export default function QuotationBasicInfo() {
               
               <View style={styles.productList}>
                 {filteredCombos.map((combo) => (
-                  <View key={combo.id} style={styles.productCard}>
-                    <View style={styles.productImageContainer}>
+                  <TouchableOpacity
+                    key={combo.id}
+                    style={[
+                      styles.comboCard,
+                      selectedCombo?.id === combo.id ? styles.comboCardSelected : {}
+                    ]}
+                    onPress={() => handleComboSelect(combo)}
+                  >
+                    <View style={styles.comboImageContainer}>
                       {combo.image ? (
                         <Image 
                           source={{ uri: combo.image }} 
-                          style={styles.productImage}
-                          resizeMode="cover" 
+                          style={styles.comboImage}
+                          resizeMode="contain" 
                         />
                       ) : (
-                        <View style={styles.imagePlaceholder}>
+                        <View style={styles.comboImagePlaceholder}>
                           <Ionicons name="image-outline" size={24} color="#ABACC2" />
                         </View>
                       )}
                     </View>
-                    <View style={styles.productDetails}>
-                      <View style={styles.productTitleContainer}>
-                        <Text style={styles.productTitle}>{combo.name}</Text>
-                      </View>
-                      <View style={styles.productSpecsContainer}>
-                        <View style={styles.productSpec}>
-                          <Text style={styles.productSpecText}>{combo.description}</Text>
-                        </View>
-                        <View style={styles.productSpec}>
-                          <Text style={styles.productSpecText}>Thời gian hoàn vốn</Text>
-                        </View>
-                      </View>
-                      <View style={styles.productPriceContainer}>
-                        <View style={styles.priceWrapper}>
-                          <Text style={styles.productPrice}>{combo.price ? combo.price.toLocaleString() : 'Liên hệ'}</Text>
-                          <Text style={styles.productCurrency}>{combo.price ? 'đ' : ''}</Text>
-                        </View>
+                    <View style={styles.comboDetails}>
+                      <Text style={styles.comboName}>{combo.name}</Text>
+                      {combo.description && (
+                        <Text style={styles.comboDescription}>{combo.description}</Text>
+                      )}
+                      <View style={styles.comboPrice}>
+                        <Text style={styles.comboPriceValue}>{combo.price.toLocaleString()}</Text>
+                        <Text style={styles.comboPriceCurrency}>đ</Text>
                       </View>
                     </View>
-                  </View>
+                    {selectedCombo?.id === combo.id && (
+                      <View style={styles.selectedComboIndicator}>
+                        <Ionicons name="checkmark-circle" size={24} color="#12B669" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
                 ))}
               </View>
             </View>
@@ -477,77 +502,74 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
   },
-  productCard: {
+  comboCard: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    elevation: 2,
     shadowColor: '#27273E',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.16,
     shadowRadius: 3,
-    elevation: 2,
-    flexDirection: 'row',
+    position: 'relative',
   },
-  productImageContainer: {
-    backgroundColor: '#f5f5f5',
-    width: 100,
-    height: 100,
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
+  comboCardSelected: {
+    borderWidth: 1,
+    borderColor: '#12B669',
+  },
+  comboImageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 4,
     overflow: 'hidden',
+    marginRight: 12,
   },
-  productImage: {
+  comboImage: {
     width: '100%',
     height: '100%',
   },
-  imagePlaceholder: {
+  comboImagePlaceholder: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#F5F5F8',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  productDetails: {
+  comboDetails: {
     flex: 1,
-    padding: 12,
-    gap: 6,
   },
-  productTitleContainer: {
-    marginBottom: 4,
-  },
-  productTitle: {
+  comboName: {
     fontSize: 14,
     fontWeight: '500',
     color: '#27273E',
+    marginBottom: 4,
   },
-  productSpecsContainer: {
-    gap: 4,
-  },
-  productSpec: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  productSpecText: {
+  comboDescription: {
     fontSize: 12,
     color: '#7B7D9D',
+    marginBottom: 8,
   },
-  productPriceContainer: {
+  comboPrice: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
   },
-  priceWrapper: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  productPrice: {
-    fontSize: 12,
+  comboPriceValue: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#ED1C24',
   },
-  productCurrency: {
-    fontSize: 12,
-    fontWeight: '700',
+  comboPriceCurrency: {
+    fontSize: 14,
+    fontWeight: '500',
     color: '#ED1C24',
+    marginLeft: 2,
+  },
+  selectedComboIndicator: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
   },
   indicator: {
     height: 34,
