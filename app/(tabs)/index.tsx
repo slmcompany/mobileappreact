@@ -19,7 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSectors } from '../../hooks/useSector';
 import { Sector, Combo } from '../../models/sector';
 import ContentGallery from '../components/ContentGallery';
-import HomeContentSection from '../components/HomeContentSection';
+import HomeAgentCTA from '../components/home_agent_cta';
 
 // Mock data cho promo cards
 const promoCards = [
@@ -150,7 +150,7 @@ const ProductItem = ({ item, width }: { item: Combo, width: number }) => {
           {new Intl.NumberFormat('vi-VN', { 
             style: 'currency', 
             currency: 'VND' 
-          }).format(item.total_price)}
+          }).format(Math.round(item.total_price / 1000) * 1000)}
         </Text>
       </View>
     </View>
@@ -217,6 +217,7 @@ interface User {
   address?: string;
   avatar?: string;
   code?: string;
+  role_id?: number;
 }
 
 // Định nghĩa interface cho commission
@@ -248,6 +249,7 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState<string>('');
   const [userPhone, setUserPhone] = useState<string>('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userRoleId, setUserRoleId] = useState<number | null>(null);
   const { data: sectors, isLoading: isSectorsLoading, error: sectorsError } = useSectors();
   
   // Thêm state để lưu trữ dữ liệu hoa hồng
@@ -365,6 +367,7 @@ export default function HomeScreen() {
         const storedName = await AsyncStorage.getItem('@slm_user_name');
         const storedPhone = await AsyncStorage.getItem('@slm_login_phone');
         const storedAvatar = await AsyncStorage.getItem('@slm_user_avatar');
+        const userData = await AsyncStorage.getItem('@slm_user_data');
         
         if (storedName) {
           setUserName(storedName);
@@ -376,6 +379,16 @@ export default function HomeScreen() {
           setUserPhone(storedPhone);
         } else if (authState.user?.phone) {
           setUserPhone(authState.user.phone);
+        }
+        
+        // Lấy role ID từ user data
+        if (userData) {
+          const parsedUserData = JSON.parse(userData);
+          if (parsedUserData.role_id) {
+            setUserRoleId(parsedUserData.role_id);
+          }
+        } else if (authState.user?.role_id) {
+          setUserRoleId(authState.user.role_id);
         }
         
         // Lấy avatar từ AsyncStorage hoặc authState
@@ -754,44 +767,22 @@ export default function HomeScreen() {
             ))}
           </WingBlank>
           
-          {/* Chat Support Section */}
-          <View style={styles.chatSupportSection}>
-            <View style={styles.chatImageContainer}>
-              <Image 
-                source={require('../../assets/images/chat-icon.png')} 
-                style={styles.chatImage}
-                resizeMode="contain"
-              />
-            </View>
-            <View style={styles.chatContent}>
-              <Text style={styles.chatTitle}>Bắt đầu Bán hàng ngay~!</Text>
-              <Text style={styles.chatDescription}>
-                Mở khóa Thư viện Nội dung của SLM ngay khi có hợp đồng đầu tiên thành công để "bỏ túi" thêm thật nhiều bí kíp, giúp bạn tự tin hơn trên con đường chinh phục đỉnh cao bán hàng nhé!
-              </Text>
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity style={[styles.chatButtonOutlined, styles.buttonFlex]}>
-                  <Text style={styles.chatButtonTextOutlined}>Chính sách Đại lý</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.chatButtonPrimary, styles.buttonFlex]}>
-                  <View style={styles.buttonContentWithIcon}>
-                    <Image 
-                      source={require('../../assets/images/white-plus-icon.png')} 
-                      style={styles.buttonIcon} 
-                      resizeMode="contain"
-                    />
-                    <Text style={styles.chatButtonText}>Tạo Báo giá</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+          {/* HomeAgentCTA Section - Chỉ hiển thị với role_id là 4 hoặc 5 */}
+          {(userRoleId === 4 || userRoleId === 5) && (
+            <HomeAgentCTA />
+          )}
 
           {/* Bài viết mới nhất */}
-          <HomeContentSection 
-            title="Bài viết mới nhất"
+          <ContentGallery 
             userId={4}
+            showTitle={true}
+            sectionTitle="Bài viết liên quan"
             maxItems={5}
-            cardStyle="minimal"
+            horizontal={true}
+            cardStyle="simple"
+            detailInModal={true}
+            showViewAll={true}
+            viewAllPath="/(tabs)/gallery"
           />
 
           <WhiteSpace size="lg" />

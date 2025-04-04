@@ -134,6 +134,16 @@ export default function AccountScreen() {
               </View>
             }
           />
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/(tabs)/gallery")}
+          >
+            <View style={styles.menuIconContainer}>
+              <Ionicons name="newspaper-outline" size={24} color="#ED1C24" />
+            </View>
+            <Text style={styles.menuText}>Thư viện bài viết</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
         </>
       )}
     </SafeAreaView>
@@ -319,5 +329,25 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
   },
 }); 
