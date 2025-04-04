@@ -133,9 +133,9 @@ export default function QuotationBasicInfo() {
         params: { 
           systemType,
           phaseType,
-          comboId: selectedCombo.id.toString(),
-          comboName: selectedCombo.name,
-          comboPrice: selectedCombo.price.toString()
+          comboId: selectedCombo.id?.toString() || '',
+          comboName: selectedCombo.name || '',
+          comboPrice: selectedCombo.price ? selectedCombo.price.toString() : '0'
         }
       });
     } else {
@@ -321,8 +321,8 @@ export default function QuotationBasicInfo() {
                         <Text style={styles.comboDescription}>{combo.description}</Text>
                       )}
                       <View style={styles.comboPrice}>
-                        <Text style={styles.comboPriceValue}>{combo.price.toLocaleString()}</Text>
-                        <Text style={styles.comboPriceCurrency}>đ</Text>
+                        <Text style={styles.comboPriceValue}>{combo.price ? combo.price.toLocaleString() : "-"}</Text>
+                        <Text style={styles.comboPriceCurrency}>{combo.price ? "đ" : ""}</Text>
                       </View>
                     </View>
                     {selectedCombo?.id === combo.id && (
