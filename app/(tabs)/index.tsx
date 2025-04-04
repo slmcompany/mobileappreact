@@ -217,6 +217,7 @@ export default function HomeScreen() {
   const { authState } = useAuth();
   const [userName, setUserName] = useState<string>('');
   const [userPhone, setUserPhone] = useState<string>('');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { data: sectors, isLoading: isSectorsLoading, error: sectorsError } = useSectors();
   
   useEffect(() => {
@@ -231,6 +232,7 @@ export default function HomeScreen() {
         // Lấy trực tiếp từ AsyncStorage để đảm bảo dữ liệu mới nhất
         const storedName = await AsyncStorage.getItem('@slm_user_name');
         const storedPhone = await AsyncStorage.getItem('@slm_login_phone');
+        const storedAvatar = await AsyncStorage.getItem('@slm_user_avatar');
         
         if (storedName) {
           setUserName(storedName);
@@ -243,6 +245,16 @@ export default function HomeScreen() {
         } else if (authState.user?.phone) {
           setUserPhone(authState.user.phone);
         }
+        
+        // Lấy avatar từ AsyncStorage hoặc authState
+        if (storedAvatar) {
+          setUserAvatar(storedAvatar);
+        } else if (authState.user?.avatar) {
+          setUserAvatar(authState.user.avatar);
+        } else {
+          // Nếu không có trong authState và AsyncStorage, thử lấy từ API
+          await fetchUserAvatar();
+        }
       } catch (error) {
         console.error('Lỗi khi tải thông tin người dùng:', error);
       }
@@ -251,6 +263,40 @@ export default function HomeScreen() {
     loadUserData();
   }, [authState]);
   
+  // Hàm lấy avatar từ API
+  const fetchUserAvatar = async () => {
+    try {
+      // Lấy user ID từ AsyncStorage hoặc authState
+      const userId = authState.user?.id || await AsyncStorage.getItem('@slm_user_id');
+      
+      if (!userId) {
+        console.log('Không tìm thấy ID người dùng');
+        return;
+      }
+      
+      const response = await fetch(`https://id.slmsolar.com/api/users/${userId}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Lỗi khi lấy thông tin: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.avatar) {
+        setUserAvatar(data.avatar);
+        
+        // Lưu avatar vào AsyncStorage để sử dụng sau này
+        await AsyncStorage.setItem('@slm_user_avatar', data.avatar);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy avatar người dùng:', error);
+    }
+  };
+
   const renderTypeTag = (type: string) => {
     let color = '';
     let displayText = type;
@@ -327,6 +373,11 @@ export default function HomeScreen() {
     router.push('/(stats)/comission_history');
   };
 
+  // Thêm nút điều hướng đến màn hình cộng đồng
+  const navigateToGroupAgent = () => {
+    router.push('/(group)/group_agent');
+  };
+
   if (isSectorsLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -368,9 +419,20 @@ export default function HomeScreen() {
                 onPress={() => router.push('/profile')}
                 style={{ flexDirection: 'row', alignItems: 'center' }}
               >
-                <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={24} color="white" />
-                </View>
+                {userAvatar ? (
+                  <Image 
+                    source={{ uri: userAvatar }} 
+                    style={styles.avatarPlaceholder}
+                    onError={() => {
+                      console.log('Lỗi khi tải ảnh avatar');
+                      setUserAvatar(null);
+                    }}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={24} color="white" />
+                  </View>
+                )}
                 <View style={styles.userInfo}>
                   <Text style={styles.greeting}>Chào {userName || 'Người dùng'}</Text>
                   <Text style={styles.userId}>{userPhone || '(Chưa đăng nhập)'}</Text>
@@ -420,14 +482,17 @@ export default function HomeScreen() {
                     </Flex>
                   </View>
                   <View style={[styles.iconContainer, { paddingBottom: 8, paddingTop: 8, alignSelf: 'center' }]}>
-                    <View style={styles.statItem}>
+                    <TouchableOpacity 
+                      style={styles.statItem}
+                      onPress={navigateToGroupAgent}
+                    >
                       <Image 
                         source={require('../../assets/images/cong-dong.png')} 
                         style={{ width: 24, height: 24, marginBottom: 4 }} 
                         resizeMode="contain"
                       />
                       <Text style={styles.statLabel}>Cộng đồng</Text>
-                    </View>
+                    </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.statItem, { marginLeft: 16 }]}
                       onPress={navigateToCommissionHistory}

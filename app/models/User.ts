@@ -19,6 +19,7 @@ export interface User {
   idNumber?: string;
   birthDate?: string;
   gender?: string;
+  avatar?: string;
 }
 
 // Authentication state interface

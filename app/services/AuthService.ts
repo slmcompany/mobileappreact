@@ -176,6 +176,9 @@ class AuthService {
       await AsyncStorage.setItem('@slm_user_data', JSON.stringify(user));
       await AsyncStorage.setItem('@slm_login_phone', user.phone);
       await AsyncStorage.setItem('@slm_user_name', user.name);
+      if (user.avatar) {
+        await AsyncStorage.setItem('@slm_user_avatar', user.avatar);
+      }
     } catch (error) {
       console.error('Error storing user data:', error);
       throw error;
@@ -189,6 +192,7 @@ class AuthService {
     idNumber?: string;
     birthDate?: string;
     gender?: string;
+    avatar?: string;
   }): Promise<User | null> {
     try {
       // Get current user data
@@ -208,6 +212,7 @@ class AuthService {
         ...(userInfo.idNumber && { idNumber: userInfo.idNumber }),
         ...(userInfo.birthDate && { birthDate: userInfo.birthDate }),
         ...(userInfo.gender && { gender: userInfo.gender }),
+        ...(userInfo.avatar && { avatar: userInfo.avatar }),
       };
       
       // Store updated user data

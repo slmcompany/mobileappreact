@@ -14,6 +14,7 @@ interface AuthContextType {
     idNumber?: string;
     birthDate?: string;
     gender?: string;
+    avatar?: string;
   }) => Promise<User | null>;
 }
 
@@ -148,6 +149,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     idNumber?: string;
     birthDate?: string;
     gender?: string;
+    avatar?: string;
   }): Promise<User | null> => {
     try {
       const updatedUser = await AuthService.updateUserProfile(userInfo);
