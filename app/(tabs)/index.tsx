@@ -249,7 +249,7 @@ export default function HomeScreen() {
     };
     
     loadUserData();
-  }, [authState.user]);
+  }, [authState]);
   
   const renderTypeTag = (type: string) => {
     let color = '';
@@ -320,6 +320,11 @@ export default function HomeScreen() {
       });
       setActivePromoIndex(index);
     }
+  };
+
+  // Thêm nút điều hướng đến màn hình thống kê hoa hồng
+  const navigateToCommissionHistory = () => {
+    router.push('/(stats)/comission_history');
   };
 
   if (isSectorsLoading) {
@@ -425,7 +430,7 @@ export default function HomeScreen() {
                     </View>
                     <TouchableOpacity 
                       style={[styles.statItem, { marginLeft: 16 }]}
-                      onPress={() => router.push('/(tabs)/stats')}
+                      onPress={navigateToCommissionHistory}
                     >
                       <Image 
                         source={require('../../assets/images/chart-pie.png')} 

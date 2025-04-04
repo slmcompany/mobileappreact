@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Định nghĩa interface cho user
 interface User {
@@ -41,6 +42,7 @@ interface Downline {
 export default function StatsScreen() {
   const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState<User | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,7 @@ export default function StatsScreen() {
   const [currentMonthCommissions, setCurrentMonthCommissions] = useState<number>(0);
   const [monthlyAmounts, setMonthlyAmounts] = useState<number[]>(Array(12).fill(0));
   const [downlinesCount, setDownlinesCount] = useState<number>(0);
+  const [potentialCustomersCount, setPotentialCustomersCount] = useState<number>(0);
 
   // Đầu tiên, lấy user ID từ AsyncStorage
   useEffect(() => {
@@ -80,6 +83,7 @@ export default function StatsScreen() {
       fetchUserData(userId);
       fetchCommissionData(userId);
       fetchDownlines(userId);
+      fetchPotentialCustomersCount(userId);
     }
   }, [userId]);
 
@@ -247,6 +251,44 @@ export default function StatsScreen() {
     }
   };
 
+  const fetchPotentialCustomersCount = async (id: number) => {
+    try {
+      const response = await fetch(`https://id.slmsolar.com/api/agents/${id}/potential-customers`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Lỗi khi lấy dữ liệu khách hàng tiềm năng: ${response.status}`);
+      }
+      
+      // Kiểm tra content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+      }
+      
+      // Lấy text và kiểm tra trước khi parse
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) {
+        throw new Error('Phản hồi không phải định dạng JSON');
+      }
+      
+      // Parse JSON và lấy số lượng
+      const data = JSON.parse(text);
+      
+      if (data && Array.isArray(data)) {
+        setPotentialCustomersCount(data.length);
+      } else {
+        setPotentialCustomersCount(0);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu khách hàng tiềm năng:', error);
+      setPotentialCustomersCount(0);
+    }
+  };
+
   // Lấy 2 ký tự đầu của tên để hiển thị khi không có avatar
   const getInitials = (name: string) => {
     return name?.trim().substring(0, 2).toUpperCase() || 'TP';
@@ -263,11 +305,15 @@ export default function StatsScreen() {
   };
 
   const navigateToCommissionStats = () => {
-    router.push('/commission-stats');
+    router.push('/(stats)/comission_history');
   };
 
   const navigateToCommunity = () => {
-    router.push('/(profile)/community');
+    router.push('/(tabs)');
+  };
+
+  const navigateToPotentialCustomers = () => {
+    router.push('/(stats)/potential_customers');
   };
 
   // Tìm tháng có giá trị lớn nhất để hiển thị tooltip
@@ -277,25 +323,40 @@ export default function StatsScreen() {
   return (
     <ScrollView style={styles.container}>
       {/* Profile Section */}
-      <View style={styles.profileSection}>
+      <View style={[
+        styles.profileSection,
+        { paddingTop: insets.top > 0 ? insets.top + 20 : 30 }
+      ]}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#0066ff" />
           </View>
         ) : (
           <>
-            {user?.avatar ? (
-              <Image 
-                source={{ uri: user.avatar }} 
-                style={styles.profileImage} 
-              />
-            ) : (
-              <View style={styles.textAvatar}>
-                <Text style={styles.textAvatarContent}>{getInitials(user?.name || '')}</Text>
+            <View style={styles.headerContainer}>
+              <View style={styles.userProfile}>
+                {user?.avatar ? (
+                  <Image 
+                    source={{ uri: user.avatar }} 
+                    style={styles.profileImage} 
+                  />
+                ) : (
+                  <View style={styles.textAvatar}>
+                    <Text style={styles.textAvatarContent}>{getInitials(user?.name || '')}</Text>
+                  </View>
+                )}
+                <View style={styles.userInfo}>
+                  <Text style={styles.profileName}>{user?.name || 'Đang tải...'}</Text>
+                  <Text style={styles.profileId}>{user?.phone || ''}</Text>
+                </View>
               </View>
-            )}
-            <Text style={styles.profileName}>{user?.name || 'Đang tải...'}</Text>
-            <Text style={styles.profileId}>{user?.phone || ''}</Text>
+              <View style={styles.companyInfo}>
+                <Text style={styles.companyName}>CÔNG TY CP ĐẦU TƯ SLM</Text>
+                <View style={styles.agentBadge}>
+                  <Text style={styles.agentBadgeText}>ĐẠI LÝ CẤP 1</Text>
+                </View>
+              </View>
+            </View>
           </>
         )}
       </View>
@@ -317,10 +378,13 @@ export default function StatsScreen() {
       </View>
       
       {/* List Items */}
-      <TouchableOpacity style={styles.listItem}>
+      <TouchableOpacity 
+        style={styles.listItem}
+        onPress={navigateToPotentialCustomers}
+      >
         <Text style={styles.listItemText}>Khách hàng tiềm năng</Text>
         <View style={styles.listItemRight}>
-          <Text style={styles.listItemValue}>12 người</Text>
+          <Text style={styles.listItemValue}>{potentialCustomersCount} người</Text>
           <Text style={styles.arrow}>→</Text>
         </View>
       </TouchableOpacity>
@@ -419,26 +483,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   profileSection: {
-    alignItems: 'center',
     padding: 20,
     backgroundColor: '#fff',
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#ffc5c5',
   },
   textAvatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#ffc5c5',
     justifyContent: 'center',
     alignItems: 'center',
   },
   textAvatarContent: {
-    fontSize: 36,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -448,14 +511,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   profileName: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginTop: 10,
+    color: '#27273E',
   },
   profileId: {
-    fontSize: 16,
-    color: '#888',
-    marginTop: 5,
+    fontSize: 14,
+    color: '#7B7D9D',
+    fontWeight: '500',
   },
   statsRow: {
     flexDirection: 'row',
@@ -638,5 +701,39 @@ const styles = StyleSheet.create({
   circleArrowText: {
     fontSize: 14,
     color: '#666',
+  },
+  headerContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  userProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  userInfo: {
+    justifyContent: 'center',
+  },
+  companyInfo: {
+    alignItems: 'flex-end',
+  },
+  companyName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7B7D9D',
+    marginBottom: 4,
+  },
+  agentBadge: {
+    backgroundColor: '#ED1C24',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  agentBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 }); 
