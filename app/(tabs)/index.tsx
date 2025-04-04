@@ -18,6 +18,7 @@ import { useAuth } from '@/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSectors } from '../../hooks/useSector';
 import { Sector, Combo } from '../../models/sector';
+import ContentGallery from '../components/ContentGallery';
 
 // Mock data cho promo cards
 const promoCards = [
@@ -784,6 +785,19 @@ export default function HomeScreen() {
             </View>
           </View>
 
+          {/* Bài viết mới nhất */}
+          <View style={styles.contentSection}>
+            <Text style={styles.contentSectionTitle}>Bài viết mới nhất</Text>
+            <ContentGallery 
+              userId={4}
+              showTitle={false}
+              horizontal={true}
+              cardStyle="minimal"
+              detailInModal={true}
+              maxItems={5}
+            />
+          </View>
+
           <WhiteSpace size="lg" />
         </ScrollView>
       </View>
@@ -1460,5 +1474,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  // Thêm styles cho phần bài viết
+  contentSection: {
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: '#fff',
+    marginTop: 16,
+    width: '100%',
+  },
+  contentSectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    color: '#333',
   },
 });
