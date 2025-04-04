@@ -188,8 +188,23 @@ export default function QuotationDetails() {
     );
   };
 
-  // Tính tổng tiền
-  const totalPrice = products.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+  // Thêm hàm tính tổng giá bao gồm khung sắt và nhân công nếu được chọn
+  const calculateTotalPrice = (): number => {
+    // Tính tổng giá của tất cả sản phẩm đã chọn
+    const productsTotal = products.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+    
+    // Nếu chọn hình thức lắp đặt là khung sắt, cộng thêm giá khung sắt và nhân công
+    if (installationType === 'KHUNG_SAT') {
+      const frameSellPriceValue = parseInt(frameSellPrice) || 0;
+      const frameLaborPriceValue = parseInt(frameLaborPrice) || 0;
+      return productsTotal + frameSellPriceValue + frameLaborPriceValue;
+    }
+    
+    return productsTotal;
+  };
+
+  // Tính tổng tiền sử dụng hàm calculateTotalPrice
+  const totalPrice = calculateTotalPrice();
 
   // Hàm làm tròn đến hàng nghìn
   const roundToThousand = (price: number): number => {
@@ -1209,13 +1224,22 @@ export default function QuotationDetails() {
           <View style={styles.indicatorLine} />
         </View>
         
-        {/* Bottom action */}
+        {/* Bottom action - Hiển thị chi tiết giá nếu có khung sắt */}
         <View style={styles.bottomContainer}>
           <View style={styles.totalPriceContainer}>
             <Text style={styles.totalPriceLabel}>Tổng tạm tính (bao gồm VAT)</Text>
             <Text style={styles.totalPriceValue}>
               {totalPrice > 0 ? roundToThousand(totalPrice).toLocaleString() + ' đ' : '-'}
             </Text>
+            {installationType === 'KHUNG_SAT' && (frameSellPrice || frameLaborPrice) && (
+              <View style={styles.priceDetailsContainer}>
+                <Text style={styles.priceDetailText}>
+                  {frameSellPrice ? `Khung sắt: ${parseInt(frameSellPrice).toLocaleString()} đ` : ''}
+                  {frameSellPrice && frameLaborPrice ? ' | ' : ''}
+                  {frameLaborPrice ? `Nhân công: ${parseInt(frameLaborPrice).toLocaleString()} đ` : ''}
+                </Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity
             style={styles.continueButton}
@@ -1783,5 +1807,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
+  },
+  priceDetailsContainer: {
+    marginTop: 4,
+  },
+  priceDetailText: {
+    fontSize: 8,
+    color: '#7B7D9D',
   },
 }); 
