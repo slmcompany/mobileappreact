@@ -1,32 +1,310 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Định nghĩa interface cho user
+interface User {
+  id: number;
+  name: string;
+  phone: string;
+  address?: string;
+  avatar?: string;
+  code?: string;
+}
+
+// Định nghĩa interface cho commission
+interface Commission {
+  id: number;
+  created_at: string;
+  paid: boolean;
+  seller: number;
+  money: number;
+  sector_id: number;
+  sector: any;
+}
+
+interface MonthlyCommission {
+  month: number;
+  commissions: Commission[];
+}
+
+// Định nghĩa interface cho agent downline
+interface Downline {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  parent_id: number;
+}
 
 export default function StatsScreen() {
   const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [commissionData, setCommissionData] = useState<MonthlyCommission[]>([]);
+  const [totalCommissions, setTotalCommissions] = useState<number>(0);
+  const [totalCommissionAmount, setTotalCommissionAmount] = useState<number>(0);
+  const [currentMonthCommissions, setCurrentMonthCommissions] = useState<number>(0);
+  const [monthlyAmounts, setMonthlyAmounts] = useState<number[]>(Array(12).fill(0));
+  const [downlinesCount, setDownlinesCount] = useState<number>(0);
+
+  // Đầu tiên, lấy user ID từ AsyncStorage
+  useEffect(() => {
+    const getUserId = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('@slm_user_data');
+        if (userData) {
+          const user = JSON.parse(userData);
+          setUserId(user.id);
+        } else {
+          // Fallback ID nếu không có user đang đăng nhập
+          setUserId(4);
+        }
+      } catch (error) {
+        console.error('Error getting user ID:', error);
+        // Fallback ID nếu có lỗi
+        setUserId(4);
+      }
+    };
+
+    getUserId();
+  }, []);
+
+  // Sau khi có userId, gọi API để lấy thông tin user
+  useEffect(() => {
+    if (userId) {
+      fetchUserData(userId);
+      fetchCommissionData(userId);
+      fetchDownlines(userId);
+    }
+  }, [userId]);
+
+  // Xử lý dữ liệu commission sau khi nhận được
+  useEffect(() => {
+    if (commissionData.length > 0) {
+      // Tính tổng số hợp đồng
+      const total = commissionData.reduce((sum, month) => sum + month.commissions.length, 0);
+      setTotalCommissions(total);
+
+      // Tính tổng tiền hoa hồng
+      const totalAmount = commissionData.reduce((sum, month) => {
+        return sum + month.commissions.reduce((monthSum, comm) => monthSum + comm.money, 0);
+      }, 0);
+      setTotalCommissionAmount(totalAmount);
+
+      // Lấy số hợp đồng tháng hiện tại
+      const currentMonth = new Date().getMonth() + 1; // getMonth() trả về 0-11
+      const currentMonthData = commissionData.find(m => m.month === currentMonth);
+      if (currentMonthData) {
+        setCurrentMonthCommissions(currentMonthData.commissions.length);
+      }
+
+      // Cập nhật dữ liệu cho biểu đồ
+      const monthlyData = Array(12).fill(0);
+      commissionData.forEach(monthData => {
+        if (monthData.month >= 1 && monthData.month <= 12) {
+          const monthAmount = monthData.commissions.reduce((sum, comm) => sum + comm.money, 0);
+          monthlyData[monthData.month - 1] = monthAmount;
+        }
+      });
+      setMonthlyAmounts(monthlyData);
+    }
+  }, [commissionData]);
+
+  const fetchUserData = async (id: number) => {
+    try {
+      setLoading(true);
+      
+      const response = await fetch(`https://id.slmsolar.com/api/users/${id}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Lỗi khi lấy thông tin: ${response.status}`);
+      }
+      
+      // Kiểm tra content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+      }
+      
+      // Lấy text và kiểm tra trước khi parse
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) {
+        throw new Error('Phản hồi không phải định dạng JSON');
+      }
+      
+      // Parse JSON
+      const data = JSON.parse(text);
+      
+      if (data) {
+        setUser({
+          id: data.id || 0,
+          name: data.name || 'Chưa có tên',
+          phone: data.phone || '',
+          address: data.address || '',
+          avatar: data.avatar || '',
+          code: data.code || `AG${data.id || '0000'}`
+        });
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy thông tin người dùng:', error);
+      setError(error instanceof Error ? error.message : 'Lỗi không xác định');
+      
+      // Đặt người dùng mặc định nếu có lỗi
+      setUser({
+        id: 0,
+        name: 'Tùy Phong',
+        phone: '',
+        code: 'AG1203'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCommissionData = async (id: number) => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const response = await fetch(`https://id.slmsolar.com/api/user/commission/${id}/${currentYear}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Lỗi khi lấy dữ liệu hoa hồng: ${response.status}`);
+      }
+      
+      // Kiểm tra content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+      }
+      
+      // Lấy text và kiểm tra trước khi parse
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) {
+        throw new Error('Phản hồi không phải định dạng JSON');
+      }
+      
+      // Parse JSON
+      const data = JSON.parse(text);
+      
+      if (data && Array.isArray(data)) {
+        setCommissionData(data);
+      } else {
+        setCommissionData([]);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu hoa hồng:', error);
+      setCommissionData([]);
+    }
+  };
+
+  const fetchDownlines = async (id: number) => {
+    try {
+      const response = await fetch(`https://id.slmsolar.com/api/agents/${id}/downlines`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Lỗi khi lấy dữ liệu thành viên: ${response.status}`);
+      }
+      
+      // Kiểm tra content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+      }
+      
+      // Lấy text và kiểm tra trước khi parse
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) {
+        throw new Error('Phản hồi không phải định dạng JSON');
+      }
+      
+      // Parse JSON
+      const data = JSON.parse(text);
+      
+      if (data && Array.isArray(data)) {
+        setDownlinesCount(data.length);
+      } else {
+        setDownlinesCount(0);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu thành viên cộng đồng:', error);
+      setDownlinesCount(0);
+    }
+  };
+
+  // Lấy 2 ký tự đầu của tên để hiển thị khi không có avatar
+  const getInitials = (name: string) => {
+    return name?.trim().substring(0, 2).toUpperCase() || 'TP';
+  };
+
+  // Format số tiền
+  const formatCurrency = (amount: number) => {
+    // Làm tròn đến hàng nghìn
+    const roundedAmount = Math.round(amount / 1000) * 1000;
+    // Format không hiển thị phần thập phân
+    return new Intl.NumberFormat('vi-VN', {
+      maximumFractionDigits: 0
+    }).format(roundedAmount);
+  };
 
   const navigateToCommissionStats = () => {
     router.push('/commission-stats');
   };
 
+  const navigateToCommunity = () => {
+    router.push('/(profile)/community');
+  };
+
+  // Tìm tháng có giá trị lớn nhất để hiển thị tooltip
+  const maxMonthIndex = monthlyAmounts.indexOf(Math.max(...monthlyAmounts));
+  const maxAmount = monthlyAmounts[maxMonthIndex];
+
   return (
     <ScrollView style={styles.container}>
       {/* Profile Section */}
       <View style={styles.profileSection}>
-        <Image 
-          source={{ uri: 'https://via.placeholder.com/100' }} 
-          style={styles.profileImage} 
-        />
-        <Text style={styles.profileName}>Tùy Phong</Text>
-        <Text style={styles.profileId}>ID: AG1203</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0066ff" />
+          </View>
+        ) : (
+          <>
+            {user?.avatar ? (
+              <Image 
+                source={{ uri: user.avatar }} 
+                style={styles.profileImage} 
+              />
+            ) : (
+              <View style={styles.textAvatar}>
+                <Text style={styles.textAvatarContent}>{getInitials(user?.name || '')}</Text>
+              </View>
+            )}
+            <Text style={styles.profileName}>{user?.name || 'Đang tải...'}</Text>
+            <Text style={styles.profileId}>{user?.phone || ''}</Text>
+          </>
+        )}
       </View>
       
       {/* Summary Cards */}
       <View style={styles.statsRow}>
         <View style={[styles.statsCard, styles.halfCard]}>
           <Text style={styles.cardLabel}>Tổng số hợp đồng</Text>
-          <Text style={styles.cardValue}>12</Text>
+          <Text style={styles.cardValue}>{totalCommissions}</Text>
         </View>
         
         <TouchableOpacity 
@@ -34,7 +312,7 @@ export default function StatsScreen() {
           onPress={navigateToCommissionStats}
         >
           <Text style={styles.cardLabel}>Hoa hồng đã nhận</Text>
-          <Text style={[styles.cardValue, styles.valueGreen]}>8.640.000</Text>
+          <Text style={[styles.cardValue, styles.valueGreen]}>{formatCurrency(totalCommissionAmount)}</Text>
         </TouchableOpacity>
       </View>
       
@@ -47,33 +325,43 @@ export default function StatsScreen() {
         </View>
       </TouchableOpacity>
       
-      <TouchableOpacity style={styles.listItem}>
+      <TouchableOpacity 
+        style={styles.listItem}
+        onPress={navigateToCommunity}
+      >
         <Text style={styles.listItemText}>Cộng đồng</Text>
         <View style={styles.listItemRight}>
-          <Text style={styles.listItemValue}>12 thành viên</Text>
+          <Text style={styles.listItemValue}>{downlinesCount} thành viên</Text>
           <Text style={styles.arrow}>→</Text>
         </View>
       </TouchableOpacity>
       
       {/* Chart Section */}
       <View style={styles.chartContainer}>
-        <View style={styles.chartTooltip}>
-          <Text style={styles.tooltipText}>3.000.000 đ</Text>
+        <View style={[styles.chartTooltip, {left: `${(maxMonthIndex / 11) * 100}%`}]}>
+          <Text style={styles.tooltipText}>{formatCurrency(maxAmount)} đ</Text>
         </View>
         
         <View style={styles.chartBars}>
-          {months.map((month, index) => (
-            <View key={index} style={styles.barColumn}>
-              <View 
-                style={[
-                  styles.bar, 
-                  { height: index === 6 ? 170 : 50 + Math.random() * 100 },
-                  index === 6 ? styles.activeBar : styles.inactiveBar
-                ]} 
-              />
-              <Text style={styles.monthLabel}>{month}</Text>
-            </View>
-          ))}
+          {months.map((month, index) => {
+            // Tính chiều cao tương đối dựa trên giá trị lớn nhất
+            const barHeight = maxAmount > 0 
+              ? Math.max(30, (monthlyAmounts[index] / maxAmount) * 170) 
+              : 30;
+              
+            return (
+              <View key={index} style={styles.barColumn}>
+                <View 
+                  style={[
+                    styles.bar, 
+                    { height: barHeight },
+                    index === maxMonthIndex ? styles.activeBar : styles.inactiveBar
+                  ]} 
+                />
+                <Text style={styles.monthLabel}>{month}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
       
@@ -84,7 +372,7 @@ export default function StatsScreen() {
             <View style={[styles.statCardIndicator, styles.orangeIndicator]} />
             <View style={styles.statCardContent}>
               <Text style={styles.statCardLabel}>Hợp đồng tháng này</Text>
-              <Text style={styles.statCardValue}>02</Text>
+              <Text style={styles.statCardValue}>{currentMonthCommissions}</Text>
             </View>
           </View>
           
@@ -92,7 +380,7 @@ export default function StatsScreen() {
             <View style={[styles.statCardIndicator, styles.blueIndicator]} />
             <View style={styles.statCardContent}>
               <Text style={styles.statCardLabel}>Thu nhập dự kiến</Text>
-              <Text style={styles.statCardValue}>12.650.000</Text>
+              <Text style={styles.statCardValue}>{formatCurrency(totalCommissionAmount)}</Text>
             </View>
           </View>
         </View>
@@ -102,7 +390,7 @@ export default function StatsScreen() {
             <View style={[styles.statCardIndicator, styles.grayIndicator]} />
             <View style={styles.statCardContent}>
               <Text style={styles.statCardLabel}>Tổng số hợp đồng</Text>
-              <Text style={styles.statCardValue}>12</Text>
+              <Text style={styles.statCardValue}>{totalCommissions}</Text>
               <TouchableOpacity style={styles.circleArrow}>
                 <Text style={styles.circleArrowText}>→</Text>
               </TouchableOpacity>
@@ -116,7 +404,7 @@ export default function StatsScreen() {
             <View style={[styles.statCardIndicator, styles.greenIndicator]} />
             <View style={styles.statCardContent}>
               <Text style={styles.statCardLabel}>Hoa hồng đã nhận</Text>
-              <Text style={styles.statCardValue}>8.640.000</Text>
+              <Text style={styles.statCardValue}>{formatCurrency(totalCommissionAmount)}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -140,6 +428,24 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     backgroundColor: '#ffc5c5',
+  },
+  textAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#ffc5c5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  textAvatarContent: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  loadingContainer: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   profileName: {
     fontSize: 24,
@@ -237,7 +543,6 @@ const styles = StyleSheet.create({
   chartTooltip: {
     position: 'absolute',
     top: 50,
-    left: '55%',
     backgroundColor: '#222',
     padding: 8,
     borderRadius: 5,

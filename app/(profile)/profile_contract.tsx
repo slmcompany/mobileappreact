@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import RenderHtml from 'react-native-render-html';
+import { useWindowDimensions } from 'react-native';
 
 // Định nghĩa kiểu dữ liệu cho người dùng
 interface User {
@@ -42,13 +44,70 @@ interface Article {
   id: number;
   author: string;
   title: string;
+  thumbnail?: string;
+  content?: string;
+  hashtag?: string;
   time: string;
   isLight: boolean;
   hasIndicator: boolean;
 }
 
+// Thêm component riêng để xử lý ảnh và lỗi CORS
+interface ImageWithFallbackProps {
+  uri: string | undefined;
+  style: any;
+  resizeMode?: 'cover' | 'contain' | 'stretch' | 'repeat' | 'center';
+}
+
+const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({ uri, style, resizeMode = 'cover' }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const fallbackImage = require('../../assets/images/replace-holder.png');
+  
+  return (
+    <View style={[style, {overflow: 'hidden', position: 'relative'}]}>
+      {isLoading && (
+        <View style={[StyleSheet.absoluteFill, {justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5'}]}>
+          <ActivityIndicator size="small" color="#ED1C24" />
+        </View>
+      )}
+      
+      {hasError || !uri ? (
+        <Image 
+          source={fallbackImage}
+          style={{width: '100%', height: '100%'}}
+          resizeMode={resizeMode}
+          onLoadEnd={() => setIsLoading(false)}
+        />
+      ) : (
+        <Image 
+          source={{ uri: uri }}
+          style={{width: '100%', height: '100%'}}
+          resizeMode={resizeMode}
+          onLoadStart={() => setIsLoading(true)}
+          onLoadEnd={() => setIsLoading(false)}
+          onError={() => {
+            console.log("Lỗi khi tải ảnh:", uri);
+            setHasError(true);
+            setIsLoading(false);
+          }}
+        />
+      )}
+    </View>
+  );
+};
+
+// Hàm strip HTML tags
+const stripHtmlTags = (html: string) => {
+  if (!html) return '';
+  const text = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+  return text.length > 80 ? text.substring(0, 80) + '...' : text;
+};
+
 export default function ProfileContractScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [user, setUser] = useState<User | null>(null);
   const [merchandises, setMerchandises] = useState<PreQuoteMerchandise[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -202,14 +261,30 @@ export default function ProfileContractScreen() {
         
         const data = await response.json();
         if (data && data.data) {
-          const mappedArticles = data.data.map((article: any, index: number) => ({
-            id: article.id,
-            author: article.author || '',
-            title: article.title || '',
-            time: article.created_at ? formatTimeAgo(new Date(article.created_at)) : '',
-            isLight: index % 2 === 0,
-            hasIndicator: index % 2 === 0
-          }));
+          const mappedArticles = data.data.map((article: any, index: number) => {
+            // Nếu có media_contents, lấy link đầu tiên cho thumbnail
+            const thumbnailLink = article.media_contents && article.media_contents.length > 0
+              ? article.media_contents[0].kind === "video"
+                ? `https://img.youtube.com/vi/${article.media_contents[0].link}/mqdefault.jpg`
+                : article.media_contents[0].link
+              : '';
+            
+            // Xử lý nội dung để hiển thị
+            const plainContent = stripHtmlTags(article.content || '');
+            
+            return {
+              id: article.id,
+              author: article.author || 'SLM Solar',
+              title: article.title || '',
+              thumbnail: thumbnailLink,
+              content: article.content || '',
+              plainContent: plainContent,
+              hashtag: article.hashtag || '',
+              time: article.created_at ? formatTimeAgo(new Date(article.created_at)) : '',
+              isLight: index % 2 === 0,
+              hasIndicator: index % 2 === 0
+            };
+          });
           setArticles(mappedArticles.slice(0, 4));
         }
       } catch (error) {
@@ -309,6 +384,10 @@ export default function ProfileContractScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Thiết bị của bạn</Text>
+      </View>
+      
+      <View style={styles.deviceIdContainer}>
+        <Text style={styles.deviceId}>{contractCode}</Text>
         <TouchableOpacity 
           style={styles.sectionButton}
           onPress={() => router.push({
@@ -319,10 +398,6 @@ export default function ProfileContractScreen() {
           <Text style={styles.sectionButtonText}>Chi tiết</Text>
           <Ionicons name="arrow-forward-circle" size={20} color="#ED1C24" />
         </TouchableOpacity>
-      </View>
-      
-      <View style={styles.deviceIdContainer}>
-        <Text style={styles.deviceId}>{contractCode}</Text>
       </View>
       
       <View style={styles.deviceList}>
@@ -366,50 +441,56 @@ export default function ProfileContractScreen() {
     </View>
   );
 
-  const renderArticleItem = (article: Article) => (
-    <View key={article.id} style={article.isLight ? styles.articleCard : styles.articleCardDark}>
-      {article.isLight ? (
-        <>
-          <View style={styles.articleHeader}>
-            <Image 
-              source={{ uri: '' }} 
-              style={styles.articleAvatar} 
-            />
-            <Text style={styles.articleAuthor}>{article.author}</Text>
-          </View>
-          {article.hasIndicator && (
-            <View style={styles.articleIndicator}>
-              <Text style={styles.indicatorText}>1/3</Text>
-            </View>
-          )}
-          <View style={styles.articleContent}>
-            <Text style={styles.articleTitle}>{article.title}</Text>
-            <View style={styles.articleTimeContainer}>
-              <Text style={styles.articleTime}>{article.time}</Text>
-            </View>
-          </View>
-        </>
-      ) : (
-        <LinearGradient
-          colors={['rgba(39, 39, 62, 0)', 'rgba(39, 39, 62, 0.75)']}
-          style={styles.darkGradient}
-        >
-          <View style={styles.articleHeaderDark}>
-            <Image 
-              source={{ uri: '' }} 
-              style={styles.articleAvatar} 
-            />
-            <Text style={styles.articleAuthorDark}>{article.author}</Text>
-          </View>
-          <View style={styles.articleContentDark}>
-            <Text style={styles.articleTitleDark}>{article.title}</Text>
-            <View style={styles.articleTimeContainer}>
-              <Text style={styles.articleTimeDark}>{article.time}</Text>
-            </View>
-          </View>
-        </LinearGradient>
+  const renderArticleItem = (article: any) => (
+    <TouchableOpacity 
+      key={article.id} 
+      style={styles.articleCard}
+      onPress={() => router.push({
+        pathname: "/profile_article_detail",
+        params: { articleId: article.id }
+      })}
+    >
+      <View style={styles.userInfoBar}>
+        <Image 
+          source={require('../../assets/images/solarmax-logo.png')} 
+          style={styles.smallLogo} 
+        />
+        <Text style={styles.postAuthor}>{article.author}</Text>
+        <Text style={styles.postTime}>{article.time}</Text>
+      </View>
+      
+      {article.thumbnail && (
+        <View style={styles.postImageContainer}>
+          <ImageWithFallback
+            uri={article.thumbnail}
+            style={styles.postImage}
+          />
+        </View>
       )}
-    </View>
+      
+      <View style={styles.postTextOverlay}>
+        <View style={styles.categoryRow}>
+          <View style={styles.categoryTag}>
+            <Text style={styles.categoryText} numberOfLines={1}>
+              Bài viết
+            </Text>
+          </View>
+        </View>
+        
+        <Text style={styles.postTitle} numberOfLines={2}>
+          {article.title}
+        </Text>
+        
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.postDescription} numberOfLines={3}>
+            {article.plainContent}
+            <Text style={styles.seeMoreText}>
+              ... Xem chi tiết
+            </Text>
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 
   const renderArticleSection = () => (
@@ -422,13 +503,9 @@ export default function ProfileContractScreen() {
         </TouchableOpacity>
       </View>
       
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.articleList}
-      >
+      <View style={styles.articleList}>
         {articles.map(article => renderArticleItem(article))}
-      </ScrollView>
+      </View>
     </View>
   );
 
@@ -567,7 +644,11 @@ const styles = StyleSheet.create({
   },
   deviceIdContainer: {
     marginLeft: 16,
+    marginRight: 16,
     marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   deviceId: {
     fontFamily: 'Roboto',
@@ -652,107 +733,105 @@ const styles = StyleSheet.create({
   articleList: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    gap: 8,
-    flexDirection: 'row',
+    gap: 16,
   },
   articleCard: {
-    width: 150,
-    borderRadius: 8,
+    width: '100%',
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
+    marginBottom: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowRadius: 8,
+    shadowOpacity: 1,
+    elevation: 3,
   },
-  articleCardDark: {
-    width: 142,
-    height: 252,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
-  articleHeader: {
+  userInfoBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 6,
-    paddingHorizontal: 12,
-    gap: 8,
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  articleHeaderDark: {
-    flexDirection: 'row',
-    padding: 8,
-    paddingHorizontal: 12,
-    gap: 8,
+  smallLogo: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
   },
-  articleAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ABACC2',
+  postAuthor: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
   },
-  articleAuthor: {
-    fontFamily: 'Roboto',
-    fontWeight: '500',
+  postTime: {
     fontSize: 12,
-    color: '#27273E',
-  },
-  articleAuthorDark: {
-    fontFamily: 'Roboto',
-    fontWeight: '500',
-    fontSize: 12,
-    color: '#FFFFFF',
+    color: '#7B7D9D',
+    marginLeft: 8,
     flex: 1,
   },
-  articleIndicator: {
-    backgroundColor: '#27273E',
-    paddingHorizontal: 8,
+  postImageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: undefined,
+    aspectRatio: 16/9,
+    backgroundColor: '#f5f5f5',
+    overflow: 'hidden',
+  },
+  postImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f5f5f5',
+  },
+  postTextOverlay: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryTag: {
+    backgroundColor: '#FFF1F0',
     paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    margin: 8,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    maxWidth: '60%',
+    borderWidth: 1,
+    borderColor: '#FFE4E1',
   },
-  indicatorText: {
-    fontFamily: 'Roboto',
-    fontSize: 8,
-    color: '#FFFFFF',
+  categoryText: {
+    fontSize: 12,
+    color: '#ED1C24',
+    fontWeight: '600',
+    textAlign: 'center',
   },
-  articleContent: {
-    padding: 8,
-    paddingHorizontal: 12,
-    gap: 4,
-  },
-  articleContentDark: {
-    padding: 8,
-    paddingHorizontal: 12,
-    gap: 4,
-    justifyContent: 'flex-end',
-    flex: 1,
-  },
-  articleTitle: {
-    fontFamily: 'Roboto',
-    fontSize: 10,
+  postTitle: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#27273E',
+    marginBottom: 6,
   },
-  articleTitleDark: {
-    fontFamily: 'Roboto',
-    fontSize: 10,
-    color: '#FFFFFF',
-  },
-  articleTimeContainer: {
+  descriptionContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    alignItems: 'flex-start',
   },
-  articleTime: {
-    fontFamily: 'Roboto',
-    fontSize: 8,
-    color: '#9394B0',
-  },
-  articleTimeDark: {
-    fontFamily: 'Roboto',
-    fontSize: 8,
-    color: '#DCDCE6',
-  },
-  darkGradient: {
+  postDescription: {
+    fontSize: 14,
+    color: '#7B7D9D',
+    lineHeight: 20,
     flex: 1,
+  },
+  seeMoreText: {
+    color: '#ED1C24',
+    fontWeight: '500',
+    fontSize: 14,
   },
   nameContainer: {
     flexDirection: 'row',

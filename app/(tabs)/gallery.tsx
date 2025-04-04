@@ -317,22 +317,36 @@ export default function GalleryScreen() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('https://id.slmsolar.com/api/content');
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
+      const response = await fetch('https://id.slmsolar.com/api/content', {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       
-      const simplifiedPosts = data
+      if (!response.ok) {
+        throw new Error(`Lỗi mạng: ${response.status} ${response.statusText}`);
+      }
+      
+      // Kiểm tra content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+      }
+      
+      // Lấy và kiểm tra text trước khi parse JSON
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) {
+        console.error('Phản hồi API không hợp lệ:', text.substring(0, 100));
+        throw new Error('Phản hồi API không phải định dạng JSON');
+      }
+      
+      // Parse JSON
+      const data = JSON.parse(text);
+      
+      // Xử lý data
+      const simplifiedPosts = Array.isArray(data) ? data
         .filter((item: ContentItem) => item && typeof item === 'object' && 'id' in item && 'title' in item)
         .map((item: ContentItem) => {
-          console.log("----------------- CHI TIẾT ITEM -----------------");
-          console.log("ID:", item.id);
-          console.log("Title:", item.title);
-          console.log("Hashtag:", item.hashtag);
-          console.log("Category:", item.category);
-          console.log("Media Contents:", item.media_contents);
-          
           let imageUrl = "";
           let hasImage = false;
           
@@ -342,7 +356,6 @@ export default function GalleryScreen() {
             if (imageContent && imageContent.link) {
               imageUrl = imageContent.link;
               hasImage = true;
-              console.log("Tìm thấy ảnh:", imageUrl);
             }
             
             // Nếu không có ảnh, tìm video
@@ -352,19 +365,14 @@ export default function GalleryScreen() {
                 if (videoContent.thumbnail) {
                   imageUrl = videoContent.thumbnail;
                   hasImage = true;
-                  console.log("Sử dụng thumbnail của video:", imageUrl);
                 } else if (videoContent.link && !videoContent.link.startsWith('https://')) {
                   // Nếu link video không bắt đầu bằng https://, giả định là YouTube ID
                   imageUrl = `https://img.youtube.com/vi/${videoContent.link}/hqdefault.jpg`;
                   hasImage = true;
-                  console.log("Tạo thumbnail từ YouTube ID:", imageUrl);
                 }
               }
             }
           }
-          
-          console.log("URL ảnh cuối cùng:", imageUrl);
-          console.log("----------------- HẾT CHI TIẾT -----------------");
           
           return {
             id: item.id,
@@ -379,7 +387,7 @@ export default function GalleryScreen() {
             created_at: item.created_at
           };
         })
-        .filter((post: Post | null): post is Post => post !== null);
+        .filter((post: Post | null): post is Post => post !== null) : [];
       
       setPosts(simplifiedPosts);
       
@@ -419,32 +427,38 @@ export default function GalleryScreen() {
   // Thêm hàm fetchSectors
   const fetchSectors = async () => {
     try {
-      const [sectorResponse, contentResponse] = await Promise.all([
-        fetch('https://id.slmsolar.com/api/sector'),
-        fetch('https://id.slmsolar.com/api/content')
-      ]);
-
-      if (!sectorResponse.ok || !contentResponse.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const sectorData = await sectorResponse.json();
-      const contentData = await contentResponse.json();
-
-      // Đếm số bài viết cho mỗi sector
-      const postCounts = contentData.reduce((acc: { [key: string]: number }, post: any) => {
-        const sectorCode = post.category?.sector;
-        if (sectorCode) {
-          acc[sectorCode] = (acc[sectorCode] || 0) + 1;
+      // Fetch sector data
+      const sectorResponse = await fetch('https://id.slmsolar.com/api/sector', {
+        headers: {
+          'Accept': 'application/json'
         }
-        return acc;
-      }, {});
+      });
 
-      // Thêm số lượng bài viết vào dữ liệu sector
-      const sectorsWithPostCount = sectorData.map((sector: Sector) => ({
+      if (!sectorResponse.ok) {
+        throw new Error(`Lỗi mạng khi lấy sector: ${sectorResponse.status}`);
+      }
+      
+      // Kiểm tra content-type
+      const sectorContentType = sectorResponse.headers.get('content-type');
+      if (!sectorContentType || !sectorContentType.includes('application/json')) {
+        throw new Error(`Phản hồi sector không phải JSON: ${sectorContentType}`);
+      }
+      
+      // Lấy và kiểm tra text trước khi parse JSON
+      const sectorText = await sectorResponse.text();
+      if (!sectorText || sectorText.trim().startsWith('<')) {
+        console.error('Phản hồi API sector không hợp lệ:', sectorText.substring(0, 100));
+        throw new Error('Phản hồi API sector không phải định dạng JSON');
+      }
+      
+      // Parse JSON
+      const sectorData = JSON.parse(sectorText);
+      
+      // Sử dụng fallback data thay vì gọi API content
+      const sectorsWithPostCount = Array.isArray(sectorData) ? sectorData.map((sector: Sector) => ({
         ...sector,
-        post_count: postCounts[sector.code] || 0
-      }));
+        post_count: 0  // Mặc định bằng 0, tránh gọi API content lỗi
+      })) : [];
 
       setSectors(sectorsWithPostCount);
     } catch (error) {
