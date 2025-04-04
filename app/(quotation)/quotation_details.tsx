@@ -108,6 +108,16 @@ type ProductApiItem = {
   }[];
 };
 
+type ComboItem = {
+  id: number;
+  name: string;
+  code: string;
+  total_price?: number;
+  description?: string;
+  image?: string;
+  grouped_merchandises?: any[];
+};
+
 export default function QuotationDetails() {
   // Nhận params từ màn hình trước (có thể không nhận được do lỗi điều hướng)
   const params = useLocalSearchParams();
@@ -218,70 +228,175 @@ export default function QuotationDetails() {
       setLoading(true);
       console.log('Bắt đầu fetch sản phẩm của combo với ID:', comboId);
       
-      // Gọi API để lấy danh sách sản phẩm trong combo
-      const response = await fetch(`https://id.slmsolar.com/api/combos/${comboId}/products`);
+      // Gọi API để lấy sector data
+      const sectorResponse = await fetch('https://id.slmsolar.com/api/sector');
       
-      if (!response.ok) {
-        console.error('API trả về status không thành công:', response.status);
-        throw new Error('Không thể lấy sản phẩm từ combo');
+      if (!sectorResponse.ok) {
+        console.error('API trả về status không thành công:', sectorResponse.status);
+        throw new Error('Không thể lấy dữ liệu sector');
       }
       
-      const data = await response.json();
-      console.log('Dữ liệu combo products từ API:', data);
+      const sectorData = await sectorResponse.json();
+      console.log('Đã lấy được dữ liệu sector');
       
-      // Xử lý sản phẩm từ combo
-      if (data && Array.isArray(data)) {
-        console.log('Số lượng sản phẩm trong combo:', data.length);
-        const comboProducts: Product[] = [];
-        
-        // Tìm sản phẩm tương ứng trong allProducts và thêm vào comboProducts
-        data.forEach((comboProduct: any) => {
-          console.log('Đang xử lý sản phẩm combo:', comboProduct);
-          
-          const merchandiseId = comboProduct.merchandise_id;
-          console.log('Tìm kiếm sản phẩm với ID:', merchandiseId);
-          
-          const matchingProduct = allProducts.find(p => p.id === merchandiseId);
-          
-          if (matchingProduct) {
-            console.log('Đã tìm thấy sản phẩm phù hợp:', matchingProduct.name);
-            const product = convertApiItemToProduct(matchingProduct);
-            // Sử dụng số lượng từ combo
-            product.quantity = comboProduct.quantity || 1;
-            comboProducts.push(product);
-          } else {
-            console.warn('Không tìm thấy sản phẩm phù hợp cho ID:', merchandiseId);
+      // Tìm combo trong tất cả các sector
+      let targetCombo = null;
+      let comboProducts: Product[] = [];
+      
+      for (const sector of sectorData) {
+        if (sector.list_combos && Array.isArray(sector.list_combos)) {
+          targetCombo = sector.list_combos.find((combo: ComboItem) => combo.id.toString() === comboId);
+          if (targetCombo) {
+            console.log('Đã tìm thấy combo trong sector:', sector.name);
+            break;
           }
-        });
+        }
+      }
+      
+      if (targetCombo) {
+        console.log('Combo được tìm thấy:', targetCombo.name);
         
-        console.log('Số lượng sản phẩm đã chuyển đổi:', comboProducts.length);
-        // Thêm các sản phẩm từ combo vào danh sách đã chọn
-        if (comboProducts.length > 0) {
-          setProducts(prevProducts => [...prevProducts, ...comboProducts]);
-          console.log('Đã thêm sản phẩm từ combo vào danh sách đã chọn');
-        } else {
-          console.warn('Không có sản phẩm nào được thêm từ combo');
-          // Sử dụng API backup để lấy danh sách sản phẩm nếu API chính không có dữ liệu
-          try {
-            const backupResponse = await fetch(`https://id.slmsolar.com/api/combos/${comboId}`);
-            if (backupResponse.ok) {
-              const comboData = await backupResponse.json();
-              console.log('Dữ liệu combo từ API backup:', comboData);
+        // Xử lý grouped_merchandises
+        if (targetCombo.grouped_merchandises && Array.isArray(targetCombo.grouped_merchandises)) {
+          console.log('Số nhóm sản phẩm trong combo:', targetCombo.grouped_merchandises.length);
+          
+          for (const group of targetCombo.grouped_merchandises) {
+            console.log('Đang xử lý nhóm sản phẩm:', group.template?.name || 'Không có tên');
+            
+            if (group.pre_quote_merchandises && Array.isArray(group.pre_quote_merchandises)) {
+              console.log('Số sản phẩm trong nhóm:', group.pre_quote_merchandises.length);
               
-              // TODO: Xử lý thêm dữ liệu combo từ API backup nếu cần
+              for (const item of group.pre_quote_merchandises) {
+                const merchandiseId = item.merchandise_id;
+                console.log('Tìm kiếm sản phẩm có ID:', merchandiseId);
+                
+                const matchingProduct = allProducts.find(p => p.id === merchandiseId);
+                if (matchingProduct) {
+                  console.log('Đã tìm thấy sản phẩm phù hợp:', matchingProduct.name);
+                  const product = convertApiItemToProduct(matchingProduct);
+                  product.quantity = item.quantity || 1;
+                  comboProducts.push(product);
+                } else {
+                  console.warn('Không tìm thấy sản phẩm phù hợp cho ID:', merchandiseId);
+                  
+                  // Nếu có merchandise data được trả về từ API, sử dụng nó để hiển thị sản phẩm
+                  if (item.merchandise) {
+                    console.log('Sử dụng dữ liệu merchandise từ API sector');
+                    
+                    // Tạo sản phẩm từ dữ liệu merchandise trong combo
+                    const specs = item.merchandise.specs ? 
+                      Object.entries(item.merchandise.specs).slice(0, 2).map(([key, value]) => ({
+                        label: key,
+                        value: String(value)
+                      })) : [];
+                    
+                    // Xác định loại sản phẩm dựa trên template code của group
+                    let category: Category | undefined = undefined;
+                    if (group.template?.code === 'PIN_PV') category = 'PANEL';
+                    else if (group.template?.code === 'INVERTER_DC_AC') category = 'INVERTER';
+                    else if (group.template?.code === 'BATTERY_STORAGE') category = 'BATTERY';
+                    else category = 'ACCESSORY';
+                    
+                    const product: Product = {
+                      id: item.merchandise.id,
+                      name: item.merchandise.name,
+                      description: '',
+                      specs,
+                      price: item.price || 0,
+                      importPrice: item.price ? (item.price * (1 - (item.gm || 0) / 100)) : 0,
+                      gmRate: item.gm || 0,
+                      quantity: item.quantity || 1,
+                      imageUrl: item.merchandise.image_url,
+                      category,
+                      tags: item.merchandise.tags || [],
+                      warranty_years: item.warranty_years || 0
+                    };
+                    
+                    comboProducts.push(product);
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        // Thêm sản phẩm đã tìm thấy vào danh sách
+        if (comboProducts.length > 0) {
+          console.log('Tổng số sản phẩm đã tìm thấy:', comboProducts.length);
+          setProducts(prevProducts => [...prevProducts, ...comboProducts]);
+        } else {
+          console.warn('Không tìm thấy sản phẩm nào trong combo');
+          
+          // Thử sử dụng backup API nếu không tìm được sản phẩm nào
+          try {
+            const backupResponse = await fetch(`https://id.slmsolar.com/api/combos/${comboId}/products`);
+            if (backupResponse.ok) {
+              const data = await backupResponse.json();
+              console.log('Dữ liệu từ API backup:', data);
+              
+              if (data && Array.isArray(data) && data.length > 0) {
+                const backupProducts: Product[] = [];
+                
+                data.forEach((comboProduct: any) => {
+                  const merchandiseId = comboProduct.merchandise_id;
+                  const matchingProduct = allProducts.find(p => p.id === merchandiseId);
+                  
+                  if (matchingProduct) {
+                    const product = convertApiItemToProduct(matchingProduct);
+                    product.quantity = comboProduct.quantity || 1;
+                    backupProducts.push(product);
+                  }
+                });
+                
+                if (backupProducts.length > 0) {
+                  console.log('Đã tìm thấy sản phẩm từ API backup:', backupProducts.length);
+                  setProducts(prevProducts => [...prevProducts, ...backupProducts]);
+                }
+              }
             }
           } catch (backupError) {
             console.error('Lỗi khi gọi API backup:', backupError);
           }
         }
       } else {
-        console.warn('Dữ liệu combo không phải là mảng hoặc rỗng');
+        console.error('Không tìm thấy combo có ID:', comboId);
+        
+        // Thử sử dụng API backup nếu không tìm được combo
+        try {
+          const backupResponse = await fetch(`https://id.slmsolar.com/api/combos/${comboId}/products`);
+          if (backupResponse.ok) {
+            const data = await backupResponse.json();
+            console.log('Dữ liệu từ API backup:', data);
+            
+            if (data && Array.isArray(data) && data.length > 0) {
+              const backupProducts: Product[] = [];
+              
+              data.forEach((comboProduct: any) => {
+                const merchandiseId = comboProduct.merchandise_id;
+                const matchingProduct = allProducts.find(p => p.id === merchandiseId);
+                
+                if (matchingProduct) {
+                  const product = convertApiItemToProduct(matchingProduct);
+                  product.quantity = comboProduct.quantity || 1;
+                  backupProducts.push(product);
+                }
+              });
+              
+              if (backupProducts.length > 0) {
+                console.log('Đã tìm thấy sản phẩm từ API backup:', backupProducts.length);
+                setProducts(prevProducts => [...prevProducts, ...backupProducts]);
+              }
+            }
+          }
+        } catch (backupError) {
+          console.error('Lỗi khi gọi API backup:', backupError);
+        }
       }
       
       // Đánh dấu đã xử lý combo để không xử lý lại
       setComboProcessed(true);
     } catch (error) {
-      console.error('Lỗi khi lấy sản phẩm từ combo:', error);
+      console.error('Lỗi khi lấy sản phẩm của combo:', error);
     } finally {
       setLoading(false);
     }
