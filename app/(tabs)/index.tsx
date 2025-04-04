@@ -207,6 +207,33 @@ const ProductSection = ({ sector }: { sector: Sector }) => {
   );
 };
 
+// Định nghĩa interface cho context auth
+type AuthUser = {
+  id?: number;
+  name?: string;
+  phone?: string;
+  avatar?: string;
+  // Các thuộc tính khác của user
+};
+
+// Định nghĩa interface cho commission
+interface Commission {
+  id: number;
+  created_at: string;
+  paid: boolean;
+  seller: number;
+  money: number;
+  sector_id: number;
+  contract_id: number | null;
+  sector: any;
+  contract: any;
+}
+
+interface MonthlyCommission {
+  month: number;
+  commissions: Commission[];
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [activeProductIndex, setActiveProductIndex] = useState(0);
@@ -220,11 +247,113 @@ export default function HomeScreen() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { data: sectors, isLoading: isSectorsLoading, error: sectorsError } = useSectors();
   
+  // Thêm state để lưu trữ dữ liệu hoa hồng
+  const [commissionData, setCommissionData] = useState<MonthlyCommission[]>([]);
+  const [totalCommissionAmount, setTotalCommissionAmount] = useState<number>(0);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [isLoadingCommission, setIsLoadingCommission] = useState<boolean>(false);
+  
+  // Thêm state để theo dõi trạng thái ẩn/hiện số tiền
+  const [isAmountVisible, setIsAmountVisible] = useState<boolean>(false);
+  
   useEffect(() => {
     if (sectorsError) {
       console.error('Error loading sectors:', sectorsError);
     }
   }, [sectorsError]);
+  
+  // Lấy ID người dùng
+  useEffect(() => {
+    const getUserId = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('@slm_user_data');
+        if (userData) {
+          const user = JSON.parse(userData);
+          setUserId(user.id);
+        } else {
+          // Fallback ID nếu không có user đang đăng nhập
+          setUserId(4);
+        }
+      } catch (error) {
+        console.error('Error getting user ID:', error);
+        // Fallback ID nếu có lỗi
+        setUserId(4);
+      }
+    };
+
+    getUserId();
+  }, []);
+  
+  // Sau khi có userId, gọi API để lấy thông tin hoa hồng
+  useEffect(() => {
+    if (userId) {
+      fetchCommissionData(userId);
+    }
+  }, [userId]);
+  
+  // Xử lý dữ liệu commission sau khi nhận được
+  useEffect(() => {
+    if (commissionData.length > 0) {
+      // Tính tổng tiền hoa hồng
+      const totalAmount = commissionData.reduce((sum, month) => {
+        return sum + month.commissions.reduce((monthSum, comm) => monthSum + comm.money, 0);
+      }, 0);
+      setTotalCommissionAmount(totalAmount);
+    }
+  }, [commissionData]);
+  
+  // Hàm lấy dữ liệu hoa hồng từ API
+  const fetchCommissionData = async (id: number) => {
+    try {
+      setIsLoadingCommission(true);
+      const currentYear = new Date().getFullYear();
+      const response = await fetch(`https://id.slmsolar.com/api/user/commission/${id}/${currentYear}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Lỗi khi lấy dữ liệu hoa hồng: ${response.status}`);
+      }
+      
+      // Kiểm tra content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+      }
+      
+      // Lấy text và kiểm tra trước khi parse
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) {
+        throw new Error('Phản hồi không phải định dạng JSON');
+      }
+      
+      // Parse JSON
+      const data = JSON.parse(text);
+      
+      if (data && Array.isArray(data)) {
+        setCommissionData(data);
+      } else {
+        setCommissionData([]);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu hoa hồng:', error);
+      setCommissionData([]);
+    } finally {
+      setIsLoadingCommission(false);
+    }
+  };
+  
+  // Format số tiền
+  const formatCurrency = (amount: number) => {
+    // Làm tròn đến hàng nghìn
+    const roundedAmount = Math.round(amount / 1000) * 1000;
+    // Format không hiển thị phần thập phân
+    return new Intl.NumberFormat('vi-VN', {
+      maximumFractionDigits: 0
+    }).format(roundedAmount);
+  };
   
   useEffect(() => {
     const loadUserData = async () => {
@@ -249,8 +378,10 @@ export default function HomeScreen() {
         // Lấy avatar từ AsyncStorage hoặc authState
         if (storedAvatar) {
           setUserAvatar(storedAvatar);
-        } else if (authState.user?.avatar) {
-          setUserAvatar(authState.user.avatar);
+        } else if (authState.user && 'avatar' in authState.user) {
+          // Sử dụng cách kiểm tra thuộc tính để tránh lỗi linter
+          const userWithAvatar = authState.user as AuthUser;
+          setUserAvatar(userWithAvatar.avatar || null);
         } else {
           // Nếu không có trong authState và AsyncStorage, thử lấy từ API
           await fetchUserAvatar();
@@ -370,12 +501,24 @@ export default function HomeScreen() {
 
   // Thêm nút điều hướng đến màn hình thống kê hoa hồng
   const navigateToCommissionHistory = () => {
-    router.push('/(stats)/comission_history');
+    router.push('/(tabs)/stats');
   };
 
   // Thêm nút điều hướng đến màn hình cộng đồng
   const navigateToGroupAgent = () => {
     router.push('/(group)/group_agent');
+  };
+
+  // Hàm chuyển đổi trạng thái ẩn/hiện
+  const toggleAmountVisibility = () => {
+    setIsAmountVisible(prev => !prev);
+  };
+
+  // Hàm tạo chuỗi * thay thế số tiền
+  const getMaskedAmount = (amount: number) => {
+    // Tạo chuỗi * với độ dài tương ứng với số tiền
+    const amountString = formatCurrency(amount);
+    return '*'.repeat(Math.min(amountString.length, 10));
   };
 
   if (isSectorsLoading) {
@@ -471,14 +614,24 @@ export default function HomeScreen() {
               >
                 <Flex direction="row" align="center" justify="between">
                   <View style={[styles.incomeTextContainer, { justifyContent: 'center' }]}>
-                    <Text style={styles.incomeTitle}> Thu nhập dự kiến T3</Text>
+                    <Text style={styles.incomeTitle}>Thu nhập dự kiến {`T${new Date().getMonth() + 1}`}</Text>
                     <Flex align="center">
-                      <Text style={styles.incomeAmount}>12.650.000</Text>
-                      <Image 
-                        source={require('../../assets/images/eye-icon.png')} 
-                        style={{ width: 36, height: 36, marginLeft: 2 }} 
-                        resizeMode="contain"
-                      />
+                      {isLoadingCommission ? (
+                        <ActivityIndicator size="small" color="#fff" style={{marginRight: 10}} />
+                      ) : (
+                        <Text style={styles.incomeAmount}>
+                          {isAmountVisible 
+                            ? formatCurrency(totalCommissionAmount) 
+                            : getMaskedAmount(totalCommissionAmount)}
+                        </Text>
+                      )}
+                      <TouchableOpacity onPress={toggleAmountVisibility}>
+                        <Image 
+                          source={require('../../assets/images/eye-icon.png')} 
+                          style={{ width: 36, height: 36, marginLeft: 2 }} 
+                          resizeMode="contain"
+                        />
+                      </TouchableOpacity>
                     </Flex>
                   </View>
                   <View style={[styles.iconContainer, { paddingBottom: 8, paddingTop: 8, alignSelf: 'center' }]}>

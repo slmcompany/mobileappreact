@@ -309,7 +309,7 @@ export default function StatsScreen() {
   };
 
   const navigateToCommunity = () => {
-    router.push('/(tabs)');
+    router.push('/(group)/group_agent');
   };
 
   const navigateToPotentialCustomers = () => {

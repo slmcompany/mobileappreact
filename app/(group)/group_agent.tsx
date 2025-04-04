@@ -140,7 +140,7 @@ export default function GroupAgentScreen() {
           <Text style={styles.activityTime}>{activity.date}</Text>
         </View>
         <View style={styles.activityAmountContainer}>
-          <Text style={styles.activityAmount}>{formatCurrency(activity.amount).replace('₫', '')}</Text>
+          <Text style={styles.activityAmount}>{formatCurrency(activity.amount).replace('đ', '')}</Text>
           <Text style={styles.activityContract}>{activity.contractId}</Text>
         </View>
       </View>
@@ -230,7 +230,7 @@ export default function GroupAgentScreen() {
           <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Cộng đồng</Text>
-        <View style={{width: 24}} /> {/* Placeholder để cân bằng layout */}
+        <View style={{width: 24}} />
       </View>
       
       <ScrollView style={styles.scrollContainer}>
