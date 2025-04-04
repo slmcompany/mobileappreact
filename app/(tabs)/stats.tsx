@@ -313,7 +313,7 @@ export default function StatsScreen() {
   };
 
   const navigateToPotentialCustomers = () => {
-    router.push('/(stats)/potential_customers');
+    router.push('/(tabs)/account');
   };
 
   // Tìm tháng có giá trị lớn nhất để hiển thị tooltip
