@@ -207,14 +207,15 @@ const ProductSection = ({ sector }: { sector: Sector }) => {
   );
 };
 
-// Định nghĩa interface cho context auth
-type AuthUser = {
+// Định nghĩa interface cho user để sửa lỗi linter
+interface User {
   id?: number;
   name?: string;
   phone?: string;
+  address?: string;
   avatar?: string;
-  // Các thuộc tính khác của user
-};
+  code?: string;
+}
 
 // Định nghĩa interface cho commission
 interface Commission {
@@ -379,9 +380,8 @@ export default function HomeScreen() {
         if (storedAvatar) {
           setUserAvatar(storedAvatar);
         } else if (authState.user && 'avatar' in authState.user) {
-          // Sử dụng cách kiểm tra thuộc tính để tránh lỗi linter
-          const userWithAvatar = authState.user as AuthUser;
-          setUserAvatar(userWithAvatar.avatar || null);
+          // Sử dụng cách kiểm tra thuộc tính an toàn hơn
+          setUserAvatar((authState.user as any).avatar);
         } else {
           // Nếu không có trong authState và AsyncStorage, thử lấy từ API
           await fetchUserAvatar();
