@@ -147,6 +147,9 @@ export default function QuotationDetails() {
   // Khai báo state mới để lưu trạng thái đã xử lý combo
   const [comboProcessed, setComboProcessed] = useState(false);
 
+  // State cho hiển thị khung nhấn mạnh khi nhập giá
+  const [focusedInput, setFocusedInput] = useState<'frame_price' | 'labor_price' | null>(null);
+
   // Fetch tất cả sản phẩm từ API khi component mount
   useEffect(() => {
     fetchAllProducts();
@@ -205,6 +208,12 @@ export default function QuotationDetails() {
 
   // Tính tổng tiền sử dụng hàm calculateTotalPrice
   const totalPrice = calculateTotalPrice();
+  
+  // Tính giá khung sắt và nhân công
+  const frameSellPriceValue = parseInt(frameSellPrice) || 0;
+  const frameLaborPriceValue = parseInt(frameLaborPrice) || 0;
+  const frameTotal = frameSellPriceValue + frameLaborPriceValue;
+  const productTotal = products.reduce((sum, product) => sum + (product.price * product.quantity), 0);
 
   // Hàm làm tròn đến hàng nghìn
   const roundToThousand = (price: number): number => {
@@ -1094,7 +1103,10 @@ export default function QuotationDetails() {
                   <View style={styles.frameInputsContainer}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Giá bán khung sắt</Text>
-                      <View style={styles.inputContainer}>
+                      <View style={[
+                        styles.inputContainer, 
+                        focusedInput === 'frame_price' && styles.inputContainerFocused
+                      ]}>
                         <TextInput
                           style={styles.input}
                           placeholder="Nhập giá bán khung sắt"
@@ -1102,13 +1114,18 @@ export default function QuotationDetails() {
                           keyboardType="numeric"
                           value={frameSellPrice}
                           onChangeText={handleFrameSellPriceChange}
+                          onFocus={() => setFocusedInput('frame_price')}
+                          onBlur={() => setFocusedInput(null)}
                         />
                       </View>
                     </View>
                     
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Giá nhân công khung sắt</Text>
-                      <View style={styles.inputContainer}>
+                      <View style={[
+                        styles.inputContainer, 
+                        focusedInput === 'labor_price' && styles.inputContainerFocused
+                      ]}>
                         <TextInput
                           style={styles.input}
                           placeholder="Nhập giá nhân công khung sắt"
@@ -1116,6 +1133,8 @@ export default function QuotationDetails() {
                           keyboardType="numeric"
                           value={frameLaborPrice}
                           onChangeText={handleFrameLaborPriceChange}
+                          onFocus={() => setFocusedInput('labor_price')}
+                          onBlur={() => setFocusedInput(null)}
                         />
                       </View>
                     </View>
@@ -1234,10 +1253,23 @@ export default function QuotationDetails() {
             {installationType === 'KHUNG_SAT' && (frameSellPrice || frameLaborPrice) && (
               <View style={styles.priceDetailsContainer}>
                 <Text style={styles.priceDetailText}>
-                  {frameSellPrice ? `Khung sắt: ${parseInt(frameSellPrice).toLocaleString()} đ` : ''}
-                  {frameSellPrice && frameLaborPrice ? ' | ' : ''}
-                  {frameLaborPrice ? `Nhân công: ${parseInt(frameLaborPrice).toLocaleString()} đ` : ''}
+                  Thiết bị: {roundToThousand(productTotal).toLocaleString()} đ
                 </Text>
+                {frameSellPrice && (
+                  <Text style={styles.priceDetailText}>
+                    Khung sắt: +{parseInt(frameSellPrice).toLocaleString()} đ
+                  </Text>
+                )}
+                {frameLaborPrice && (
+                  <Text style={styles.priceDetailText}>
+                    Nhân công: +{parseInt(frameLaborPrice).toLocaleString()} đ
+                  </Text>
+                )}
+                {frameTotal > 0 && (
+                  <Text style={styles.priceDetailTextTotal}>
+                    Tổng (Đã bao gồm khung + nhân công): {roundToThousand(totalPrice).toLocaleString()} đ
+                  </Text>
+                )}
               </View>
             )}
           </View>
@@ -1403,6 +1435,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
+  },
+  inputContainerFocused: {
+    borderColor: '#ED1C24',
+    borderWidth: 2,
   },
   input: {
     color: '#27273E',
@@ -1637,6 +1673,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#555777',
   },
+  filterTagText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#27273E',
+  },
   categoryFilterTag: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -1644,11 +1685,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#DCDCE6',
     borderWidth: 1,
     borderColor: '#555777',
-  },
-  filterTagText: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: '#27273E',
   },
   drawerContent: {
     flex: 1,
@@ -1812,7 +1848,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   priceDetailText: {
-    fontSize: 8,
+    fontSize: 10,
     color: '#7B7D9D',
+    marginBottom: 2,
+  },
+  priceDetailTextTotal: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ED1C24',
+    marginTop: 2,
   },
 }); 
