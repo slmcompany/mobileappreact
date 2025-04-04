@@ -1275,7 +1275,7 @@ export default function QuotationDetails() {
           </View>
           <TouchableOpacity
             style={styles.continueButton}
-            onPress={() => console.log('Tiếp tục đến bước tiếp theo')}
+            onPress={() => router.push('/(quotation)/quotation_success')}
           >
             <Text style={styles.continueButtonText}>TIẾP TỤC</Text>
           </TouchableOpacity>
