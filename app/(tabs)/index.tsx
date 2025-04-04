@@ -598,21 +598,27 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <View style={styles.notificationContainer}>
                 <Flex direction="row" align="center">
-                  <View style={styles.notificationIconContainer}>
+                  <TouchableOpacity 
+                    style={styles.notificationIconContainer}
+                    onPress={() => router.push('/(quotation)/quotation_create_new')}
+                  >
                     <Image 
                       source={require('../../assets/images/trail-icon.png')} 
                       style={{ width: 24, height: 24 }} 
                       resizeMode="contain"
                     />
-                  </View>
-                  <View style={[styles.notificationIconContainer, { marginLeft: 8 }]}>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.notificationIconContainer, { marginLeft: 8 }]}
+                    onPress={() => router.push('/(notification)/notification')}
+                  >
                     <Image 
                       source={require('../../assets/images/bell.png')} 
                       style={{ width: 24, height: 24 }} 
                       resizeMode="contain"
                     />
                     <View style={styles.notificationBadge} />
-                  </View>
+                  </TouchableOpacity>
                 </Flex>
               </View>
             </Flex>
@@ -774,7 +780,7 @@ export default function HomeScreen() {
 
           {/* Bài viết mới nhất */}
           <ContentGallery 
-            userId={userId}
+            userId={userId ?? undefined}
             showTitle={true}
             sectionTitle="Bài viết liên quan"
             maxItems={5}
