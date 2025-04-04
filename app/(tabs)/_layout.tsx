@@ -3,6 +3,7 @@ import { Link, Tabs } from 'expo-router';
 import { Pressable, useColorScheme, View, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/context/AuthContext';
 
 // Tạo useClientOnlyValue tạm thời nếu không import được
 function useClientOnlyValue(webValue: any, nativeValue: any) {
@@ -17,89 +18,110 @@ function TabBarIcon(props: {
   return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
 }
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+// Custom TabBar component
+function CustomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { authState } = useAuth();
+  const isRoleId3 = authState.user?.role_id === 3;
+  
+  // Lọc các routes được hiển thị dựa vào role
+  const filteredRoutes = state.routes.filter((route: any) => {
+    if (isRoleId3) {
+      return route.name !== 'account' && route.name !== 'stats';
+    }
+    return true;
+  });
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#D9261C',
-        tabBarInactiveTintColor: '#888',
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, false),
-        tabBarShowLabel: false, // Ẩn text trong navbar
-        tabBarStyle: { 
-          height: 60 + (insets.bottom > 0 ? insets.bottom : 10),
-          backgroundColor: 'white',
-          borderTopWidth: 1,
-          borderTopColor: '#eee',
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
-          paddingTop: 5,
-        },
-        tabBarItemStyle: {
-          padding: 5
+    <View style={[
+      styles.tabBar, 
+      { 
+        height: 60 + (insets.bottom > 0 ? insets.bottom : 10),
+        paddingBottom: insets.bottom > 0 ? insets.bottom : 10
+      }
+    ]}>
+      {filteredRoutes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === state.routes.findIndex((r: any) => r.key === route.key);
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        // Lấy icon phù hợp
+        let iconSource;
+        if (route.name === 'index') {
+          iconSource = require('@/assets/images/nav-icon-1.png');
+        } else if (route.name === 'account') {
+          iconSource = require('@/assets/images/nav-icon-2.png');
+        } else if (route.name === 'products') {
+          iconSource = require('@/assets/images/nav-icon-3.png');
+        } else if (route.name === 'stats') {
+          iconSource = require('@/assets/images/nav-icon-4.png');
+        } else if (route.name === 'gallery') {
+          iconSource = require('@/assets/images/nav-icon-5.png');
         }
+
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            style={styles.tabItem}
+          >
+            <View style={[styles.iconContainer, isFocused && styles.activeIconContainer]}>
+              <Image 
+                source={iconSource} 
+                style={styles.iconImage} 
+                resizeMode="contain" 
+              />
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export default function TabLayout() {
+  const colorScheme = useColorScheme();
+  const { authState } = useAuth();
+  
+  return (
+    <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: useClientOnlyValue(false, false),
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Trang chủ',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
-              <Image 
-                source={require('@/assets/images/nav-icon-1.png')} 
-                style={styles.iconImage} 
-                resizeMode="contain" 
-              />
-            </View>
-          ),
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
           title: 'Khách hàng tiềm năng',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
-              <Image 
-                source={require('@/assets/images/nav-icon-2.png')} 
-                style={styles.iconImage} 
-                resizeMode="contain" 
-              />
-            </View>
-          ),
         }}
       />
       <Tabs.Screen
         name="products"
         options={{
           title: 'Sản phẩm',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
-              <Image 
-                source={require('@/assets/images/nav-icon-3.png')} 
-                style={styles.iconImage} 
-                resizeMode="contain" 
-              />
-            </View>
-          ),
         }}
       />
       <Tabs.Screen
         name="stats"
         options={{
           title: 'Thống kê',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
-              <Image 
-                source={require('@/assets/images/nav-icon-4.png')} 
-                style={styles.iconImage} 
-                resizeMode="contain" 
-              />
-            </View>
-          ),
         }}
       />
       <Tabs.Screen
@@ -107,15 +129,6 @@ export default function TabLayout() {
         options={{
           title: 'Thư viện',
           href: '/(gallery)',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
-              <Image 
-                source={require('@/assets/images/nav-icon-5.png')} 
-                style={styles.iconImage} 
-                resizeMode="contain" 
-              />
-            </View>
-          ),
         }}
       />
     </Tabs>
@@ -135,5 +148,18 @@ const styles = StyleSheet.create({
   iconImage: {
     width: 24,
     height: 24,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 5,
+    justifyContent: 'space-evenly',
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   }
 });
