@@ -774,7 +774,7 @@ export default function HomeScreen() {
 
           {/* Bài viết mới nhất */}
           <ContentGallery 
-            userId={4}
+            userId={userId}
             showTitle={true}
             sectionTitle="Bài viết liên quan"
             maxItems={5}
