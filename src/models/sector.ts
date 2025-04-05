@@ -95,6 +95,7 @@ export interface Combo {
   code: string;
   created_at: string;
   installation_type: string;
+  best_selling?: boolean;
   customer_id: number | null;
   customer: any;
   pre_quote_merchandises: any[];

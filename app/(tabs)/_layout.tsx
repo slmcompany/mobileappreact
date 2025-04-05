@@ -22,13 +22,15 @@ function TabBarIcon(props: {
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { authState } = useAuth();
-  const isRoleId3 = authState.user?.role_id === 3;
+  const userRoleId = authState.user?.role_id;
   
   // Lọc các routes được hiển thị dựa vào role
   const filteredRoutes = state.routes.filter((route: any) => {
-    if (isRoleId3) {
-      return route.name !== 'account' && route.name !== 'stats';
+    // Chỉ hiển thị tab profile_contract cho role_id = 3
+    if (route.name === 'profile_contract') {
+      return userRoleId === 3;
     }
+    // Hiển thị tất cả các tab khác cho mọi người dùng
     return true;
   });
 
@@ -68,6 +70,8 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           iconSource = require('@/assets/images/nav-icon-4.png');
         } else if (route.name === 'gallery') {
           iconSource = require('@/assets/images/nav-icon-5.png');
+        } else if (route.name === 'profile_contract') {
+          iconSource = require('@/assets/images/nav-icon-2.png'); // Sử dụng cùng icon với account tạm thời
         }
 
         return (
@@ -129,6 +133,12 @@ export default function TabLayout() {
         options={{
           title: 'Thư viện',
           href: '/(gallery)',
+        }}
+      />
+      <Tabs.Screen
+        name="profile_contract"
+        options={{
+          title: 'Hồ sơ & Hợp đồng',
         }}
       />
     </Tabs>

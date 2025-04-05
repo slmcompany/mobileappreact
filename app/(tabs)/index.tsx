@@ -712,18 +712,23 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <View style={styles.notificationContainer}>
                 <Flex direction="row" align="center">
+                  {userRoleId !== 4 && (
+                    <TouchableOpacity 
+                      style={styles.notificationIconContainer}
+                      onPress={() => router.push('/(quotation)/quotation_create_new')}
+                    >
+                      <Image 
+                        source={require('../../assets/images/trail-icon.png')} 
+                        style={{ width: 24, height: 24 }} 
+                        resizeMode="contain"
+                      />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity 
-                    style={styles.notificationIconContainer}
-                    onPress={() => router.push('/(quotation)/quotation_create_new')}
-                  >
-                    <Image 
-                      source={require('../../assets/images/trail-icon.png')} 
-                      style={{ width: 24, height: 24 }} 
-                      resizeMode="contain"
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.notificationIconContainer, { marginLeft: 8 }]}
+                    style={[
+                      styles.notificationIconContainer, 
+                      userRoleId !== 4 ? { marginLeft: 8 } : {}
+                    ]}
                     onPress={() => router.push('/(notification)/notification')}
                   >
                     <Image 

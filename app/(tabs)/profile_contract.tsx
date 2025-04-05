@@ -6,6 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
+import { useAuth } from '@/context/AuthContext';
+import { StatusBar } from 'expo-status-bar';
+import ContentGallery from '../../app/components/ContentGallery';
 
 // Định nghĩa kiểu dữ liệu cho người dùng
 interface User {
@@ -118,6 +121,7 @@ const stripHtmlTags = (html: string) => {
 export default function ProfileContractScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { authState } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [merchandises, setMerchandises] = useState<PreQuoteMerchandise[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -134,11 +138,13 @@ export default function ProfileContractScreen() {
     return name?.trim().substring(0, 2).toUpperCase() || '';
   };
 
-  // Fetch user data
+  // Fetch user data - sử dụng user ID từ authState
   useEffect(() => {
+    const userId = authState.user?.id || 73; // Fallback to ID 73 if not available
+    
     const fetchUser = async () => {
       try {
-        const response = await fetch('https://id.slmsolar.com/api/users/73', {
+        const response = await fetch(`https://id.slmsolar.com/api/users/${userId}`, {
           headers: {
             'Accept': 'application/json'
           }
@@ -257,7 +263,7 @@ export default function ProfileContractScreen() {
     };
 
     fetchUser();
-  }, []);
+  }, [authState.user?.id]);
 
   // Fetch articles
   useEffect(() => {
@@ -557,81 +563,24 @@ export default function ProfileContractScreen() {
     </View>
   );
 
-  const renderArticleItem = (article: any) => (
-    <TouchableOpacity 
-      key={article.id} 
-      style={styles.articleCard}
-      onPress={() => router.push({
-        pathname: "/profile_contract_detail",
-        params: { articleId: article.id }
-      })}
-    >
-      <View style={styles.userInfoBar}>
-        <Image 
-          source={require('../../assets/images/solarmax-logo.png')} 
-          style={styles.smallLogo} 
-        />
-        <Text style={styles.postAuthor}>{article.author}</Text>
-        <Text style={styles.postTime}>{article.time}</Text>
-      </View>
-      
-      {article.thumbnail && (
-        <View style={styles.postImageContainer}>
-          <ImageWithFallback
-            uri={article.thumbnail}
-            style={styles.postImage}
-          />
-        </View>
-      )}
-      
-      <View style={styles.postTextOverlay}>
-        <View style={styles.categoryRow}>
-          <View style={styles.categoryTag}>
-            <Text style={styles.categoryText} numberOfLines={1}>
-              Bài viết
-            </Text>
-          </View>
-        </View>
-        
-        <Text style={styles.postTitle} numberOfLines={2}>
-          {article.title}
-        </Text>
-        
-        <View style={styles.descriptionContainer}>
-          <Text style={styles.postDescription} numberOfLines={3}>
-            {article.plainContent}
-            <Text style={styles.seeMoreText}>
-              ... Xem chi tiết
-            </Text>
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderArticleSection = () => (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Bài viết liên quan</Text>
-        <TouchableOpacity style={styles.sectionButton}>
-          <Text style={styles.sectionButtonText}>Khám phá</Text>
-          <Ionicons name="arrow-forward-circle-outline" size={20} color="#ED1C24" />
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.articleList}>
-        {articles.map(article => renderArticleItem(article))}
-      </View>
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
       <ScrollView style={styles.scrollView}>
         {renderHeader()}
         <View style={styles.content}>
           {renderDeviceSection()}
-          {renderArticleSection()}
+          <ContentGallery 
+            userId={user?.id}
+            showTitle={true}
+            sectionTitle="Bài viết liên quan"
+            maxItems={5}
+            horizontal={true}
+            cardStyle="simple"
+            detailInModal={true}
+            showViewAll={true}
+            viewAllPath="/(tabs)/gallery"
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -648,7 +597,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#ED1C24',
-    paddingTop: 44,
+    paddingTop: 0,
     paddingBottom: 24,
   },
   headerContent: {
@@ -849,113 +798,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#12B669',
     borderRadius: 4,
   },
-  articleList: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 16,
-  },
-  articleCard: {
-    width: '100%',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-    marginBottom: 16,
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowRadius: 8,
-    shadowOpacity: 1,
-    elevation: 3,
-  },
-  userInfoBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  smallLogo: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  postAuthor: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  postTime: {
-    fontSize: 12,
-    color: '#7B7D9D',
-    marginLeft: 8,
-    flex: 1,
-  },
-  postImageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: undefined,
-    aspectRatio: 16/9,
-    backgroundColor: '#f5f5f5',
-    overflow: 'hidden',
-  },
-  postImage: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#f5f5f5',
-  },
-  postTextOverlay: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  categoryTag: {
-    backgroundColor: '#FFF1F0',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    maxWidth: '60%',
-    borderWidth: 1,
-    borderColor: '#FFE4E1',
-  },
-  categoryText: {
-    fontSize: 12,
-    color: '#ED1C24',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  postTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#27273E',
-    marginBottom: 6,
-  },
-  descriptionContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  postDescription: {
-    fontSize: 14,
-    color: '#7B7D9D',
-    lineHeight: 20,
-    flex: 1,
-  },
-  seeMoreText: {
-    color: '#ED1C24',
-    fontWeight: '500',
-    fontSize: 14,
-  },
   nameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
   },
-});
-
+}); 

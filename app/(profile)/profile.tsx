@@ -139,10 +139,13 @@ const ProfileScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/personal-information')}>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => router.push('/(profile)/personal-information')}
+            >
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="person-outline" size={24} color="#7B7D9D" />
+                  <Ionicons name="person-circle-outline" size={24} color="#7B7D9D" />
                 </View>
                 <Text style={styles.menuLabel}>Thông tin cá nhân</Text>
               </View>
@@ -238,26 +241,16 @@ const ProfileScreen = () => {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <View style={styles.menuItemLeft}>
-                <View style={styles.iconContainer}>
-                  <Ionicons name="log-out-outline" size={24} color="white" />
-                </View>
-                <Text style={styles.logoutText}>Đăng xuất</Text>
-              </View>
-            </TouchableOpacity>
-
             <TouchableOpacity 
-              style={styles.menuItem}
-              onPress={() => router.push('/(profile)/pages-list')}
+              style={styles.logoutButton}
+              onPress={handleLogout}
             >
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="list-outline" size={24} color="#7B7D9D" />
+                  <Ionicons name="log-out-outline" size={24} color="#D92D20" />
                 </View>
-                <Text style={styles.menuLabel}>Danh sách trang</Text>
+                <Text style={styles.logoutText}>Đăng xuất</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
             </TouchableOpacity>
           </View>
         </View>
