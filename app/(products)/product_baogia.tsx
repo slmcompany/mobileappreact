@@ -87,6 +87,7 @@ export default function ProductQuoteScreen() {
             <Stack.Screen
                 options={{
                     headerTitle: 'Báo giá chi tiết',
+                    headerTransparent: false,
                     headerStyle: {
                         backgroundColor: '#fff',
                     },
@@ -104,35 +105,41 @@ export default function ProductQuoteScreen() {
             />
             
             <ScrollView style={styles.container}>
-                <View style={styles.infoSection}>
-                    <View style={styles.infoContent}>
+                {/* Product Header Card */}
+                <View style={styles.productHeaderCard}>
+                    <View style={styles.productHeaderContent}>
                         {product.image ? (
                             <Image 
                                 source={{ uri: product.image }}
-                                style={styles.comboImage}
+                                style={styles.productHeaderImage}
                                 resizeMode="cover"
                                 onError={handleImageError}
                             />
                         ) : renderPlaceholder()}
-                        <View style={styles.infoDetails}>
-                            <Text style={styles.productTitle}>{product.name}</Text>
-                            <View style={styles.infoRow}>
-                                <Text style={styles.infoText}>
-                                    Sản lượng điện: {productionRange}
-                                </Text>
-                            </View>
-                            <View style={styles.infoRow}>
-                                <Text style={styles.infoText}>
-                                    Thời gian hoàn vốn
-                                </Text>
-                            </View>
-                            <View style={styles.priceRow}>
-                                <View style={styles.priceWrapper}>
-                                    <Text style={styles.priceText}>
-                                        {product.total_price ? roundToTenThousands(product.total_price).toLocaleString('vi-VN') : '0'}
+                        
+                        <View style={styles.productHeaderDetails}>
+                            <Text style={styles.productHeaderName}>{product.name}</Text>
+                            
+                            <View style={styles.productHeaderInfo}>
+                                <View style={styles.productHeaderInfoItem}>
+                                    <Ionicons name="flash-outline" size={16} color="#0F974A" />
+                                    <Text style={styles.productHeaderInfoText}>
+                                        Sản lượng: {productionRange}
                                     </Text>
-                                    <Text style={styles.priceText}>đ</Text>
                                 </View>
+                                
+                                <View style={styles.productHeaderInfoItem}>
+                                    <Ionicons name="time-outline" size={16} color="#0F974A" />
+                                    <Text style={styles.productHeaderInfoText}>
+                                        Thời gian hoàn vốn
+                                    </Text>
+                                </View>
+                            </View>
+                            
+                            <View style={styles.productHeaderPrice}>
+                                <Text style={styles.productHeaderPriceText}>
+                                    {product.total_price ? roundToTenThousands(product.total_price).toLocaleString('vi-VN') : '0'}đ
+                                </Text>
                             </View>
                         </View>
                     </View>
@@ -833,5 +840,66 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         lineHeight: 24,
+    },
+    productHeaderCard: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
+        margin: 16,
+        marginTop: 16,
+    },
+    productHeaderContent: {
+        flexDirection: 'row',
+        gap: 16,
+        alignItems: 'center',
+    },
+    productHeaderImage: {
+        width: 100,
+        height: 100,
+        borderRadius: 8,
+        backgroundColor: '#F5F5F8',
+    },
+    productHeaderDetails: {
+        flex: 1,
+        gap: 8,
+    },
+    productHeaderName: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#27273E',
+        marginBottom: 8,
+        lineHeight: 24,
+    },
+    productHeaderInfo: {
+        gap: 8,
+    },
+    productHeaderInfoItem: {
+        flexDirection: 'row',
+        gap: 8,
+        alignItems: 'center',
+    },
+    productHeaderInfoText: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: '#7B7D9D',
+    },
+    productHeaderPrice: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 12,
+    },
+    productHeaderPriceText: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#ED1C24',
     },
 }); 
