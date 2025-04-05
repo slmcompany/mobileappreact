@@ -72,7 +72,14 @@ export default function QuotationCreateNew() {
     console.log('Tạo báo giá với:', { customerId, phoneNumber, isNewCustomer });
     
     // Chuyển sang step 2 trong quy trình tạo báo giá
-    router.push('/(quotation)/quotation_product_selection');
+    router.push({
+      pathname: '/(quotation)/quotation_product_selection',
+      params: { 
+        customerId, 
+        phoneNumber, 
+        isNewCustomer: isNewCustomer ? 'true' : 'false' 
+      }
+    });
   };
 
   return (

@@ -135,14 +135,23 @@ export default function QuotationBasicInfo() {
           phaseType,
           comboId: selectedCombo.id?.toString() || '',
           comboName: selectedCombo.name || '',
-          comboPrice: selectedCombo.price ? selectedCombo.price.toString() : '0'
+          comboPrice: selectedCombo.price ? selectedCombo.price.toString() : '0',
+          customerId,
+          phoneNumber,
+          isNewCustomer: isNewCustomer ? 'true' : 'false'
         }
       });
     } else {
       // Nếu không chọn combo, vẫn chuyển sang bước 4 nhưng không có thông tin combo
       router.push({
         pathname: '/quotation_details',
-        params: { systemType, phaseType }
+        params: { 
+          systemType, 
+          phaseType,
+          customerId,
+          phoneNumber,
+          isNewCustomer: isNewCustomer ? 'true' : 'false'
+        }
       });
     }
   };

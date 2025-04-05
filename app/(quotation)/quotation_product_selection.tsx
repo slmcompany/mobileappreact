@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -76,7 +76,6 @@ export default function QuotationProductSelection() {
   };
 
   const handleContinue = () => {
-    // Get selected product and pass to next screen
     const selectedProduct = productLines.find(product => product.selected);
     
     if (selectedProduct) {
@@ -85,10 +84,15 @@ export default function QuotationProductSelection() {
       console.log('Customer data:', { customerId, phoneNumber, isNewCustomer });
       
       // Chuyển sang bước 3 - màn hình lọc sản phẩm theo thiết kế Figma
-      // Truyền id sector đã chọn
+      // Truyền id sector đã chọn và thông tin khách hàng
       router.push({
         pathname: '/(quotation)/quotation_basic_info',
-        params: { sectorId: selectedProduct.id.toString() }
+        params: { 
+          sectorId: selectedProduct.id.toString(),
+          customerId,
+          phoneNumber,
+          isNewCustomer: isNewCustomer ? 'true' : 'false'
+        }
       });
     }
   };
@@ -122,10 +126,14 @@ export default function QuotationProductSelection() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={24} color="#7B7D9D" />
+            <Text>
+              <Ionicons name="chevron-back" size={24} color="#7B7D9D" />
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="close" size={24} color="#7B7D9D" />
+            <Text>
+              <Ionicons name="close" size={24} color="#7B7D9D" />
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -165,7 +173,9 @@ export default function QuotationProductSelection() {
                 
                 {product.selected && (
                   <View style={styles.checkContainer}>
-                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                    <Text>
+                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>

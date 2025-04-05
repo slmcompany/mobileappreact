@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Image, Modal, ActivityIndicator, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Image, Modal, ActivityIndicator, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Định nghĩa kiểu dữ liệu cho sản phẩm
 type Product = {
@@ -149,6 +150,39 @@ export default function QuotationDetails() {
 
   // State cho hiển thị khung nhấn mạnh khi nhập giá
   const [focusedInput, setFocusedInput] = useState<'frame_price' | 'labor_price' | null>(null);
+
+  // State cho thông tin người dùng đăng nhập
+  const [userData, setUserData] = useState<any>(null);
+  
+  // State cho việc tìm kiếm sản phẩm
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Lấy thông tin người dùng đăng nhập từ AsyncStorage
+  useEffect(() => {
+    const getUserData = async () => {
+      try {
+        const userDataString = await AsyncStorage.getItem('userData');
+        if (userDataString) {
+          const parsedUserData = JSON.parse(userDataString);
+          setUserData(parsedUserData);
+          console.log('Đã lấy thông tin người dùng:', parsedUserData);
+        } else {
+          console.log('Không tìm thấy thông tin người dùng trong AsyncStorage');
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy thông tin người dùng:', error);
+      }
+    };
+
+    getUserData();
+    
+    // Lấy thông tin khách hàng nếu có customerId
+    const customerId = params.customerId as string;
+    if (customerId) {
+      fetchAndSaveCustomerData(customerId);
+    }
+  }, []);
 
   // Fetch tất cả sản phẩm từ API khi component mount
   useEffect(() => {
@@ -735,6 +769,59 @@ export default function QuotationDetails() {
     );
   };
 
+  // Hàm cập nhật thông tin khách hàng nếu đã tồn tại
+  const updateExistingCustomer = async (customerId: string) => {
+    try {
+      // Ví dụ gọi API cập nhật thông tin khách hàng
+      const response = await fetch(`https://id.slmsolar.com/api/mini_admins/potential-customer/update/${customerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          // Dữ liệu cập nhật, có thể lấy từ state hoặc form
+          last_quotation_date: new Date().toISOString(),
+          agent_id: userData?.id || null,
+          // Các trường khác nếu cần
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Không thể cập nhật thông tin khách hàng');
+      }
+      
+      const data = await response.json();
+      console.log('Đã cập nhật thông tin khách hàng:', data);
+      
+      // Lấy thông tin khách hàng để lưu vào AsyncStorage
+      await fetchAndSaveCustomerData(customerId);
+      
+      return data;
+    } catch (error) {
+      console.error('Lỗi khi cập nhật thông tin khách hàng:', error);
+      return null;
+    }
+  };
+  
+  // Hàm lấy và lưu thông tin khách hàng
+  const fetchAndSaveCustomerData = async (customerId: string) => {
+    try {
+      const response = await fetch(`https://id.slmsolar.com/api/mini_admins/potential-customer/check-exist-by-code/${customerId}`);
+      if (!response.ok) {
+        throw new Error('Không thể lấy thông tin khách hàng');
+      }
+      
+      const data = await response.json();
+      if (data.exist && data.potential_customer) {
+        // Lưu thông tin khách hàng vào AsyncStorage
+        await AsyncStorage.setItem('customerData', JSON.stringify(data.potential_customer));
+        console.log('Đã lưu thông tin khách hàng vào AsyncStorage');
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy thông tin khách hàng:', error);
+    }
+  };
+
   return (
     <React.Fragment>
       <Stack.Screen options={{ headerShown: false }} />
@@ -1275,7 +1362,57 @@ export default function QuotationDetails() {
           </View>
           <TouchableOpacity
             style={styles.continueButton}
-            onPress={() => router.push('/(quotation)/quotation_success')}
+            onPress={async () => {
+              // Lấy thời điểm hiện tại
+              const now = new Date();
+              const formattedTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} - ${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+              
+              // Ghi log và xử lý khách hàng đã tồn tại nếu cần
+              const isNewCustomer = params.isNewCustomer === 'true';
+              const customerId = params.customerId as string;
+              const phoneNumber = params.phoneNumber as string;
+              
+              // Lưu thông tin khách hàng nếu cần
+              if (isNewCustomer === false && customerId) {
+                try {
+                  await updateExistingCustomer(customerId);
+                } catch (error) {
+                  console.error('Lỗi khi cập nhật thông tin khách hàng:', error);
+                  // Vẫn tiếp tục chuyển trang ngay cả khi cập nhật thất bại
+                }
+              }
+              
+              // Lưu danh sách sản phẩm vào AsyncStorage để hiển thị trên trang thành công
+              try {
+                await AsyncStorage.setItem('quotationProducts', JSON.stringify(products));
+                await AsyncStorage.setItem('quotationTotalPrice', totalPrice.toString());
+                
+                // Lưu cả thông tin cấu hình (systemType, phaseType, installationType)
+                await AsyncStorage.setItem('quotationConfig', JSON.stringify({
+                  systemType,
+                  phaseType,
+                  installationType
+                }));
+                
+                console.log('Đã lưu thông tin báo giá vào AsyncStorage');
+              } catch (error) {
+                console.error('Lỗi khi lưu thông tin báo giá:', error);
+              }
+              
+              // Chuyển sang trang kết quả báo giá, trang success sẽ tự lấy thông tin người dùng từ AsyncStorage
+              router.push({
+                pathname: '/(quotation)/quotation_success',
+                params: { 
+                  customerId: customerId || '',
+                  phoneNumber: phoneNumber || '',
+                  createdTime: formattedTime,
+                  totalPrice: totalPrice.toString(),
+                  systemType,
+                  phaseType,
+                  installationType
+                }
+              });
+            }}
           >
             <Text style={styles.continueButtonText}>TIẾP TỤC</Text>
           </TouchableOpacity>
