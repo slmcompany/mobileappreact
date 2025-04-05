@@ -21,8 +21,26 @@ import { Sector, Combo } from '../../models/sector';
 import ContentGallery from '../components/ContentGallery';
 import HomeAgentCTA from '../components/home_agent_cta';
 
-// Mock data cho promo cards
-const promoCards = [
+// Interface cho banner
+interface BannerImage {
+  id: number;
+  link: string;
+  banner_id: number;
+  created_at: string | null;
+}
+
+interface Banner {
+  id: number;
+  title: string;
+  slug: string;
+  location: string;
+  created_at: string | null;
+  sector_id: number;
+  banner_images: BannerImage[];
+}
+
+// Fallback promo cards khi không có dữ liệu từ API
+const fallbackPromoCards = [
   {
     id: '1',
     action: 'Bán hàng',
@@ -279,6 +297,11 @@ export default function HomeScreen() {
   
   // Thêm state để theo dõi trạng thái ẩn/hiện số tiền
   const [isAmountVisible, setIsAmountVisible] = useState<boolean>(false);
+  
+  // Thêm state để lưu trữ dữ liệu banners
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [isLoadingBanners, setIsLoadingBanners] = useState<boolean>(false);
+  const [bannersError, setBannersError] = useState<Error | null>(null);
   
   useEffect(() => {
     if (sectorsError) {
@@ -555,6 +578,53 @@ export default function HomeScreen() {
     return '*'.repeat(Math.min(amountString.length, 10));
   };
 
+  // Fetch dữ liệu banners từ API
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        setIsLoadingBanners(true);
+        setBannersError(null);
+        
+        const response = await fetch('https://id.slmsolar.com/api/banners', {
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Lỗi khi lấy dữ liệu banners: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+        }
+        
+        const text = await response.text();
+        if (!text || text.trim().startsWith('<')) {
+          throw new Error('Phản hồi không phải định dạng JSON');
+        }
+        
+        const data = JSON.parse(text);
+        
+        if (data && Array.isArray(data)) {
+          // Lọc để chỉ hiển thị banner ở location 'home'
+          const homeBanners = data.filter(banner => banner.location === 'home');
+          setBanners(homeBanners);
+        } else {
+          setBanners([]);
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu banners:', error);
+        setBannersError(error instanceof Error ? error : new Error('Lỗi không xác định'));
+      } finally {
+        setIsLoadingBanners(false);
+      }
+    };
+    
+    fetchBanners();
+  }, []);
+
   if (isSectorsLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -580,6 +650,31 @@ export default function HomeScreen() {
       </View>
     );
   }
+
+  // Chuẩn bị dữ liệu banner để hiển thị
+  const renderPromoData = () => {
+    // Nếu không có banner từ API hoặc đang loading, sử dụng fallback
+    if (isLoadingBanners || bannersError || banners.length === 0) {
+      return fallbackPromoCards;
+    }
+    
+    // Sử dụng banner_images từ API để tạo dữ liệu promo
+    const firstBanner = banners[0]; // Lấy banner đầu tiên để hiển thị
+    if (!firstBanner || !firstBanner.banner_images || firstBanner.banner_images.length === 0) {
+      return fallbackPromoCards;
+    }
+    
+    return firstBanner.banner_images.map((image, index) => ({
+      id: image.id.toString(),
+      action: firstBanner.title || 'Sản phẩm',
+      mainText: firstBanner.slug || '',
+      buttonText: 'Xem ngay',
+      backgroundColor: '#D9261C',
+      imageUrl: image.link, // URL ảnh từ API
+    }));
+  };
+  
+  const promoData = renderPromoData();
 
   return (
     <React.Fragment>
@@ -710,7 +805,11 @@ export default function HomeScreen() {
               {sectors?.map((sector) => (
                 <TouchableOpacity
                   key={sector.id}
-                  style={styles.brandCard}
+                  style={[
+                    styles.brandCard,
+                    // Thêm màu background tùy theo brand
+                    { backgroundColor: sector.id === 2 ? '#FFD700' : sector.id === 1 ? '#4CAF50' : '#fff' }
+                  ]}
                   activeOpacity={0.8}
                   onPress={() => router.push({
                     pathname: "/(products)/product_brand",
@@ -731,46 +830,48 @@ export default function HomeScreen() {
             {/* Promo Cards */}
             <WhiteSpace size="lg" />
             <View style={styles.carouselContainer}>
-              <FlatList
-                ref={promoFlatListRef}
-                horizontal
-                data={promoCards}
-                renderItem={({item}) => (
-                  <View style={[styles.promoCard, { width: width - 32, marginHorizontal: 4 }]}>
-                    <Image
-                      source={item.image} 
-                      style={styles.promoFullImage} 
-                      resizeMode="cover" 
-                    />
-                    <Flex style={styles.promoContent}>
-                      <Flex.Item style={styles.promoTextContent}>
-                        <Text style={styles.promoAction}>{item.action}</Text>
-                        <Text style={styles.promoMainText}>{item.mainText}</Text>
-                        <Button 
-                          type="primary" 
-                          size="small" 
-                          style={styles.promoButton}
-                        >
-                          <View style={styles.buttonInner}>
-                            <Text style={styles.promoButtonText}>{item.buttonText}</Text>
-                            <Ionicons name="arrow-forward" size={12} color="white" />
-                          </View>
-                        </Button>
-                      </Flex.Item>
-                    </Flex>
-                  </View>
-                )}
-                keyExtractor={item => item.id}
-                showsHorizontalScrollIndicator={false}
-                pagingEnabled
-                snapToInterval={width - 32}
-                decelerationRate="fast"
-                onMomentumScrollEnd={handlePromoScroll}
-                contentContainerStyle={{ paddingHorizontal: 16 }}
-              />
+              {isLoadingBanners ? (
+                <View style={styles.loadingBannerContainer}>
+                  <ActivityIndicator size="small" color="#D9261C" />
+                  <Text style={styles.loadingBannerText}>Đang tải banner...</Text>
+                </View>
+              ) : (
+                <FlatList
+                  ref={promoFlatListRef}
+                  horizontal
+                  data={promoData}
+                  renderItem={({item}) => (
+                    <View style={[styles.promoCard, { width: width - 32, marginHorizontal: 4 }]}>
+                      {item.imageUrl ? (
+                        <Image
+                          source={{ uri: item.imageUrl }} 
+                          style={styles.promoFullImage} 
+                          resizeMode="cover"
+                          onError={(e) => console.error('Error loading banner image:', e.nativeEvent.error)}
+                        />
+                      ) : item.image ? (
+                        <Image
+                          source={item.image} 
+                          style={styles.promoFullImage} 
+                          resizeMode="cover" 
+                        />
+                      ) : (
+                        <View style={[styles.promoFullImage, { backgroundColor: item.backgroundColor || '#D9261C' }]} />
+                      )}
+                    </View>
+                  )}
+                  keyExtractor={item => item.id}
+                  showsHorizontalScrollIndicator={false}
+                  pagingEnabled
+                  snapToInterval={width - 32}
+                  decelerationRate="fast"
+                  onMomentumScrollEnd={handlePromoScroll}
+                  contentContainerStyle={{ paddingHorizontal: 16 }}
+                />
+              )}
               
               <View style={styles.promoPaginationContainer}>
-                {promoCards.map((_, index) => (
+                {promoData.map((_, index) => (
                   <TouchableOpacity 
                     key={index} 
                     style={[
@@ -1515,5 +1616,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#000',
+  },
+  loadingBannerContainer: {
+    height: 150,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f8',
+    borderRadius: 10,
+    marginHorizontal: 16,
+  },
+  loadingBannerText: {
+    marginTop: 8,
+    color: '#666',
+    fontSize: 14,
   },
 });
