@@ -123,6 +123,63 @@ const useSectors = () => {
   return { data, isLoading, error };
 };
 
+// Thêm component ProductSection giống như ở trang chủ
+const ProductSection = ({ sector, router, renderProductItem }: { sector: Sector, router: any, renderProductItem: any }) => {
+  const { width } = Dimensions.get('window');
+  const flatListRef = useRef<FlatList>(null);
+
+  if (!sector.list_combos || sector.list_combos.length === 0) {
+    return null;
+  }
+
+  // Lọc các combo bán chạy từ sector
+  const bestSellingCombos = sector.list_combos.filter(combo => combo.best_selling === true);
+  
+  if (bestSellingCombos.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <WhiteSpace size="lg" />
+      <Flex justify="between" align="center" style={{paddingHorizontal: 16}}>
+        <Text style={styles.sectionSubtitle}>{sector.name.toUpperCase()}</Text>
+        <Button
+          type="primary"
+          size="small"
+          style={{ borderWidth: 0, backgroundColor: 'transparent', paddingRight: 8 }}
+          onPress={() => router.push({
+            pathname: "/(products)/product_brand",
+            params: { id: sector.id.toString() }
+          })}
+        >
+          <Flex align="center">
+            <Text style={styles.viewAllText}>Tất cả</Text>
+            <Image 
+              source={require('../../assets/images/arrow-icon.png')} 
+              style={{ width: 20, height: 20, marginLeft: 8 }} 
+              resizeMode="contain"
+            />
+          </Flex>
+        </Button>
+      </Flex>
+      
+      <WhiteSpace size="lg" />
+      <View style={[styles.carouselContainer, { paddingBottom: 16 }]}>
+        <FlatList
+          ref={flatListRef}
+          horizontal
+          data={bestSellingCombos}
+          renderItem={({item}) => renderProductItem({item})}
+          keyExtractor={item => item.id.toString()}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        />
+      </View>
+    </>
+  );
+};
+
 export default function ProductScreen() {
   const router = useRouter();
   const { width } = Dimensions.get('window');
@@ -204,40 +261,6 @@ export default function ProductScreen() {
       </View>
     </TouchableOpacity>
   );
-
-  const renderSectionHeader = (title: string, sectionName: string, sectorId: number) => (
-    <>
-      <WhiteSpace size="lg" />
-      <Flex justify="between" align="center" style={{paddingHorizontal: 16}}>
-        <Text style={styles.sectionSubtitle}>{sectionName.toUpperCase()}</Text>
-        <Button
-          type="primary"
-          size="small"
-          style={{ borderWidth: 0, backgroundColor: 'transparent', paddingRight: 8 }}
-          onPress={() => router.push({
-            pathname: "/(products)/product_brand",
-            params: { id: sectorId.toString() }
-          })}
-        >
-          <Flex align="center">
-            <Text style={styles.viewAllText}>Tất cả</Text>
-            <Image 
-              source={require('../../assets/images/arrow-icon.png')} 
-              style={{ width: 20, height: 20, marginLeft: 8 }} 
-              resizeMode="contain"
-            />
-          </Flex>
-        </Button>
-      </Flex>
-      <WhiteSpace size="lg" />
-    </>
-  );
-
-  // Hàm lọc combo bán chạy
-  const getBestSellingCombos = (sector: Sector) => {
-    if (!sector.list_combos) return [];
-    return sector.list_combos.filter(combo => combo.best_selling === true);
-  };
 
   // Render phần loading
   if (isLoading) {
@@ -326,7 +349,11 @@ export default function ProductScreen() {
             {sectors.map((sector) => (
               <TouchableOpacity
                 key={sector.id}
-                style={styles.brandCard}
+                style={[
+                  styles.brandCard,
+                  // Thêm màu background tùy theo brand giống trang chủ
+                  { backgroundColor: sector.id === 2 ? '#FFD700' : sector.id === 1 ? '#4CAF50' : '#fff' }
+                ]}
                 activeOpacity={0.8}
                 onPress={() => router.push({
                   pathname: "/(products)/product_brand",
@@ -413,30 +440,15 @@ export default function ProductScreen() {
           <Text style={styles.sectionTitle}>Bán chạy</Text>
           <WhiteSpace size="xs" />
           
-          {/* Lặp qua từng sector để hiển thị các combo bán chạy */}
-          {sectors.map((sector) => {
-            const bestSellingCombos = getBestSellingCombos(sector);
-            
-            // Kiểm tra nếu sector không có combo bán chạy nào thì bỏ qua
-            if (bestSellingCombos.length === 0) return null;
-            
-            return (
-              <React.Fragment key={sector.id}>
-                {renderSectionHeader('Bán chạy', sector.name, sector.id)}
-                <View style={[styles.productsCarouselContainer, { paddingBottom: 16 }]}>
-                  <FlatList
-                    ref={sector.id === 1 ? solarMaxFlatListRef : elitonFlatListRef}
-                    horizontal
-                    data={bestSellingCombos}
-                    renderItem={renderProductItem}
-                    keyExtractor={item => item.id.toString()}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 24 }}
-                  />
-                </View>
-              </React.Fragment>
-            );
-          })}
+          {/* Sử dụng ProductSection mới */}
+          {sectors.map((sector) => (
+            <ProductSection 
+              key={sector.id} 
+              sector={sector} 
+              router={router} 
+              renderProductItem={renderProductItem} 
+            />
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>

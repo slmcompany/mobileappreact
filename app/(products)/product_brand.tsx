@@ -1,22 +1,45 @@
 import React, { useRef } from 'react';
 import { StyleSheet, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Platform, FlatList } from 'react-native';
 import { Text, WhiteSpace, WingBlank, Flex } from '@ant-design/react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { Stack, useLocalSearchParams, router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSector } from '../../hooks/useSector';
 import { Combo, Sector } from '../../models/sector';
 
-export default function ProductBrandScreen() {
-  const { id } = useLocalSearchParams();
-  const { data: sector, isLoading, error } = useSector(Number(id));
+// Component riêng biệt cho carousel sản phẩm
+const ProductSection = ({ 
+  data, 
+  title, 
+  showDetails = false, 
+  isGrid = false,
+  filterType,
+  sectorName,
+  sectorId
+}: { 
+  data: Combo[], 
+  title?: string, 
+  showDetails?: boolean,
+  isGrid?: boolean,
+  filterType?: string,
+  sectorName?: string,
+  sectorId?: number
+}) => {
   const { width } = Dimensions.get('window');
-  const CARD_MARGIN = 8;
-  const HORIZONTAL_PADDING = 16;
-  const VISIBLE_CARDS = 2.5;
-  const cardWidth = (width - (HORIZONTAL_PADDING * 2) - (CARD_MARGIN * (VISIBLE_CARDS - 1))) / VISIBLE_CARDS;
-  const flatListRef = useRef<FlatList>(null);
+  const carouselRef = useRef<FlatList>(null);
 
-  const ProductItem = ({ item, isHorizontal }: { item: Combo, isHorizontal?: boolean }) => {
+  // Lấy title động theo filter type
+  const getDynamicTitle = () => {
+    if (title) return title;
+    
+    if (filterType === 'Ongrid') return 'Hệ Bám tải';
+    if (filterType === 'Hybrid') return 'Hệ Độc lập';
+    if (filterType === 'DOC_LAP_MOT_PHA' || filterType === 'DOC_LAP_BA_PHA') return 'Hệ Độc lập';
+    if (filterType === 'BAM_TAI_MOT_PHA' || filterType === 'BAM_TAI_BA_PHA') return 'Hệ Bám tải';
+    
+    return title || 'Sản phẩm';
+  };
+
+  const ProductItem = ({ item }: { item: Combo }) => {
     const getProductTag = (combo: Combo) => {
       if (combo.installation_type) {
         return combo.installation_type.toUpperCase();
@@ -40,55 +63,239 @@ export default function ProductBrandScreen() {
       return name;
     };
 
+    // Card với layout ngang (ảnh bên trái, thông tin bên phải)
+    if (isGrid) {
+      return (
+        <Link
+          href={{
+            pathname: "/(products)/product_detail",
+            params: { id: item.id.toString() }
+          }}
+          asChild
+        >
+          <TouchableOpacity style={styles.horizontalCard}>
+            <View style={styles.horizontalImageContainer}>
+              {item.image ? (
+                <Image 
+                  source={{ uri: item.image }} 
+                  style={styles.productImage} 
+                  resizeMode="cover" 
+                />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Ionicons name="cube-outline" size={30} color="#888" />
+                </View>
+              )}
+              {item.installation_type && (
+                <View style={styles.tagContainerHorizontal}>
+                  <Text style={styles.tagText}>{item.installation_type.toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.horizontalContentContainer}>
+              <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+              
+              <View style={styles.productDetails}>
+                <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+              </View>
+              
+              <View style={styles.priceContainer}>
+                <Text style={styles.productPrice}>
+                  {new Intl.NumberFormat('vi-VN', { 
+                    style: 'currency', 
+                    currency: 'VND' 
+                  }).format(item.total_price)}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Link>
+      );
+    }
+
+    // Card kiểu dọc cũ (carousel)
     return (
-      <TouchableOpacity 
-        style={[
-          styles.productCard,
-          isHorizontal && { width: (width - 48) / 2.5, marginHorizontal: 4, marginBottom: 16 }
-        ]}
-        onPress={() => router.push({
+      <Link
+        href={{
           pathname: "/(products)/product_detail",
           params: { id: item.id.toString() }
-        })}
+        }}
+        asChild
       >
-        <View style={[styles.imageContainer, isHorizontal && { aspectRatio: 1 }]}>
-          {item.image ? (
-            <Image 
-              source={{ uri: item.image }} 
-              style={styles.productImage} 
-              resizeMode="cover" 
-            />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="cube-outline" size={40} color="#888" />
-            </View>
-          )}
-          {getProductTag(item) && (
-            <View style={styles.tagContainer}>
-              <Text style={styles.tagText}>{getProductTag(item)}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{getFormattedProductName(item)}</Text>
-          {!isHorizontal && (
-            <View style={styles.productDetails}>
-              <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
-              <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
-            </View>
-          )}
-          <View style={styles.priceContainer}>
-            <Text style={styles.productPrice}>
-              {new Intl.NumberFormat('vi-VN', { 
-                style: 'currency', 
-                currency: 'VND' 
-              }).format(item.total_price)}
-            </Text>
+        <TouchableOpacity 
+          style={[
+            styles.productCard,
+            { width: (width - 80) / 2.5, marginHorizontal: 8, marginBottom: 16 }
+          ]}
+        >
+          <View style={{ padding: 0, width: '100%', aspectRatio: 1, overflow: 'hidden' }}>
+            {item.image ? (
+              <Image 
+                source={{ uri: item.image }} 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  position: 'absolute',
+                  top: 0,
+                  left: 0 
+                }} 
+                resizeMode="cover" 
+              />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="cube-outline" size={40} color="#888" />
+              </View>
+            )}
+            {getProductTag(item) && (
+              <View style={styles.tagContainer}>
+                <Text style={styles.tagText}>{getProductTag(item)}</Text>
+              </View>
+            )}
           </View>
-        </View>
-      </TouchableOpacity>
+          <View style={styles.productInfo}>
+            <Text style={styles.productName} numberOfLines={2}>{getFormattedProductName(item)}</Text>
+            
+            {showDetails && (
+              <View style={styles.productDetails}>
+                <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+              </View>
+            )}
+            
+            <View style={styles.priceContainer}>
+              <Text style={styles.productPrice}>
+                {new Intl.NumberFormat('vi-VN', { 
+                  style: 'currency', 
+                  currency: 'VND' 
+                }).format(item.total_price)}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Link>
     );
   };
+
+  if (isGrid) {
+    return (
+      <View style={styles.productSection}>
+        <Text style={styles.sectionTitle}>{getDynamicTitle()}</Text>
+        <View style={styles.horizontalList}>
+          {data.length > 0 ? (
+            data.map((item) => (
+              <ProductItem key={item.id} item={item} />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>Không có sản phẩm</Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Dành cho carousel (style như ở products.tsx)
+  return (
+    <>
+      <WhiteSpace size="lg" />
+      <Flex justify="between" align="center" style={{paddingHorizontal: 16}}>
+        <Text style={styles.sectionSubtitle}>{sectorName ? sectorName.toUpperCase() : title}</Text>
+        <TouchableOpacity>
+          <Flex align="center">
+            <Text style={styles.viewAllText}>Tất cả</Text>
+            <Image 
+              source={require('../../assets/images/arrow-icon.png')} 
+              style={{ width: 20, height: 20, marginLeft: 8 }} 
+              resizeMode="contain"
+            />
+          </Flex>
+        </TouchableOpacity>
+      </Flex>
+      
+      <WhiteSpace size="lg" />
+      <View style={[styles.carouselContainer, { paddingBottom: 16 }]}>
+        <FlatList
+          ref={carouselRef}
+          horizontal
+          data={data}
+          renderItem={({item}) => (
+            <ProductItem key={item.id} item={item} />
+          )}
+          keyExtractor={item => item.id.toString()}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          ListEmptyComponent={
+            <View style={styles.emptyCarousel}>
+              <Text style={styles.emptyText}>Không có sản phẩm</Text>
+            </View>
+          }
+        />
+      </View>
+    </>
+  );
+};
+
+export default function ProductBrandScreen() {
+  const { id } = useLocalSearchParams();
+  const { data: sector, isLoading, error } = useSector(Number(id));
+  const { width } = Dimensions.get('window');
+  const CARD_MARGIN = 8;
+  const HORIZONTAL_PADDING = 16;
+  const VISIBLE_CARDS = 2.5;
+  const cardWidth = (width - (HORIZONTAL_PADDING * 2) - (CARD_MARGIN * (VISIBLE_CARDS - 1))) / VISIBLE_CARDS;
+  const flatListRef = useRef<FlatList>(null);
+
+  // Tạo tag cho sản phẩm dựa vào installation_type nếu có
+  const getProductTag = (combo: Combo) => {
+    if (combo.installation_type) {
+      return combo.installation_type.toUpperCase();
+    }
+    return null;
+  };
+
+  const renderProductItem = ({ item }: { item: Combo }) => (
+    <TouchableOpacity 
+      style={[styles.productCard, { width: (width - 80) / 2.5, marginHorizontal: 8, marginBottom: 16 }]}
+      onPress={() => router.push({
+        pathname: "/(products)/product_detail",
+        params: { id: item.id.toString() }
+      })}
+    >
+      <View style={{ padding: 0, width: '100%', aspectRatio: 1, overflow: 'hidden' }}>
+        {item.image ? (
+          <Image 
+            source={{ uri: item.image }} 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              position: 'absolute',
+              top: 0,
+              left: 0 
+            }} 
+            resizeMode="cover" 
+          />
+        ) : (
+          <View style={styles.productImagePlaceholder}>
+            <Ionicons name="cube-outline" size={40} color="#888" />
+          </View>
+        )}
+        {getProductTag(item) && (
+          <View style={styles.tagContainer}>
+            <Text style={styles.tagText}>{getProductTag(item)}</Text>
+          </View>
+        )}
+      </View>
+      <View style={{ padding: 12, flex: 1 }}>
+        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.productPrice}>
+          {new Intl.NumberFormat('vi-VN', { 
+            style: 'currency', 
+            currency: 'VND' 
+          }).format(Math.round(item.total_price / 1000) * 1000)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   if (isLoading) {
     return (
@@ -116,6 +323,16 @@ export default function ProductBrandScreen() {
     );
   }
 
+  // Get Ongrid products
+  const ongridProducts = sector.list_combos ? 
+    sector.list_combos.filter(combo => combo.installation_type === "Ongrid") : 
+    [];
+    
+  // Get Hybrid products
+  const hybridProducts = sector.list_combos ? 
+    sector.list_combos.filter(combo => combo.installation_type === "Hybrid") : 
+    [];
+
   return (
     <View style={styles.container}>
       <Stack.Screen 
@@ -123,7 +340,8 @@ export default function ProductBrandScreen() {
           headerTitle: '',
           headerShadowVisible: false,
           headerStyle: {
-            backgroundColor: '#0F974A',
+            backgroundColor: sector.id === 1 ? '#4CAF50' : 
+                             sector.id === 2 ? '#FFD700' : '#0F974A',
           },
           headerRight: () => (
             <TouchableOpacity style={styles.headerButton}>
@@ -138,7 +356,11 @@ export default function ProductBrandScreen() {
         contentContainerStyle={{ paddingTop: 0 }}
       >
         {/* Brand Header */}
-        <View style={styles.brandHeader}>
+        <View style={[
+          styles.brandHeader,
+          { backgroundColor: sector.id === 1 ? '#4CAF50' : 
+                            sector.id === 2 ? '#FFD700' : '#0F974A' }
+        ]}>
           <View style={styles.brandInfo}>
             <Image 
               source={{ uri: sector.image_rectangular || sector.logo }} 
@@ -165,69 +387,148 @@ export default function ProductBrandScreen() {
         </View>
 
         {/* Best Selling Section */}
-        <View style={styles.productSection}>
-          <Text style={styles.sectionTitle}>Bán chạy</Text>
-          <View style={styles.carouselContainer}>
-            <FlatList
-              ref={flatListRef}
-              horizontal
-              data={sector.list_combos?.slice(0, 5)}
-              renderItem={({item}) => (
-                <ProductItem key={item.id} item={item} isHorizontal />
-              )}
-              keyExtractor={item => item.id.toString()}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-              ListEmptyComponent={
-                <View style={styles.emptyCarousel}>
-                  <Text style={styles.emptyText}>Không có sản phẩm bán chạy</Text>
-                </View>
-              }
-            />
-          </View>
+        <Text style={styles.sectionTitle}>Bán chạy</Text>
+        <WhiteSpace size="lg" />
+        <Flex justify="between" align="center" style={{paddingHorizontal: 16}}>
+          <Text style={styles.sectionSubtitle}>{sector.name.toUpperCase()}</Text>
+          <TouchableOpacity>
+            <Flex align="center">
+              <Text style={styles.viewAllText}>Tất cả</Text>
+              <Image 
+                source={require('../../assets/images/arrow-icon.png')} 
+                style={{ width: 20, height: 20, marginLeft: 8 }} 
+                resizeMode="contain"
+              />
+            </Flex>
+          </TouchableOpacity>
+        </Flex>
+        
+        <WhiteSpace size="lg" />
+        <View style={[styles.carouselContainer, { paddingBottom: 16 }]}>
+          <FlatList
+            ref={flatListRef}
+            horizontal
+            data={sector.list_combos?.filter(combo => combo.best_selling === true) || sector.list_combos?.slice(0, 5) || []}
+            renderItem={renderProductItem}
+            keyExtractor={item => item.id.toString()}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+          />
         </View>
 
-        <View style={styles.productSection}>
-          <Text style={styles.sectionTitle}>Hệ Độc lập</Text>
-          <Text style={styles.subSectionTitle}>ĐỘC LẬP - MỘT PHA</Text>
-          <View style={styles.productGrid}>
-            {sector.list_combos?.filter(combo => combo.type === 'DOC_LAP_MOT_PHA').map((combo) => (
-              <ProductItem key={combo.id} item={combo} />
-            ))}
-            {sector.list_combos?.filter(combo => combo.type === 'DOC_LAP_MOT_PHA').length === 0 && (
-              <Text style={styles.emptyText}>Không có sản phẩm</Text>
-            )}
-          </View>
-          
-          <Text style={styles.subSectionTitle}>ĐỘC LẬP - BA PHA</Text>
-          <View style={styles.productGrid}>
-            {sector.list_combos?.filter(combo => combo.type === 'DOC_LAP_BA_PHA').map((combo) => (
-              <ProductItem key={combo.id} item={combo} />
-            ))}
-            {sector.list_combos?.filter(combo => combo.type === 'DOC_LAP_BA_PHA').length === 0 && (
-              <Text style={styles.emptyText}>Không có sản phẩm</Text>
-            )}
-          </View>
-        </View>
-
+        {/* Carousel sản phẩm Ongrid có thông tin chi tiết */}
         <View style={styles.productSection}>
           <Text style={styles.sectionTitle}>Hệ Bám tải</Text>
-          <Text style={styles.subSectionTitle}>HỆ BÁM TẢI - MỘT PHA</Text>
-          <View style={styles.productGrid}>
-            {sector.list_combos?.filter(combo => combo.type === 'BAM_TAI_MOT_PHA').map((combo) => (
-              <ProductItem key={combo.id} item={combo} />
-            ))}
-            {sector.list_combos?.filter(combo => combo.type === 'BAM_TAI_MOT_PHA').length === 0 && (
+          <View style={styles.horizontalList}>
+            {ongridProducts.length > 0 ? (
+              ongridProducts.map((item) => (
+                <Link
+                  key={item.id}
+                  href={{
+                    pathname: "/(products)/product_detail",
+                    params: { id: item.id.toString() }
+                  }}
+                  asChild
+                >
+                  <TouchableOpacity style={styles.horizontalCard}>
+                    <View style={styles.horizontalImageContainer}>
+                      {item.image ? (
+                        <Image 
+                          source={{ uri: item.image }} 
+                          style={styles.productImage} 
+                          resizeMode="cover" 
+                        />
+                      ) : (
+                        <View style={styles.imagePlaceholder}>
+                          <Ionicons name="cube-outline" size={30} color="#888" />
+                        </View>
+                      )}
+                      {item.installation_type && (
+                        <View style={styles.tagContainerHorizontal}>
+                          <Text style={styles.tagText}>{item.installation_type.toUpperCase()}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.horizontalContentContainer}>
+                      <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+                      
+                      <View style={styles.productDetails}>
+                        <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                        <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                      </View>
+                      
+                      <View style={styles.priceContainer}>
+                        <Text style={styles.productPrice}>
+                          {new Intl.NumberFormat('vi-VN', { 
+                            style: 'currency', 
+                            currency: 'VND' 
+                          }).format(item.total_price)}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </Link>
+              ))
+            ) : (
               <Text style={styles.emptyText}>Không có sản phẩm</Text>
             )}
           </View>
-          
-          <Text style={styles.subSectionTitle}>HỆ BÁM TẢI - BA PHA</Text>
-          <View style={styles.productGrid}>
-            {sector.list_combos?.filter(combo => combo.type === 'BAM_TAI_BA_PHA').map((combo) => (
-              <ProductItem key={combo.id} item={combo} />
-            ))}
-            {sector.list_combos?.filter(combo => combo.type === 'BAM_TAI_BA_PHA').length === 0 && (
+        </View>
+
+        {/* Carousel sản phẩm Hybrid (Độc lập) có thông tin chi tiết */}
+        <View style={styles.productSection}>
+          <Text style={styles.sectionTitle}>Hệ Độc lập</Text>
+          <View style={styles.horizontalList}>
+            {hybridProducts.length > 0 ? (
+              hybridProducts.map((item) => (
+                <Link
+                  key={item.id}
+                  href={{
+                    pathname: "/(products)/product_detail",
+                    params: { id: item.id.toString() }
+                  }}
+                  asChild
+                >
+                  <TouchableOpacity style={styles.horizontalCard}>
+                    <View style={styles.horizontalImageContainer}>
+                      {item.image ? (
+                        <Image 
+                          source={{ uri: item.image }} 
+                          style={styles.productImage} 
+                          resizeMode="cover" 
+                        />
+                      ) : (
+                        <View style={styles.imagePlaceholder}>
+                          <Ionicons name="cube-outline" size={30} color="#888" />
+                        </View>
+                      )}
+                      {item.installation_type && (
+                        <View style={styles.tagContainerHorizontal}>
+                          <Text style={styles.tagText}>{item.installation_type.toUpperCase()}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.horizontalContentContainer}>
+                      <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+                      
+                      <View style={styles.productDetails}>
+                        <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                        <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                      </View>
+                      
+                      <View style={styles.priceContainer}>
+                        <Text style={styles.productPrice}>
+                          {new Intl.NumberFormat('vi-VN', { 
+                            style: 'currency', 
+                            currency: 'VND' 
+                          }).format(item.total_price)}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </Link>
+              ))
+            ) : (
               <Text style={styles.emptyText}>Không có sản phẩm</Text>
             )}
           </View>
@@ -273,7 +574,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   brandHeader: {
-    backgroundColor: '#0F974A',
     padding: 16,
   },
   brandInfo: {
@@ -339,12 +639,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
-  subSectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
+  sectionSubtitle: {
+    fontSize: 14,
     color: '#7B7D9D',
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    marginTop: -8,
+    fontWeight: 'bold',
+  },
+  viewAllText: {
+    color: '#ED1C24',
+    fontSize: 14,
+    marginRight: 4,
   },
   emptyText: {
     fontSize: 14,
@@ -355,8 +659,8 @@ const styles = StyleSheet.create({
   },
   horizontalList: {
     paddingHorizontal: 16,
-    gap: 8,
-    flexDirection: 'row',
+    flexDirection: 'column',
+    width: '100%',
   },
   productGrid: {
     flexDirection: 'row',
@@ -474,5 +778,53 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#000',
+  },
+  horizontalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    marginBottom: 8,
+    width: '100%',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  horizontalImageContainer: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#f5f5f5',
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  horizontalContentContainer: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  tagContainerHorizontal: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  productImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }); 
