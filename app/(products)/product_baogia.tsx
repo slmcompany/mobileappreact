@@ -181,7 +181,7 @@ export default function ProductQuoteScreen() {
 
                 {/* Equipment List */}
                 <View style={styles.equipmentList}>
-                    {product.grouped_merchandises?.filter(group => group.template.is_main)
+                    {product.grouped_merchandises?.filter(group => (group.template as any).is_main)
                         .map((group, index) => {
                             const firstItem = group.pre_quote_merchandises[0];
                             if (!firstItem) return null;
@@ -287,7 +287,7 @@ export default function ProductQuoteScreen() {
                                 <Text style={styles.itemNumber}>{index + 1}</Text>
                                 <Text style={[styles.itemName, { flex: 1 }]}>{group.template.name}</Text>
                                 <Text style={[styles.itemQuantity, { textAlign: 'right', minWidth: 60 }]}>
-                                    {group.template.is_main 
+                                    {(group.template as any).is_main 
                                         ? `${group.pre_quote_merchandises[0]?.quantity} ${group.pre_quote_merchandises[0]?.merchandise.unit}`
                                         : '1 Bộ'
                                     }
@@ -355,8 +355,8 @@ export default function ProductQuoteScreen() {
                 <TouchableOpacity 
                     style={styles.customerInfoButton}
                     onPress={() => {
-                        router.push({
-                            pathname: "/(customer)/customer_info",
+                        router.navigate({
+                            pathname: "/customer_info" as any,
                             params: { 
                                 product_id: product.id,
                                 return_path: "/product_baogia"

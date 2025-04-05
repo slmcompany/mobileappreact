@@ -162,7 +162,13 @@ export default function ProductScreen() {
   };
 
   const renderProductItem = ({ item }: { item: Combo }) => (
-    <View style={[styles.productCard, { width: (width - 80) / 2.5, marginHorizontal: 8, marginBottom: 16 }]}>
+    <TouchableOpacity 
+      style={[styles.productCard, { width: (width - 80) / 2.5, marginHorizontal: 8, marginBottom: 16 }]}
+      onPress={() => router.push({
+        pathname: "/(products)/product_detail",
+        params: { id: item.id.toString() }
+      })}
+    >
       <View style={{ padding: 0, width: '100%', aspectRatio: 1, overflow: 'hidden' }}>
         {item.image ? (
           <Image 
@@ -196,7 +202,7 @@ export default function ProductScreen() {
           }).format(Math.round(item.total_price / 1000) * 1000)}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderSectionHeader = (title: string, sectionName: string, sectorId: number) => (

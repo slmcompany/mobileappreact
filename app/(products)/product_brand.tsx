@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Platform } from 'react-native';
+import React, { useRef } from 'react';
+import { StyleSheet, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Platform, FlatList } from 'react-native';
 import { Text, WhiteSpace, WingBlank, Flex } from '@ant-design/react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,53 +14,81 @@ export default function ProductBrandScreen() {
   const HORIZONTAL_PADDING = 16;
   const VISIBLE_CARDS = 2.5;
   const cardWidth = (width - (HORIZONTAL_PADDING * 2) - (CARD_MARGIN * (VISIBLE_CARDS - 1))) / VISIBLE_CARDS;
+  const flatListRef = useRef<FlatList>(null);
 
-  const ProductItem = ({ item, isHorizontal }: { item: Combo, isHorizontal?: boolean }) => (
-    <TouchableOpacity 
-      style={[
-        styles.productCard,
-        isHorizontal && { width: cardWidth }
-      ]}
-      onPress={() => router.push({
-        pathname: "/(products)/product_detail",
-        params: { id: item.id.toString() }
-      })}
-    >
-      <View style={styles.imageContainer}>
-        {item.image ? (
-          <Image 
-            source={{ uri: item.image }} 
-            style={styles.productImage} 
-            resizeMode="cover" 
-          />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Ionicons name="cube-outline" size={40} color="#888" />
-          </View>
-        )}
-      </View>
-      <View style={styles.productInfo}>
-        <View style={styles.productType}>
-          <Text style={styles.productTypeText}>{item.type || 'ĐỘC LẬP'}</Text>
+  const ProductItem = ({ item, isHorizontal }: { item: Combo, isHorizontal?: boolean }) => {
+    const getProductTag = (combo: Combo) => {
+      if (combo.installation_type) {
+        return combo.installation_type.toUpperCase();
+      } else if (combo.type) {
+        return combo.type;
+      }
+      return 'ĐỘC LẬP';
+    };
+
+    const getFormattedProductName = (combo: Combo) => {
+      let name = combo.name;
+      if (combo.type === 'DOC_LAP_MOT_PHA') {
+        return `Hệ Độc lập Một pha ${combo.capacity || ''}`;
+      } else if (combo.type === 'DOC_LAP_BA_PHA') {
+        return `Hệ Độc lập Ba pha ${combo.capacity || ''}`;
+      } else if (combo.type === 'BAM_TAI_MOT_PHA') {
+        return `Hệ Bám tải Một pha ${combo.capacity || ''}`;
+      } else if (combo.type === 'BAM_TAI_BA_PHA') {
+        return `Hệ Bám tải Ba pha ${combo.capacity || ''}`;
+      }
+      return name;
+    };
+
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.productCard,
+          isHorizontal && { width: (width - 48) / 2.5, marginHorizontal: 4, marginBottom: 16 }
+        ]}
+        onPress={() => router.push({
+          pathname: "/(products)/product_detail",
+          params: { id: item.id.toString() }
+        })}
+      >
+        <View style={[styles.imageContainer, isHorizontal && { aspectRatio: 1 }]}>
+          {item.image ? (
+            <Image 
+              source={{ uri: item.image }} 
+              style={styles.productImage} 
+              resizeMode="cover" 
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="cube-outline" size={40} color="#888" />
+            </View>
+          )}
+          {getProductTag(item) && (
+            <View style={styles.tagContainer}>
+              <Text style={styles.tagText}>{getProductTag(item)}</Text>
+            </View>
+          )}
         </View>
-        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        {!isHorizontal && (
-          <View style={styles.productDetails}>
-            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
-            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={2}>{getFormattedProductName(item)}</Text>
+          {!isHorizontal && (
+            <View style={styles.productDetails}>
+              <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+              <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+            </View>
+          )}
+          <View style={styles.priceContainer}>
+            <Text style={styles.productPrice}>
+              {new Intl.NumberFormat('vi-VN', { 
+                style: 'currency', 
+                currency: 'VND' 
+              }).format(item.total_price)}
+            </Text>
           </View>
-        )}
-        <View style={styles.priceContainer}>
-          <Text style={styles.productPrice}>
-            {new Intl.NumberFormat('vi-VN', { 
-              style: 'currency', 
-              currency: 'VND' 
-            }).format(item.total_price)}
-          </Text>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -139,15 +167,24 @@ export default function ProductBrandScreen() {
         {/* Best Selling Section */}
         <View style={styles.productSection}>
           <Text style={styles.sectionTitle}>Bán chạy</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-          >
-            {sector.list_combos?.slice(0, 5).map((combo) => (
-              <ProductItem key={combo.id} item={combo} isHorizontal />
-            ))}
-          </ScrollView>
+          <View style={styles.carouselContainer}>
+            <FlatList
+              ref={flatListRef}
+              horizontal
+              data={sector.list_combos?.slice(0, 5)}
+              renderItem={({item}) => (
+                <ProductItem key={item.id} item={item} isHorizontal />
+              )}
+              keyExtractor={item => item.id.toString()}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+              ListEmptyComponent={
+                <View style={styles.emptyCarousel}>
+                  <Text style={styles.emptyText}>Không có sản phẩm bán chạy</Text>
+                </View>
+              }
+            />
+          </View>
         </View>
 
         <View style={styles.productSection}>
@@ -157,6 +194,9 @@ export default function ProductBrandScreen() {
             {sector.list_combos?.filter(combo => combo.type === 'DOC_LAP_MOT_PHA').map((combo) => (
               <ProductItem key={combo.id} item={combo} />
             ))}
+            {sector.list_combos?.filter(combo => combo.type === 'DOC_LAP_MOT_PHA').length === 0 && (
+              <Text style={styles.emptyText}>Không có sản phẩm</Text>
+            )}
           </View>
           
           <Text style={styles.subSectionTitle}>ĐỘC LẬP - BA PHA</Text>
@@ -164,6 +204,9 @@ export default function ProductBrandScreen() {
             {sector.list_combos?.filter(combo => combo.type === 'DOC_LAP_BA_PHA').map((combo) => (
               <ProductItem key={combo.id} item={combo} />
             ))}
+            {sector.list_combos?.filter(combo => combo.type === 'DOC_LAP_BA_PHA').length === 0 && (
+              <Text style={styles.emptyText}>Không có sản phẩm</Text>
+            )}
           </View>
         </View>
 
@@ -174,6 +217,9 @@ export default function ProductBrandScreen() {
             {sector.list_combos?.filter(combo => combo.type === 'BAM_TAI_MOT_PHA').map((combo) => (
               <ProductItem key={combo.id} item={combo} />
             ))}
+            {sector.list_combos?.filter(combo => combo.type === 'BAM_TAI_MOT_PHA').length === 0 && (
+              <Text style={styles.emptyText}>Không có sản phẩm</Text>
+            )}
           </View>
           
           <Text style={styles.subSectionTitle}>HỆ BÁM TẢI - BA PHA</Text>
@@ -181,6 +227,9 @@ export default function ProductBrandScreen() {
             {sector.list_combos?.filter(combo => combo.type === 'BAM_TAI_BA_PHA').map((combo) => (
               <ProductItem key={combo.id} item={combo} />
             ))}
+            {sector.list_combos?.filter(combo => combo.type === 'BAM_TAI_BA_PHA').length === 0 && (
+              <Text style={styles.emptyText}>Không có sản phẩm</Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -297,25 +346,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
+  emptyText: {
+    fontSize: 14,
+    color: '#7B7D9D',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 20,
+  },
   horizontalList: {
     paddingHorizontal: 16,
     gap: 8,
     flexDirection: 'row',
   },
   productGrid: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
     gap: 8,
+    marginBottom: 16,
   },
   productCard: {
     backgroundColor: '#fff',
     borderRadius: 8,
     overflow: 'hidden',
+    width: '48%',
+    marginHorizontal: 4,
+    marginBottom: 8,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 3,
       },
       android: {
         elevation: 3,
@@ -357,6 +419,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#27273E',
+    marginBottom: 4,
   },
   productDetails: {
     gap: 4,
@@ -384,5 +447,32 @@ const styles = StyleSheet.create({
   errorSubText: {
     fontSize: 14,
     color: '#666',
+  },
+  carouselContainer: {
+    paddingBottom: 16,
+  },
+  emptyCarousel: {
+    width: Dimensions.get('window').width - 32,
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f8',
+    borderRadius: 8,
+    marginHorizontal: 16,
+  },
+  tagContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#000',
   },
 }); 

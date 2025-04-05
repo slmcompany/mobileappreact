@@ -154,16 +154,11 @@ const ContentGallery = ({
   };
 
   const handleContentPress = (content: Content) => {
-    if (detailInModal) {
-      setSelectedContent(content);
-      setModalVisible(true);
-    } else {
-      // Điều hướng đến màn hình chi tiết
-      router.push({
-        pathname: "/(content)/content_detail",
-        params: { id: content.id }
-      });
-    }
+    // Luôn điều hướng đến màn hình chi tiết thay vì hiển thị modal
+    router.push({
+      pathname: "/(content)/content_detail",
+      params: { id: content.id }
+    });
   };
 
   const navigateToViewAll = () => {
@@ -362,7 +357,7 @@ const ContentGallery = ({
         <TouchableOpacity 
           style={[
             styles.simpleCard,
-            horizontal && { width: width * 0.38, marginRight: 10 }
+            horizontal && { width: width * 0.38, marginRight: 12 }
           ]} 
           onPress={() => handleContentPress(item)}
         >
@@ -630,7 +625,7 @@ const ContentGallery = ({
               onPress={navigateToViewAll}
             >
               <Text style={styles.viewAllText}>Khám phá</Text>
-              <Ionicons name="chevron-forward" size={16} color="#ED1C24" />
+              <Image source={require('../../assets/images/arrow-icon.png')} style={styles.arrowIcon} />
             </TouchableOpacity>
           )}
         </View>
@@ -691,17 +686,19 @@ const ContentGallery = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 0,
     backgroundColor: '#f5f5f8',
   },
   horizontalContainer: {
     paddingVertical: 12,
+    paddingHorizontal: 0,
   },
   titleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 20,
@@ -717,12 +714,16 @@ const styles = StyleSheet.create({
     color: '#ED1C24',
     marginRight: 4,
   },
+  arrowIcon: {
+    width: 16,
+    height: 16,
+  },
   listContainer: {
     paddingBottom: 20,
   },
   horizontalListContainer: {
-    paddingLeft: 4,
-    paddingRight: 20,
+    paddingLeft: 16,
+    paddingRight: 0,
   },
   contentCard: {
     backgroundColor: '#FFFFFF',

@@ -134,6 +134,7 @@ export default function ContentDetailScreen() {
         options={{
           title: 'Chi tiết bài viết',
           headerShown: true,
+          headerTitleAlign: 'center',
         }}
       />
       <ScrollView 

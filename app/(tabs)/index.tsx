@@ -123,8 +123,22 @@ const ArticleItem = ({ item }: { item: any }) => {
 
 // Thêm component ProductItem
 const ProductItem = ({ item, width }: { item: Combo, width: number }) => {
+  // Thêm hàm lấy tag cho sản phẩm
+  const getProductTag = (combo: Combo) => {
+    if (combo.installation_type) {
+      return combo.installation_type.toUpperCase();
+    }
+    return null;
+  };
+
   return (
-    <View style={[styles.productCard, { width: (width - 48) / 2.5, marginHorizontal: 4, marginBottom: 16 }]}>
+    <TouchableOpacity 
+      style={[styles.productCard, { width: (width - 48) / 2.5, marginHorizontal: 4, marginBottom: 16 }]}
+      onPress={() => router.push({
+        pathname: "/(products)/product_detail",
+        params: { id: item.id.toString() }
+      })}
+    >
       <View style={{ padding: 0, width: '100%', aspectRatio: 1, overflow: 'hidden' }}>
         {item.image ? (
           <Image 
@@ -143,6 +157,11 @@ const ProductItem = ({ item, width }: { item: Combo, width: number }) => {
             <Ionicons name="cube-outline" size={40} color="#888" />
           </View>
         )}
+        {getProductTag(item) && (
+          <View style={styles.tagContainer}>
+            <Text style={styles.tagText}>{getProductTag(item)}</Text>
+          </View>
+        )}
       </View>
       <View style={{ padding: 12, flex: 1 }}>
         <Text style={styles.productTitle} numberOfLines={2}>{item.name}</Text>
@@ -153,7 +172,7 @@ const ProductItem = ({ item, width }: { item: Combo, width: number }) => {
           }).format(Math.round(item.total_price / 1000) * 1000)}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -1481,5 +1500,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     color: '#333',
+  },
+  tagContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#000',
   },
 });

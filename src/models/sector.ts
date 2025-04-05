@@ -89,6 +89,7 @@ export interface Combo {
   total_price: number;
   type?: 'DOC_LAP_MOT_PHA' | 'DOC_LAP_BA_PHA' | 'BAM_TAI_MOT_PHA' | 'BAM_TAI_BA_PHA';
   power_output?: string;
+  capacity?: string;
   status: string;
   sector: string;
   code: string;
