@@ -3,88 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG, API_ENDPOINTS, handleApiError } from '@/config/api';
 import User, { LoginCredentials } from '@/models/User';
 
-// Dữ liệu người dùng mặc định từ API
-const DEFAULT_USERS: User[] = [
-  {
-    "id": 1,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Nguyễn TIến Mạnh",
-    "phone": "0964920242",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 2,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Trần Bảo Ngọc",
-    "phone": "0966874083",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 3,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Đỗ Thuỳ Dung",
-    "phone": "0394307569",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 4,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Nguyễn Đình Linh",
-    "phone": "0917599966",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 5,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Nguyễn Hoành Văn",
-    "phone": "0969862033",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 6,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Lê Huy Sĩ",
-    "phone": "0969663387",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  }
-];
-
 // Authentication service class
 class AuthService {
   // Fetch all users from API
@@ -103,9 +21,8 @@ class AuthService {
       const data = await response.json();
       return data as User[];
     } catch (error) {
-      console.error('Error fetching users from API, using default data:', error);
-      // Trả về dữ liệu mặc định nếu API gặp lỗi
-      return DEFAULT_USERS;
+      console.error('Error fetching users from API:', error);
+      return []; // Trả về mảng rỗng thay vì dữ liệu mặc định
     }
   }
 
@@ -176,8 +93,8 @@ class AuthService {
       await AsyncStorage.setItem('@slm_user_data', JSON.stringify(user));
       await AsyncStorage.setItem('@slm_login_phone', user.phone);
       await AsyncStorage.setItem('@slm_user_name', user.name);
-      if (user.avatar) {
-        await AsyncStorage.setItem('@slm_user_avatar', user.avatar);
+      if ('avatar' in user) {
+        await AsyncStorage.setItem('@slm_user_avatar', (user as any).avatar);
       }
     } catch (error) {
       console.error('Error storing user data:', error);

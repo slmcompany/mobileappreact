@@ -22,16 +22,6 @@ export default function LoginScreen() {
   const [storedUserName, setStoredUserName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  // Các số điện thoại và mật khẩu mẫu
-  const sampleAccounts = [
-    { phone: '0964920242', password: 'slm123', name: 'Nguyễn TIến Mạnh' },
-    { phone: '0966874083', password: 'slm123', name: 'Trần Bảo Ngọc' },
-    { phone: '0394307569', password: 'slm123', name: 'Đỗ Thuỳ Dung' },
-    { phone: '0917599966', password: 'slm123', name: 'Nguyễn Đình Linh' },
-    { phone: '0969862033', password: 'slm123', name: 'Nguyễn Hoành Văn' },
-    { phone: '0969663387', password: 'slm123', name: 'Lê Huy Sĩ' },
-  ];
-  
   useEffect(() => {
     // Kiểm tra nếu có thông tin đăng nhập đã lưu
     checkStoredLogin();
@@ -101,28 +91,6 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
       console.log('Đang kiểm tra đăng nhập với số điện thoại:', phoneNumber);
-      
-      // Kiểm tra đăng nhập với mã test
-      if (phoneNumber === 'admin' && password === 'admin') {
-        console.log('Đăng nhập thành công với tài khoản admin test');
-        // Lưu thông tin đăng nhập giả lập
-        const testUser = {
-          id: 0,
-          role_id: 1,
-          email: null,
-          password: 'admin',
-          created_at: new Date().toISOString(),
-          commission_rate: null,
-          name: 'Admin Test',
-          phone: 'admin',
-          parent_id: null,
-          total_commission: null,
-          role: { name: 'admin', description: null, id: 1 }
-        };
-        await AuthService.storeUserData(testUser);
-        router.replace('/(tabs)');
-        return;
-      }
       
       // Gọi API đăng nhập thông qua API Service
       const users = await AuthService.getUsers();
@@ -198,16 +166,6 @@ export default function LoginScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     Linking.openURL('tel:0977879291');
-  };
-
-  const handleSelectSampleAccount = (account: { phone: string; password: string }) => {
-    setPhoneNumber(account.phone);
-    setPassword(account.password);
-    
-    // Nếu đang có stored user, hãy reset nó để hiển thị input số điện thoại
-    if (hasStoredUser) {
-      setHasStoredUser(false);
-    }
   };
 
   return (
@@ -314,24 +272,6 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={handleForgotPassword}>
             <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
-          
-          {/* Nút kiểm tra modal - chỉ hiển thị trong môi trường dev */}
-          {__DEV__ && (
-            <View style={styles.debugContainer}>
-              <TouchableOpacity 
-                style={styles.debugButton}
-                onPress={showUserNotFoundModal}
-              >
-                <Text style={styles.debugButtonText}>Test: User không tồn tại</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.debugButton}
-                onPress={showWrongPasswordModal}
-              >
-                <Text style={styles.debugButtonText}>Test: Sai mật khẩu</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
       </KeyboardAvoidingView>
       
@@ -364,10 +304,6 @@ export default function LoginScreen() {
             <Text style={styles.modalMessage}>
               Vui lòng kiểm tra lại hoặc <Text style={styles.linkText}>Liên hệ Hỗ trợ</Text> để{' '}
               <Text style={styles.linkText}>Đăng ký tài khoản</Text> mới.
-              {'\n\n'}
-              <Text style={styles.boldText}>Hoặc sử dụng tài khoản mẫu để đăng nhập:</Text>
-              {'\n'}• Số ĐT: 0964920242, MK: slm123
-              {'\n'}• Hoặc nhập: admin / admin
             </Text>
             
             <View style={styles.modalButtonContainer}>
@@ -413,8 +349,6 @@ export default function LoginScreen() {
             
             <Text style={styles.modalMessage}>
               Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ nếu bạn không nhớ mật khẩu.
-              {'\n\n'}
-              <Text style={styles.boldText}>Mật khẩu mặc định là: slm123</Text>
             </Text>
             
             <View style={styles.modalButtonContainer}>
@@ -435,25 +369,6 @@ export default function LoginScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Hiển thị các tài khoản mẫu */}
-      <View style={styles.demoAccountContainer}>
-        <Text style={styles.demoAccountTitle}>Tài khoản mẫu để đăng nhập:</Text>
-        <ScrollView style={styles.demoAccountsList}>
-          {sampleAccounts.map((account, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={styles.demoAccountItem}
-              onPress={() => handleSelectSampleAccount(account)}
-            >
-              <Text style={styles.demoAccountText}>
-                <Text style={styles.demoAccountName}>{account.name}</Text>
-                {'\n'}- SĐT: {account.phone}, MK: {account.password}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
     </ImageBackground>
   );
 }
@@ -703,53 +618,30 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   demoAccountContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 50,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 5,
-    marginHorizontal: 20,
-    padding: 10,
-    maxHeight: 150,
+    display: 'none',
   },
   demoAccountTitle: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
-    marginBottom: 5,
+    display: 'none',
   },
   demoAccountsList: {
-    maxHeight: 120,
+    display: 'none',
   },
   demoAccountItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
-    padding: 8,
-    marginBottom: 6,
+    display: 'none',
   },
   demoAccountText: {
-    color: 'white',
-    fontSize: 12,
+    display: 'none',
   },
   demoAccountName: {
-    fontWeight: 'bold',
-    color: '#ffea00',
+    display: 'none',
   },
   debugContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    marginTop: 10,
+    display: 'none',
   },
   debugButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 5,
-    padding: 10,
-    alignItems: 'center',
+    display: 'none',
   },
   debugButtonText: {
-    color: 'white',
-    fontSize: 14,
+    display: 'none',
   },
 }); 
