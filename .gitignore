@@ -110,3 +110,7 @@ app-example
 .env
 .env.local
 .env.*.local
+
+# Cursor
+.cursor/
+.cursor/rules/
