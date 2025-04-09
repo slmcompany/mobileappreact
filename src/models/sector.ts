@@ -101,6 +101,7 @@ export interface Combo {
   pre_quote_merchandises: any[];
   grouped_merchandises: GroupedMerchandise[];
   payback_period?: number;
+  phase_type?: string;
 }
 
 export interface Sector {

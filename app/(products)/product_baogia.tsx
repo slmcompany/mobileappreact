@@ -10,6 +10,13 @@ const SECTOR_LOGO = 'https://supabase.slmsolar.com/storage/v1/object/sign/solarm
 const { width: screenWidth } = Dimensions.get('window');
 const itemImageSize = screenWidth / 4;
 
+const formatPaybackPeriod = (years: number | undefined): string => {
+    if (!years) return 'Đang cập nhật';
+    const wholeYears = Math.floor(years);
+    const remainingMonths = Math.round((years % 1) * 12);
+    return `${wholeYears} năm ${remainingMonths} tháng`;
+};
+
 export default function ProductQuoteScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
@@ -130,9 +137,7 @@ export default function ProductQuoteScreen() {
                                 <View style={styles.productHeaderInfoItem}>
                                     <Ionicons name="time-outline" size={16} color="#0F974A" />
                                     <Text style={styles.productHeaderInfoText}>
-                                        Thời gian hoàn vốn: {product.payback_period ? 
-                                            `${Math.floor(product.payback_period)} năm ${Math.round((product.payback_period % 1) * 12)} tháng` 
-                                            : 'Đang cập nhật'}
+                                        Thời gian hoàn vốn: {formatPaybackPeriod(product.payback_period)}
                                     </Text>
                                 </View>
                             </View>
