@@ -409,11 +409,7 @@ export default function PostDetailScreen() {
               <View style={styles.contentContainer}>
                 <Text style={styles.title}>{post.title}</Text>
                 
-                <View style={styles.descriptionContainer}>
-                  <Text style={styles.postDescription} numberOfLines={3}>
-                    {stripFirstH1Tag(post.content).replace(/<[^>]*>/g, '')}
-                  </Text>
-                </View>
+               
                 
                 <View style={styles.htmlContent}>
                   <RenderHtml
@@ -556,6 +552,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#ABACC2',
   },
   userInfo: {
     justifyContent: 'center',

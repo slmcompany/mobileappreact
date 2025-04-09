@@ -120,9 +120,16 @@ type ComboItem = {
 };
 
 export default function QuotationDetails() {
-  // Nhận params từ màn hình trước (có thể không nhận được do lỗi điều hướng)
+  // Nhận params từ màn hình trước
   const params = useLocalSearchParams();
-  const { comboId, comboName, comboPrice, systemType, phaseType } = params;
+  const systemType = (Array.isArray(params.systemType) ? params.systemType[0] : params.systemType) || '';
+  const phaseType = (Array.isArray(params.phaseType) ? params.phaseType[0] : params.phaseType) || '';
+  const customerId = (Array.isArray(params.customerId) ? params.customerId[0] : params.customerId) || '';
+  const phoneNumber = (Array.isArray(params.phoneNumber) ? params.phoneNumber[0] : params.phoneNumber) || '';
+  const isNewCustomer = (Array.isArray(params.isNewCustomer) ? params.isNewCustomer[0] : params.isNewCustomer) === 'true';
+  const comboId = (Array.isArray(params.comboId) ? params.comboId[0] : params.comboId) || '';
+  const comboName = (Array.isArray(params.comboName) ? params.comboName[0] : params.comboName) || '';
+  const comboPrice = parseInt((Array.isArray(params.comboPrice) ? params.comboPrice[0] : params.comboPrice) || '0');
   
   // State hiển thị drawer và danh mục đang chọn
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -178,7 +185,6 @@ export default function QuotationDetails() {
     getUserData();
     
     // Lấy thông tin khách hàng nếu có customerId
-    const customerId = params.customerId as string;
     if (customerId) {
       fetchAndSaveCustomerData(customerId);
     }
@@ -822,6 +828,32 @@ export default function QuotationDetails() {
     }
   };
 
+  // Helper function to get display text for phase type
+  const getPhaseTypeDisplayText = (type: string) => {
+    switch (type) {
+      case 'ONE_PHASE':
+        return 'MỘT PHA';
+      case 'THREE_PHASE_LOW':
+        return 'BA PHA ÁP THẤP';
+      case 'THREE_PHASE_HIGH':
+        return 'BA PHA ÁP CAO';
+      default:
+        return '';
+    }
+  };
+
+  // Helper function to get display text for system type
+  const getSystemTypeDisplayText = (type: string) => {
+    switch (type) {
+      case 'HYBRID':
+        return 'HYBRID';
+      case 'BAM_TAI':
+        return 'BÁM TẢI';
+      default:
+        return '';
+    }
+  };
+
   return (
     <React.Fragment>
       <Stack.Screen options={{ headerShown: false }} />
@@ -845,10 +877,12 @@ export default function QuotationDetails() {
         <View style={styles.selectedOptionsContainer}>
           <Text style={styles.selectedOptionsLabel}>Đã chọn</Text>
           <View style={styles.selectedOptionTag}>
-            <Text style={styles.selectedOptionText}>HYBRID</Text>
+            <Text style={styles.selectedOptionText}>{getSystemTypeDisplayText(systemType)}</Text>
           </View>
-          <View style={[styles.selectedOptionTag, styles.selectedOptionTagSecondary]}>
-            <Text style={[styles.selectedOptionText, styles.selectedOptionTextSecondary]}>MỘT PHA</Text>
+          <View style={[styles.selectedOptionTag]}>
+            <Text style={[styles.selectedOptionText]}>
+              {getPhaseTypeDisplayText(phaseType)}
+            </Text>
           </View>
         </View>
 

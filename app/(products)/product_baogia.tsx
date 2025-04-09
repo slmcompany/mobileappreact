@@ -86,13 +86,14 @@ export default function ProductQuoteScreen() {
             
             <Stack.Screen
                 options={{
-                    headerTitle: 'Báo giá chi tiết',
+                    headerTitle: 'Báo giá Combo',
                     headerTransparent: false,
                     headerStyle: {
                         backgroundColor: '#fff',
                     },
                     headerShadowVisible: true,
                     headerTintColor: '#000',
+                    headerTitleAlign: 'center',
                     headerLeft: () => (
                         <TouchableOpacity 
                             style={styles.headerButton}
@@ -119,7 +120,6 @@ export default function ProductQuoteScreen() {
                         
                         <View style={styles.productHeaderDetails}>
                             <Text style={styles.productHeaderName}>{product.name}</Text>
-                            
                             <View style={styles.productHeaderInfo}>
                                 <View style={styles.productHeaderInfoItem}>
                                     <Ionicons name="flash-outline" size={16} color="#0F974A" />
@@ -127,7 +127,6 @@ export default function ProductQuoteScreen() {
                                         Sản lượng: {productionRange}
                                     </Text>
                                 </View>
-                                
                                 <View style={styles.productHeaderInfoItem}>
                                     <Ionicons name="time-outline" size={16} color="#0F974A" />
                                     <Text style={styles.productHeaderInfoText}>
@@ -135,12 +134,9 @@ export default function ProductQuoteScreen() {
                                     </Text>
                                 </View>
                             </View>
-                            
-                            <View style={styles.productHeaderPrice}>
-                                <Text style={styles.productHeaderPriceText}>
-                                    {product.total_price ? roundToTenThousands(product.total_price).toLocaleString('vi-VN') : '0'}đ
-                                </Text>
-                            </View>
+                            <Text style={styles.productHeaderPriceText}>
+                                {product.total_price ? roundToTenThousands(product.total_price).toLocaleString('vi-VN') : '0'}đ
+                            </Text>
                         </View>
                     </View>
                 </View>
@@ -170,9 +166,6 @@ export default function ProductQuoteScreen() {
                             <View style={styles.infoRow}>
                                 <Text style={[styles.infoLabel, { flex: 1 }]}>{product.name}</Text>
                             </View>
-                            <Text style={styles.productionNote}>
-                                Sản lượng trung bình: {productionRange}
-                            </Text>
                         </View>
                         
                         <View style={styles.systemTags}>
@@ -223,7 +216,7 @@ export default function ProductQuoteScreen() {
                                             {firstItem.merchandise.data_json && (
                                                 <View style={styles.specList}>
                                                     {Object.entries(firstItem.merchandise.data_json)
-                                                        .filter(([key]) => key !== 'price_vnd' && key !== 'area_m2' && key !== 'thickness_mm' && key !== 'height_mm' && key !== 'width_mm' && key !== 'warranty_years' && key !== 'phase_type' && key !== 'weight_kg' && key !== 'brand_ranking' && key !== 'installation_type' && key !== 'cell_brand' && key !== 'max_upgrade_kwh')
+                                                        .filter(([key]) => key !== 'price_vnd' && key !== 'area_m2' && key !== 'thickness_mm' && key !== 'height_mm' && key !== 'width_mm' && key !== 'warranty_years' && key !== 'phase_type' && key !== 'weight_kg' && key !== 'brand_ranking' && key !== 'installation_type' && key !== 'cell_brand' && key !== 'max_upgrade_kwh' && key !== 'inverter_ratting')
                                                         .map(([key, value], idx) => {
                                                         const displayKey = key === 'power_watt' ? 'Công suất' 
                                                             : key === 'technology' ? 'Công nghệ'
@@ -359,20 +352,26 @@ export default function ProductQuoteScreen() {
                 </View>
 
                 {/* Customer Info Button */}
-                <TouchableOpacity 
-                    style={styles.customerInfoButton}
-                    onPress={() => {
-                        router.navigate({
-                            pathname: "/customer_info" as any,
-                            params: { 
-                                product_id: product.id,
-                                return_path: "/product_baogia"
-                            }
-                        });
-                    }}
-                >
-                    <Text style={styles.customerInfoButtonText}>Thêm thông tin khách hàng</Text>
-                </TouchableOpacity>
+                <View style={styles.bottomActions}>
+                    <TouchableOpacity style={styles.shareButton}>
+                        <Ionicons name="share-social-outline" size={24} color="#333" />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                        style={styles.customerInfoButton}
+                        onPress={() => {
+                            router.navigate({
+                                pathname: "/customer_info" as any,
+                                params: { 
+                                    product_id: product.id,
+                                    return_path: "/product_baogia"
+                                }
+                            });
+                        }}
+                    >
+                        <Text style={styles.customerInfoButtonText}>Thêm thông tin khách hàng</Text>
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
         </SafeAreaView>
     );
@@ -419,7 +418,7 @@ const styles = StyleSheet.create({
     greenBanner: {
         backgroundColor: '#0F974A',
         padding: 4,
-        paddingHorizontal: 8,
+        paddingHorizontal: 12,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -427,24 +426,25 @@ const styles = StyleSheet.create({
     bannerLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: 8,
     },
     productImage: {
+        width: 80,
         height: 40,
-        aspectRatio: 1,
         borderRadius: 3,
     },
     sectorLogo: {
-        width: 16,
+        width: 32,
         height: 16,
     },
     bannerText: {
         color: '#fff',
-        fontSize: 11,
+        fontSize: 14,
         fontWeight: '600',
         flex: 1,
         textAlign: 'right',
-        lineHeight: 14,
+        lineHeight: 18,
+        paddingRight: 4,
     },
     systemInfo: {
         padding: 12,
@@ -825,15 +825,32 @@ const styles = StyleSheet.create({
         color: '#fff',
         lineHeight: 16,
     },
-    customerInfoButton: {
-        backgroundColor: '#ED1C24',
-        paddingVertical: 16,
-        paddingHorizontal: 24,
-        borderRadius: 100,
+    bottomActions: {
+        flexDirection: 'row',
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        backgroundColor: '#fff',
+        gap: 10,
+    },
+    shareButton: {
+        width: 44,
+        height: 44,
         alignItems: 'center',
         justifyContent: 'center',
-        marginHorizontal: 16,
-        marginVertical: 16,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 4,
+    },
+    customerInfoButton: {
+        flex: 1,
+        backgroundColor: '#ED1C24',
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     customerInfoButtonText: {
         color: '#FFFFFF',
@@ -844,15 +861,6 @@ const styles = StyleSheet.create({
     productHeaderCard: {
         backgroundColor: '#fff',
         borderRadius: 12,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 3,
         margin: 16,
         marginTop: 16,
     },
@@ -862,24 +870,29 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     productHeaderImage: {
-        width: 100,
-        height: 100,
+        width: 140,
+        height: 140,
         borderRadius: 8,
         backgroundColor: '#F5F5F8',
     },
     productHeaderDetails: {
         flex: 1,
-        gap: 8,
+        justifyContent: 'space-between',
+        height: 140,
     },
     productHeaderName: {
         fontSize: 18,
         fontWeight: '700',
         color: '#27273E',
-        marginBottom: 8,
         lineHeight: 24,
     },
+    productHeaderPriceText: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#ED1C24',
+    },
     productHeaderInfo: {
-        gap: 8,
+        gap: 4,
     },
     productHeaderInfoItem: {
         flexDirection: 'row',
@@ -887,19 +900,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     productHeaderInfoText: {
-        fontSize: 14,
-        lineHeight: 20,
+        fontSize: 12,
+        lineHeight: 16,
         color: '#7B7D9D',
-    },
-    productHeaderPrice: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 12,
-    },
-    productHeaderPriceText: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#ED1C24',
     },
 }); 

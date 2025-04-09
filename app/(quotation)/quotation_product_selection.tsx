@@ -16,10 +16,20 @@ type Sector = {
 type ProductLine = {
   id: number;
   name: string;
+  code: string;
   logoUrl: string;
   rectangularImageUrl: string;
   combosCount: number;
   selected: boolean;
+};
+
+type CardStyle = {
+  borderWidth?: number;
+  height?: number;
+  borderRadius?: number;
+  position?: 'relative';
+  borderColor?: string;
+  backgroundColor?: string;
 };
 
 export default function QuotationProductSelection() {
@@ -51,6 +61,7 @@ export default function QuotationProductSelection() {
       const formattedData = data.map((sector, index) => ({
         id: sector.id,
         name: sector.name,
+        code: sector.code,
         logoUrl: sector.image,
         rectangularImageUrl: sector.image_rectangular,
         combosCount: sector.list_combos?.length || 0,
@@ -95,6 +106,22 @@ export default function QuotationProductSelection() {
         }
       });
     }
+  };
+
+  const getCardStyle = (product: ProductLine) => {
+    const cardStyles: CardStyle[] = [
+      styles.productCard,
+      { backgroundColor: product.code === 'SLM' ? '#4CAF50' : '#FFD700' }
+    ];
+    
+    if (product.selected) {
+      cardStyles.push({ 
+        borderColor: product.code === 'SLM' ? '#12B669' : '#FFB800',
+        borderWidth: 1,
+      });
+    }
+    
+    return cardStyles;
   };
 
   if (loading) {
@@ -157,10 +184,7 @@ export default function QuotationProductSelection() {
             {productLines.map((product) => (
               <TouchableOpacity
                 key={product.id}
-                style={[
-                  styles.productCard,
-                  product.selected ? styles.productCardSelected : styles.productCardNormal
-                ]}
+                style={getCardStyle(product)}
                 onPress={() => handleProductSelect(product.id)}
               >
                 <View style={styles.cardContent}>
@@ -183,10 +207,7 @@ export default function QuotationProductSelection() {
           </View>
         </View>
         
-        {/* Bottom indicator */}
-        <View style={styles.indicator}>
-          <View style={styles.indicatorLine} />
-        </View>
+   
         
         {/* Bottom action */}
         <View style={styles.bottomContainer}>
@@ -289,9 +310,19 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 8,
     position: 'relative',
+    borderColor: '#DCDCE6',
   },
-  productCardSelected: {
+  solarMaxBackground: {
+    backgroundColor: '#4CAF50',
+  },
+  elitonBackground: {
+    backgroundColor: '#FFD700',
+  },
+  solarMaxBorder: {
     borderColor: '#12B669',
+  },
+  elitonBorder: {
+    borderColor: '#FFB800',
   },
   productCardNormal: {
     borderColor: '#DCDCE6',

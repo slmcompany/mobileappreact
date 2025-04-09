@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Định nghĩa các loại tùy chọn
 type SystemType = 'HYBRID' | 'BAM_TAI';
-type PhaseType = 'ONE_PHASE' | 'THREE_PHASE';
+type PhaseType = 'ONE_PHASE' | 'THREE_PHASE_LOW' | 'THREE_PHASE_HIGH';
 
 // Định nghĩa kiểu dữ liệu cho combo
 type Combo = {
@@ -15,6 +15,12 @@ type Combo = {
   description?: string;
   price: number;
   image?: string;
+  phase_type?: string;
+  capacity?: string;
+  type?: string;
+  installation_type?: string;
+  power_output?: string;
+  total_price?: number;
 };
 
 // Định nghĩa kiểu dữ liệu cho sector
@@ -25,6 +31,53 @@ type Sector = {
   image: string;
   image_rectangular: string;
   list_combos: Combo[];
+};
+
+// Helper function to check phase type
+const getPhaseType = (combo: Combo) => {
+  const type = combo.type?.toLowerCase() || '';
+  const phaseType = combo.phase_type?.toLowerCase() || '';
+  
+  if (phaseType.includes('3-phase')) {
+    if (phaseType.includes('low voltage')) {
+      return '3-phase-low';
+    }
+    if (phaseType.includes('high voltage')) {
+      return '3-phase-high';
+    }
+    return '3-phase'; // general 3-phase if voltage not specified
+  }
+  if (phaseType.includes('1-phase') || type.includes('mot_pha')) {
+    return '1-phase';
+  }
+  return '';
+};
+
+// Thêm hàm getProductTag
+const getProductTag = (combo: Combo) => {
+  const tags = {
+    installation: combo.installation_type ? combo.installation_type.toUpperCase() : null,
+    phase: null as string | null,
+    system: null as string | null
+  };
+  
+  const phaseType = getPhaseType(combo);
+  if (phaseType === '3-phase-low') {
+    tags.phase = '3 PHA ÁP THẤP';
+  } else if (phaseType === '3-phase-high') {
+    tags.phase = '3 PHA ÁP CAO';
+  } else if (phaseType === '1-phase') {
+    tags.phase = '1 PHA';
+  }
+
+  // Xác định loại hệ
+  if (combo.installation_type?.toLowerCase() === 'ongrid' || combo.type?.includes('BAM_TAI')) {
+    tags.system = 'BÁM TẢI';
+  } else if (combo.installation_type?.toLowerCase() === 'hybrid' || combo.type?.includes('DOC_LAP')) {
+    tags.system = 'ĐỘC LẬP';
+  }
+  
+  return tags;
 };
 
 export default function QuotationBasicInfo() {
@@ -108,9 +161,40 @@ export default function QuotationBasicInfo() {
   useEffect(() => {
     if (!sector) return;
     
-    // Lọc combos dựa trên systemType và phaseType
-    // Hiện tại API không trả về combos, nên giữ nguyên dữ liệu mẫu
-    console.log('Lọc theo:', { systemType, phaseType });
+    let filtered = sector.list_combos || [];
+    
+    // Lọc theo loại hệ thống (HYBRID/BAM_TAI)
+    if (systemType === 'HYBRID') {
+      filtered = filtered.filter(combo => 
+        combo.installation_type?.toLowerCase() === 'hybrid' ||
+        combo.type?.includes('DOC_LAP')
+      );
+    } else if (systemType === 'BAM_TAI') {
+      filtered = filtered.filter(combo => 
+        combo.installation_type?.toLowerCase() === 'ongrid' ||
+        combo.type?.includes('BAM_TAI')
+      );
+    }
+
+    // Lọc theo số pha và điện áp
+    if (phaseType === 'ONE_PHASE') {
+      filtered = filtered.filter(combo => 
+        getPhaseType(combo) === '1-phase' ||
+        combo.type?.includes('MOT_PHA')
+      );
+    } else if (phaseType === 'THREE_PHASE_LOW') {
+      filtered = filtered.filter(combo => 
+        getPhaseType(combo) === '3-phase-low' ||
+        (combo.type?.includes('BA_PHA') && combo.type?.toLowerCase().includes('ap thap'))
+      );
+    } else if (phaseType === 'THREE_PHASE_HIGH') {
+      filtered = filtered.filter(combo => 
+        getPhaseType(combo) === '3-phase-high' ||
+        (combo.type?.includes('BA_PHA') && combo.type?.toLowerCase().includes('ap cao'))
+      );
+    }
+
+    setFilteredCombos(filtered);
   }, [systemType, phaseType, sector]);
 
   // Thêm hàm để chọn combo
@@ -216,9 +300,7 @@ export default function QuotationBasicInfo() {
             <View style={styles.filterOptionsContainer}>
               {/* Loại hệ */}
               <View style={styles.filterGroup}>
-                <View style={styles.filterLabelContainer}>
-                  <Text style={styles.filterLabel}>Loại hệ</Text>
-                </View>
+                <Text style={styles.filterLabel}>Loại hệ</Text>
                 <View style={styles.optionsContainer}>
                   <TouchableOpacity
                     style={[
@@ -257,9 +339,7 @@ export default function QuotationBasicInfo() {
 
               {/* Số pha */}
               <View style={styles.filterGroup}>
-                <View style={styles.filterLabelContainer}>
-                  <Text style={styles.filterLabel}>Số pha</Text>
-                </View>
+                <Text style={styles.filterLabel}>Số pha</Text>
                 <View style={styles.optionsContainer}>
                   <TouchableOpacity
                     style={[
@@ -280,17 +360,33 @@ export default function QuotationBasicInfo() {
                   <TouchableOpacity
                     style={[
                       styles.optionButton,
-                      phaseType === 'THREE_PHASE' ? styles.optionButtonSelected : styles.optionButtonNormal,
+                      phaseType === 'THREE_PHASE_LOW' ? styles.optionButtonSelected : styles.optionButtonNormal,
                     ]}
-                    onPress={() => setPhaseType('THREE_PHASE')}
+                    onPress={() => setPhaseType('THREE_PHASE_LOW')}
                   >
                     <Text 
                       style={[
                         styles.optionText,
-                        phaseType === 'THREE_PHASE' ? styles.optionTextSelected : styles.optionTextNormal,
+                        phaseType === 'THREE_PHASE_LOW' ? styles.optionTextSelected : styles.optionTextNormal,
                       ]}
                     >
-                      BA PHA
+                      BA PHA ÁP THẤP
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.optionButton,
+                      phaseType === 'THREE_PHASE_HIGH' ? styles.optionButtonSelected : styles.optionButtonNormal,
+                    ]}
+                    onPress={() => setPhaseType('THREE_PHASE_HIGH')}
+                  >
+                    <Text 
+                      style={[
+                        styles.optionText,
+                        phaseType === 'THREE_PHASE_HIGH' ? styles.optionTextSelected : styles.optionTextNormal,
+                      ]}
+                    >
+                      BA PHA ÁP CAO
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -329,9 +425,25 @@ export default function QuotationBasicInfo() {
                       {combo.description && (
                         <Text style={styles.comboDescription}>{combo.description}</Text>
                       )}
-                      <View style={styles.comboPrice}>
-                        <Text style={styles.comboPriceValue}>{combo.price ? combo.price.toLocaleString() : "-"}</Text>
-                        <Text style={styles.comboPriceCurrency}>{combo.price ? "đ" : ""}</Text>
+                      <View style={styles.priceAndTagsContainer}>
+                        <View style={styles.comboPrice}>
+                          <Text style={styles.comboPriceValue}>
+                            {(combo.total_price || combo.price).toLocaleString()}
+                          </Text>
+                          <Text style={styles.comboPriceCurrency}>đ</Text>
+                        </View>
+                        <View style={styles.tagsRow}>
+                          {getProductTag(combo).phase && (
+                            <View style={styles.phaseTag}>
+                              <Text style={styles.phaseTagText}>{getProductTag(combo).phase}</Text>
+                            </View>
+                          )}
+                          {getProductTag(combo).system && (
+                            <View style={styles.systemTag}>
+                              <Text style={styles.systemTagText}>{getProductTag(combo).system}</Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
                     </View>
                     {selectedCombo?.id === combo.id && (
@@ -444,23 +556,17 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#27273E',
     marginBottom: 8,
-    fontFamily: 'System',
   },
   subtitle: {
     fontSize: 14,
     color: '#7B7D9D',
     marginBottom: 24,
-    fontFamily: 'System',
   },
   filterOptionsContainer: {
-    gap: 16,
-    marginTop: 16,
+    gap: 24,
   },
   filterGroup: {
     gap: 12,
-  },
-  filterLabelContainer: {
-    paddingHorizontal: 16,
   },
   filterLabel: {
     fontSize: 14,
@@ -470,7 +576,6 @@ const styles = StyleSheet.create({
   optionsContainer: {
     flexDirection: 'row',
     gap: 12,
-    paddingHorizontal: 16,
   },
   optionButton: {
     paddingVertical: 6,
@@ -504,12 +609,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#7B7D9D',
-    paddingHorizontal: 16,
     marginBottom: 12,
   },
   productList: {
     gap: 8,
-    paddingHorizontal: 16,
   },
   comboCard: {
     flexDirection: 'row',
@@ -529,15 +632,16 @@ const styles = StyleSheet.create({
     borderColor: '#12B669',
   },
   comboImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 4,
+    width: 100,
+    height: 100,
+    borderRadius: 8,
     overflow: 'hidden',
-    marginRight: 12,
+    marginRight: 16,
   },
   comboImage: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#F5F5F8',
   },
   comboImagePlaceholder: {
     width: '100%',
@@ -548,6 +652,7 @@ const styles = StyleSheet.create({
   },
   comboDetails: {
     flex: 1,
+    justifyContent: 'space-between',
   },
   comboName: {
     fontSize: 14,
@@ -559,6 +664,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7B7D9D',
     marginBottom: 8,
+  },
+  priceAndTagsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
   },
   comboPrice: {
     flexDirection: 'row',
@@ -628,5 +739,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  phaseTag: {
+    backgroundColor: '#F5F5F8',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  phaseTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#7B7D9D',
+  },
+  systemTag: {
+    backgroundColor: '#ECF8F3',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  systemTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#0F974A',
   },
 }); 

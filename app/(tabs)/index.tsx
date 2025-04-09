@@ -3,14 +3,11 @@ import { StyleSheet, View, ScrollView, FlatList, Text as RNText, Image, SafeArea
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { 
-  Card, 
   Text, 
   Button,
   Flex, 
   WhiteSpace, 
   WingBlank,
-  Icon,
-  TabBar
 } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,213 +35,6 @@ interface Banner {
   sector_id: number;
   banner_images: BannerImage[];
 }
-
-// Fallback promo cards khi không có dữ liệu từ API
-const fallbackPromoCards = [
-  {
-    id: '1',
-    action: 'Bán hàng',
-    mainText: 'THẬT DỄ DÀNG',
-    buttonText: 'Bắt đầu ngay',
-    backgroundColor: '#D9261C',
-    image: require('../../assets/images/sales-promo.png'),
-  },
-  {
-    id: '2',
-    action: 'Tạo lập Đội nhóm',
-    mainText: 'Gia tăng thu nhập',
-    buttonText: 'Bắt đầu ngay',
-    backgroundColor: '#D9261C',
-    image: require('../../assets/images/team-promo.png'),
-  },
-];
-
-// Mock data cho cập nhật gần đây
-const recentUpdates = [
-  {
-    id: '1',
-    brand: 'SOLAR MAX',
-    brandLogo: require('../../assets/images/solarmax-logo.png'),
-    modelNumber: 'SLM-DA884',
-    date: '15/03/2025',
-    type: 'Đặt hàng lại',
-  },
-  {
-    id: '2',
-    brand: 'ELITON',
-    brandLogo: null,
-    modelNumber: 'ELT-DA021',
-    date: '15/03/2025',
-    type: 'Hàng tháng',
-  },
-  {
-    id: '3',
-    brand: 'SOLAR MAX',
-    brandLogo: require('../../assets/images/solarmax-logo.png'),
-    modelNumber: 'SLM-DA884',
-    date: '15/03/2025',
-    type: 'Hàng tháng đơn lẻ',
-  },
-];
-
-// Mock data cho bài viết
-const articles = [
-  {
-    id: '1',
-    title: 'Thang máy gia đình',
-    description: 'Thang máy cao cấp dành cho gia đình',
-    image: require('../../assets/images/bai-viet-moi-nhat-sample.png'),
-  },
-  {
-    id: '2',
-    title: 'Thang máy gia đình',
-    description: 'Thang máy cao cấp dành cho gia đình',
-    image: require('../../assets/images/bai-viet-moi-nhat-sample.png'),
-  },
-  {
-    id: '3',
-    title: 'Thang máy gia đình',
-    description: 'Thang máy cao cấp dành cho gia đình',
-    image: require('../../assets/images/bai-viet-moi-nhat-sample.png'),
-  },
-];
-
-const ArticleItem = ({ item }: { item: any }) => {
-  return (
-    <View style={styles.articleCard}>
-      <View style={{ overflow: 'hidden', height: 150 }}>
-        {item.image ? (
-          <Image 
-            source={item.image} 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              position: 'absolute',
-              top: 0,
-              left: 0 
-            }} 
-            resizeMode="cover" 
-          />
-        ) : (
-          <View style={styles.articleImagePlaceholder}>
-            <Ionicons name="newspaper-outline" size={40} color="#888" />
-          </View>
-        )}
-      </View>
-      <View style={{ padding: 12, paddingBottom: 0 }}>
-        <Text style={styles.articleTitle}>{item.title}</Text>
-        <Text numberOfLines={2} style={styles.articleDescription}>{item.description}</Text>
-      </View>
-    </View>
-  );
-};
-
-// Thêm component ProductItem
-const ProductItem = ({ item, width }: { item: Combo, width: number }) => {
-  // Thêm hàm lấy tag cho sản phẩm
-  const getProductTag = (combo: Combo) => {
-    if (combo.installation_type) {
-      return combo.installation_type.toUpperCase();
-    }
-    return null;
-  };
-
-  return (
-    <TouchableOpacity 
-      style={[styles.productCard, { width: (width - 48) / 2.5, marginHorizontal: 4, marginBottom: 16 }]}
-      onPress={() => router.push({
-        pathname: "/(products)/product_detail",
-        params: { id: item.id.toString() }
-      })}
-    >
-      <View style={{ padding: 0, width: '100%', aspectRatio: 1, overflow: 'hidden' }}>
-        {item.image ? (
-          <Image 
-            source={{ uri: item.image }} 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              position: 'absolute',
-              top: 0,
-              left: 0 
-            }} 
-            resizeMode="cover" 
-          />
-        ) : (
-          <View style={styles.productImagePlaceholder}>
-            <Ionicons name="cube-outline" size={40} color="#888" />
-          </View>
-        )}
-        {getProductTag(item) && (
-          <View style={styles.tagContainer}>
-            <Text style={styles.tagText}>{getProductTag(item)}</Text>
-          </View>
-        )}
-      </View>
-      <View style={{ padding: 12, flex: 1 }}>
-        <Text style={styles.productTitle} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.productPrice}>
-          {new Intl.NumberFormat('vi-VN', { 
-            style: 'currency', 
-            currency: 'VND' 
-          }).format(Math.round(item.total_price / 1000) * 1000)}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-// Thêm component ProductSection
-const ProductSection = ({ sector }: { sector: Sector }) => {
-  const { width } = Dimensions.get('window');
-  const flatListRef = useRef<FlatList>(null);
-
-  if (!sector.list_combos || sector.list_combos.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      <WhiteSpace size="lg" />
-      <Flex justify="between" align="center">
-        <Text style={styles.sectionSubtitle}>{sector.name.toUpperCase()}</Text>
-        <Button
-          type="primary"
-          size="small"
-          style={{ borderWidth: 0, backgroundColor: 'transparent', paddingRight: 8 }}
-          onPress={() => router.push({
-            pathname: "/(products)/product_brand",
-            params: { id: sector.id }
-          })}
-        >
-          <Flex align="center">
-            <Text style={styles.viewAllText}>Tất cả</Text>
-            <Image 
-              source={require('../../assets/images/arrow-icon.png')} 
-              style={{ width: 20, height: 20, marginLeft: 8 }} 
-              resizeMode="contain"
-            />
-          </Flex>
-        </Button>
-      </Flex>
-      
-      <WhiteSpace size="lg" />
-      <View style={[styles.carouselContainer, { paddingBottom: 16 }]}>
-        <FlatList
-          ref={flatListRef}
-          horizontal
-          data={sector.list_combos}
-          renderItem={({item}) => (
-            <ProductItem item={item} width={width} />
-          )}
-          keyExtractor={item => item.id.toString()}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
-        />
-      </View>
-    </>
-  );
-};
 
 // Định nghĩa interface cho user để sửa lỗi linter
 interface User {
@@ -625,6 +415,137 @@ export default function HomeScreen() {
     fetchBanners();
   }, []);
 
+  // Thêm component ProductItem
+  const ProductItem = ({ item, width }: { item: Combo, width: number }) => {
+    // Thêm hàm lấy tag cho sản phẩm
+    const getProductTag = (combo: Combo) => {
+      if (combo.installation_type) {
+        return combo.installation_type.toUpperCase();
+      }
+      return null;
+    };
+
+    return (
+      <TouchableOpacity 
+        style={[styles.productCard, { width: (width - 48) / 2.5, marginHorizontal: 4, marginBottom: 16 }]}
+        onPress={() => router.push({
+          pathname: "/(products)/product_baogia",
+          params: { id: item.id.toString() }
+        })}
+      >
+        <View style={{ padding: 0, width: '100%', aspectRatio: 1, overflow: 'hidden' }}>
+          {item.image ? (
+            <Image 
+              source={{ uri: item.image }} 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                position: 'absolute',
+                top: 0,
+                left: 0 
+              }} 
+              resizeMode="cover" 
+            />
+          ) : (
+            <View style={styles.productImagePlaceholder}>
+              <Ionicons name="cube-outline" size={40} color="#888" />
+            </View>
+          )}
+          {getProductTag(item) && (
+            <View style={styles.tagContainer}>
+              <Text style={styles.tagText}>{getProductTag(item)}</Text>
+            </View>
+          )}
+        </View>
+        <View style={{ padding: 12, flex: 1 }}>
+          <Text style={styles.productTitle} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.productPrice}>
+            {new Intl.NumberFormat('vi-VN', { 
+              style: 'currency', 
+              currency: 'VND' 
+            }).format(Math.round(item.total_price / 1000) * 1000)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Thêm component ProductSection
+  const ProductSection = ({ sector }: { sector: Sector }) => {
+    const { width } = Dimensions.get('window');
+    const flatListRef = useRef<FlatList>(null);
+
+    if (!sector.list_combos || sector.list_combos.length === 0) {
+      return null;
+    }
+
+    return (
+      <>
+        <WhiteSpace size="lg" />
+        <Flex justify="between" align="center">
+          <Text style={styles.sectionSubtitle}>{sector.name.toUpperCase()}</Text>
+          <Button
+            type="primary"
+            size="small"
+            style={{ borderWidth: 0, backgroundColor: 'transparent', paddingRight: 8 }}
+            onPress={() => router.push({
+              pathname: "/(products)/product_brand",
+              params: { id: sector.id }
+            })}
+          >
+            <Flex align="center">
+              <Text style={styles.viewAllText}>Tất cả</Text>
+              <Image 
+                source={require('../../assets/images/arrow-icon.png')} 
+                style={{ width: 20, height: 20, marginLeft: 8 }} 
+                resizeMode="contain"
+              />
+            </Flex>
+          </Button>
+        </Flex>
+        
+        <WhiteSpace size="lg" />
+        <View style={[styles.carouselContainer, { paddingBottom: 16 }]}>
+          <FlatList
+            ref={flatListRef}
+            horizontal
+            data={sector.list_combos}
+            renderItem={({item}) => (
+              <ProductItem item={item} width={width} />
+            )}
+            keyExtractor={item => item.id.toString()}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+          />
+        </View>
+      </>
+    );
+  };
+
+  // Cập nhật renderPromoData để chỉ sử dụng dữ liệu từ API
+  const renderPromoData = (banners: Banner[]) => {
+    if (!banners || banners.length === 0) {
+      return [];
+    }
+    
+    // Sử dụng banner_images từ API để tạo dữ liệu promo
+    const firstBanner = banners[0];
+    if (!firstBanner || !firstBanner.banner_images || firstBanner.banner_images.length === 0) {
+      return [];
+    }
+    
+    return firstBanner.banner_images.map((image) => ({
+      id: image.id.toString(),
+      action: firstBanner.title || 'Sản phẩm',
+      mainText: firstBanner.slug || '',
+      buttonText: 'Xem ngay',
+      backgroundColor: '#D9261C',
+      imageUrl: image.link,
+    }));
+  };
+  
+  const promoData = renderPromoData(banners);
+
   if (isSectorsLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -650,31 +571,6 @@ export default function HomeScreen() {
       </View>
     );
   }
-
-  // Chuẩn bị dữ liệu banner để hiển thị
-  const renderPromoData = () => {
-    // Nếu không có banner từ API hoặc đang loading, sử dụng fallback
-    if (isLoadingBanners || bannersError || banners.length === 0) {
-      return fallbackPromoCards;
-    }
-    
-    // Sử dụng banner_images từ API để tạo dữ liệu promo
-    const firstBanner = banners[0]; // Lấy banner đầu tiên để hiển thị
-    if (!firstBanner || !firstBanner.banner_images || firstBanner.banner_images.length === 0) {
-      return fallbackPromoCards;
-    }
-    
-    return firstBanner.banner_images.map((image, index) => ({
-      id: image.id.toString(),
-      action: firstBanner.title || 'Sản phẩm',
-      mainText: firstBanner.slug || '',
-      buttonText: 'Xem ngay',
-      backgroundColor: '#D9261C',
-      imageUrl: image.link, // URL ảnh từ API
-    }));
-  };
-  
-  const promoData = renderPromoData();
 
   return (
     <React.Fragment>

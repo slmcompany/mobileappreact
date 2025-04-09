@@ -16,6 +16,7 @@ type Product = {
   price: number;
   quantity: number;
   category?: 'PANEL' | 'INVERTER' | 'BATTERY' | 'ACCESSORY';
+  unit?: string;
 };
 
 export default function QuotationSuccess() {
@@ -193,7 +194,9 @@ export default function QuotationSuccess() {
   // Hàm định dạng giá tiền
   const formatPrice = (price: string | number): string => {
     const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
-    return numericPrice.toLocaleString('vi-VN') + ' VND';
+    // Làm tròn đến hàng nghìn
+    const roundedPrice = Math.round(numericPrice / 1000) * 1000;
+    return roundedPrice.toLocaleString('vi-VN') + ' VND';
   };
 
   // Tạo HTML cho PDF
@@ -493,13 +496,13 @@ export default function QuotationSuccess() {
   // Định dạng số lượng hiển thị
   const formatQuantity = (product: Product): string => {
     if (product.category === 'PANEL') {
-      return `${product.quantity} tấm`;
+      return `${product.quantity} Tấm`;
     } else if (product.category === 'INVERTER') {
-      return `${product.quantity.toString().padStart(2, '0')} bộ`;
+      return `${product.quantity.toString().padStart(2, '0')} Bộ`;
     } else if (product.category === 'BATTERY') {
-      return `${product.quantity.toString().padStart(2, '0')} cái`;
+      return `${product.quantity.toString().padStart(2, '0')} Bộ`;
     } else {
-      return `${product.quantity.toString().padStart(2, '0')} bộ`;
+      return `${product.quantity.toString().padStart(2, '0')} Bộ`;
     }
   };
 
@@ -717,104 +720,88 @@ export default function QuotationSuccess() {
           </View>
 
           {/* Chi tiết báo giá */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>CHI TIẾT BÁO GIÁ</Text>
-            </View>
-            <View style={styles.detailContent}>
-              {/* Tấm quang năng */}
-              {getPanels().length > 0 && (
-                <View style={styles.detailSection}>
-                  <View style={styles.detailHeader}>
-                    <Text style={styles.detailTitle}>1. TẤM QUANG NĂNG</Text>
-                    <Text style={styles.detailTitle}>SỐ LƯỢNG</Text>
-                  </View>
-                  {getPanels().map((panel, index) => (
-                    <View key={index} style={styles.detailItem}>
-                      <Text style={styles.detailValue}>{formatProductName(panel)}</Text>
-                      <Text style={styles.detailValue}>{formatQuantity(panel)}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* Biến tần */}
-              {getInverters().length > 0 && (
-                <View style={styles.detailSection}>
-                  <View style={styles.detailHeader}>
-                    <Text style={styles.detailTitle}>2. BIẾN TẦN</Text>
-                    <Text style={styles.detailTitle}>SỐ LƯỢNG</Text>
-                  </View>
-                  {getInverters().map((inverter, index) => (
-                    <View key={index} style={styles.detailItem}>
-                      <Text style={styles.detailValue}>{formatProductName(inverter)}</Text>
-                      <Text style={styles.detailValue}>{formatQuantity(inverter)}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* Pin lưu trữ */}
-              {getBatteries().length > 0 && (
-                <View style={styles.detailSection}>
-                  <View style={styles.detailHeader}>
-                    <Text style={styles.detailTitle}>3. PIN LƯU TRỮ</Text>
-                    <Text style={styles.detailTitle}>SỐ LƯỢNG</Text>
-                  </View>
-                  {getBatteries().map((battery, index) => (
-                    <View key={index} style={styles.detailItem}>
-                      <Text style={styles.detailValue}>{formatProductName(battery)}</Text>
-                      <Text style={styles.detailValue}>{formatQuantity(battery)}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* Hình thức lắp đặt */}
-              <View style={styles.detailSection}>
-                <View style={styles.detailHeader}>
-                  <Text style={styles.detailTitle}>4. HÌNH THỨC LẮP ĐẶT</Text>
-                  <Text style={styles.detailTitle}>SỐ LƯỢNG</Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailValue}>{installationType === 'AP_MAI' ? 'Áp mái' : 'Khung sắt'}</Text>
-                  <Text style={styles.detailValue}>Trọn gói</Text>
+          <View style={styles.equipmentListDuplicate}>
+            <Text style={styles.sectionTitle}>DANH MỤC THIẾT BỊ</Text>
+            
+            {/* Tấm quang năng */}
+            {getPanels().length > 0 && (
+              <View style={styles.equipmentItem}>
+                <View style={styles.itemRow}>
+                  <Text style={styles.itemNumber}>1</Text>
+                  <Text style={[styles.itemName, { flex: 1 }]}>TẤM QUANG NĂNG</Text>
+                  <Text style={[styles.itemQuantity]}>
+                    {`${getPanels()[0].quantity} ${getPanels()[0].unit || 'tấm'}`}
+                  </Text>
                 </View>
               </View>
+            )}
 
-              {/* Phụ kiện, vật tư */}
-              {getAccessories().length > 0 && (
-                <View style={styles.detailSection}>
-                  <View style={styles.detailHeader}>
-                    <Text style={styles.detailTitle}>5. PHỤ KIỆN, VẬT TƯ</Text>
-                    <Text style={styles.detailTitle}>SỐ LƯỢNG</Text>
-                  </View>
-                  {getAccessories().map((accessory, index) => (
-                    <View key={index} style={styles.detailItem}>
-                      <Text style={styles.detailValue}>{formatProductName(accessory)}</Text>
-                      <Text style={styles.detailValue}>{formatQuantity(accessory)}</Text>
-                    </View>
-                  ))}
+            {/* Biến tần */}
+            {getInverters().length > 0 && (
+              <View style={styles.equipmentItem}>
+                <View style={styles.itemRow}>
+                  <Text style={styles.itemNumber}>2</Text>
+                  <Text style={[styles.itemName, { flex: 1 }]}>BIẾN TẦN</Text>
+                  <Text style={[styles.itemQuantity]}>
+                    {`${getInverters()[0].quantity} ${getInverters()[0].unit || 'bộ'}`}
+                  </Text>
                 </View>
-              )}
+              </View>
+            )}
+
+            {/* Pin lưu trữ */}
+            {getBatteries().length > 0 && (
+              <View style={styles.equipmentItem}>
+                <View style={styles.itemRow}>
+                  <Text style={styles.itemNumber}>3</Text>
+                  <Text style={[styles.itemName, { flex: 1 }]}>PIN LƯU TRỮ</Text>
+                  <Text style={[styles.itemQuantity]}>
+                    {`${getBatteries()[0].quantity} ${getBatteries()[0].unit || 'bộ'}`}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Hình thức lắp đặt */}
+            <View style={styles.equipmentItem}>
+              <View style={styles.itemRow}>
+                <Text style={styles.itemNumber}>4</Text>
+                <Text style={[styles.itemName, { flex: 1 }]}>HÌNH THỨC LẮP ĐẶT</Text>
+                <Text style={[styles.itemQuantity]}>1 Bộ</Text>
+              </View>
             </View>
+
+            {/* Phụ kiện, vật tư */}
+            {getAccessories().length > 0 && (
+              <View style={styles.equipmentItem}>
+                <View style={styles.itemRow}>
+                  <Text style={styles.itemNumber}>5</Text>
+                  <Text style={[styles.itemName, { flex: 1 }]}>PHỤ KIỆN, VẬT TƯ</Text>
+                  <Text style={[styles.itemQuantity]}>1 Bộ</Text>
+                </View>
+              </View>
+            )}
           </View>
         </ScrollView>
 
-        {/* Thanh chỉ số ở dưới */}
-        <View style={styles.indicator}>
-          <View style={styles.indicatorLine} />
-        </View>
-        
         {/* Nút tải xuống báo giá */}
         <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={styles.downloadButton}
-            onPress={handleDownloadQuotation}
-          >
-            <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.downloadButtonText}>TẢI XUỐNG BÁO GIÁ</Text>
-          </TouchableOpacity>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.downloadButton, styles.surveyButton]}
+              onPress={handleDownloadQuotation}
+            >
+              <Ionicons name="document-text-outline" size={18} color="#27273E" />
+              <Text style={styles.surveyButtonText}>BÁO GIÁ KHẢO SÁT</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.downloadButton, styles.detailButton]}
+              onPress={handleDownloadQuotation}
+            >
+              <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.detailButtonText}>BÁO GIÁ CHI TIẾT</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     </React.Fragment>
@@ -869,6 +856,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#7B7D9D',
+    marginBottom: 16,
+    textAlign: 'left',
   },
   updateButton: {
     fontSize: 12,
@@ -907,45 +896,42 @@ const styles = StyleSheet.create({
     color: '#ED1C24',
     textAlign: 'right',
   },
-  detailContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+  equipmentListDuplicate: {
+    padding: 16,
+    backgroundColor: '#fff',
+    marginTop: 16,
   },
-  detailSection: {
-    marginBottom: 12,
+  equipmentItem: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DCDCE6',
+    paddingVertical: 12,
   },
-  detailHeader: {
+  itemRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  detailTitle: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#7B7D9D',
-  },
-  detailItem: {
-    flexDirection: 'row',
+    gap: 12,
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  detailValue: {
+  itemNumber: {
+    width: 24,
     fontSize: 12,
-    fontWeight: '500',
-    color: '#27273E',
+    color: '#091E42',
+    textAlign: 'center',
   },
-  indicator: {
-    height: 34,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 8,
+  itemName: {
+    fontSize: 12,
+    color: '#091E42',
+    flex: 1,
   },
-  indicatorLine: {
-    width: 135,
-    height: 4,
-    backgroundColor: '#0A0E15',
-    borderRadius: 100,
+  itemQuantity: {
+    fontSize: 12,
+    color: '#091E42',
+    paddingHorizontal: 8,
+    backgroundColor: '#F5F5F8',
+    borderRadius: 4,
+    overflow: 'hidden',
+    minWidth: 60,
+    textAlign: 'right',
   },
   bottomContainer: {
     padding: 16,
@@ -953,19 +939,40 @@ const styles = StyleSheet.create({
     borderTopColor: '#EFEFEF',
     backgroundColor: '#FFFFFF',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   downloadButton: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ED1C24',
     borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    gap: 6,
   },
-  downloadButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  surveyButton: {
+    backgroundColor: '#F5F5F8',
+    borderWidth: 1,
+    borderColor: '#DCDCE6',
+  },
+  detailButton: {
+    backgroundColor: '#ED1C24',
+  },
+  surveyButtonText: {
+    color: '#27273E',
+    fontSize: 13,
     fontWeight: '500',
+    textAlign: 'center',
+    flex: 1,
+  },
+  detailButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    flex: 1,
   },
 }); 
