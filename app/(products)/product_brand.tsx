@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { StyleSheet, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Platform, FlatList, Linking, Modal, Animated, TextInput } from 'react-native';
+import { StyleSheet, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Platform, FlatList, Linking, Modal, Animated, TextInput, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Text, WhiteSpace, WingBlank, Flex } from '@ant-design/react-native';
 import { Stack, useLocalSearchParams, router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -413,6 +413,8 @@ export default function ProductBrandScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const searchWidth = useRef(new Animated.Value(40)).current;
   const filterOpacity = useRef(new Animated.Value(1)).current;
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollY = useRef(0);
 
   type SectionKey = 'ongrid-1phase' | 'ongrid-3phase' | 'ongrid-3phase-low' | 'ongrid-3phase-high' | 
                     'hybrid-1phase' | 'hybrid-3phase' | 'hybrid-3phase-low' | 'hybrid-3phase-high';
@@ -661,66 +663,79 @@ export default function ProductBrandScreen() {
   };
 
   const renderFilterSection = () => (
-    <View style={styles.filterRow}>
-      <Animated.View style={[styles.filterContainer, { opacity: filterOpacity }]}>
-        <TouchableOpacity 
-          style={styles.selectBox}
-          onPress={() => setIsDrawerVisible(true)}
-        >
-          <Text style={styles.selectInput}>
-            {selectedFilter ? filterOptions.find(opt => opt.key === selectedFilter)?.value : 'Chọn loại hệ'}
-          </Text>
-          <Image 
-            source={require('../../assets/images/chevron-down.png')}
-            style={{ width: 20, height: 20 }}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-
-        <FilterDrawer 
-          visible={isDrawerVisible}
-          onClose={() => setIsDrawerVisible(false)}
-          options={filterOptions}
-          onSelect={(key) => scrollToSection(key as SectionKey)}
-          selectedValue={selectedFilter}
-        />
-      </Animated.View>
-
-      <Animated.View style={[styles.searchContainer, { width: searchWidth }]}>
-        {isSearchActive ? (
-          <View style={styles.searchInputContainer}>
+    <View style={styles.filterRowWrapper}>
+      <View style={styles.filterRow}>
+        <Animated.View style={[styles.filterContainer, { opacity: filterOpacity }]}>
+          <TouchableOpacity 
+            style={styles.selectBox}
+            onPress={() => setIsDrawerVisible(true)}
+          >
+            <Text style={styles.selectInput}>
+              {selectedFilter ? filterOptions.find(opt => opt.key === selectedFilter)?.value : 'Chọn loại hệ'}
+            </Text>
             <Image 
-              source={require('../../assets/images/search-icon.png')}
-              style={{ width: 20, height: 20 }}
-              resizeMode="contain"
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Bạn đang tìm gì nào?"
-              value={searchQuery}
-              onChangeText={handleSearch}
-              autoFocus
-            />
-            <TouchableOpacity onPress={() => deactivateSearch(true)}>
-              <Image 
-                source={require('../../assets/images/cross.png')}
-                style={{ width: 20, height: 20 }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.searchButton} onPress={activateSearch}>
-            <Image 
-              source={require('../../assets/images/search-icon.png')}
+              source={require('../../assets/images/chevron-down.png')}
               style={{ width: 20, height: 20 }}
               resizeMode="contain"
             />
           </TouchableOpacity>
-        )}
-      </Animated.View>
+
+          <FilterDrawer 
+            visible={isDrawerVisible}
+            onClose={() => setIsDrawerVisible(false)}
+            options={filterOptions}
+            onSelect={(key) => scrollToSection(key as SectionKey)}
+            selectedValue={selectedFilter}
+          />
+        </Animated.View>
+
+        <Animated.View style={[styles.searchContainer, { width: searchWidth }]}>
+          {isSearchActive ? (
+            <View style={styles.searchInputContainer}>
+              <Image 
+                source={require('../../assets/images/search-icon.png')}
+                style={{ width: 20, height: 20 }}
+                resizeMode="contain"
+              />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Bạn đang tìm gì nào?"
+                value={searchQuery}
+                onChangeText={handleSearch}
+                autoFocus
+              />
+              <TouchableOpacity onPress={() => deactivateSearch(true)}>
+                <Image 
+                  source={require('../../assets/images/cross.png')}
+                  style={{ width: 20, height: 20 }}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.searchButton} onPress={activateSearch}>
+              <Image 
+                source={require('../../assets/images/search-icon.png')}
+                style={{ width: 20, height: 20 }}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      </View>
     </View>
   );
+
+  // Add scroll handler
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const currentScrollY = event.nativeEvent.contentOffset.y;
+    if (currentScrollY > lastScrollY.current && headerVisible && currentScrollY > 50) {
+      setHeaderVisible(false);
+    } else if (currentScrollY < lastScrollY.current && !headerVisible) {
+      setHeaderVisible(true);
+    }
+    lastScrollY.current = currentScrollY;
+  };
 
   if (isLoading) {
     return (
@@ -787,13 +802,22 @@ export default function ProductBrandScreen() {
       <ScrollView 
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 0 }}
+        stickyHeaderIndices={[1]}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ 
+          paddingBottom: 20
+        }}
+        style={{ 
+          flex: 1,
+          backgroundColor: '#f5f5f8'
+        }}
       >
         {/* Brand Header */}
         <View style={[
           styles.brandHeader,
           { backgroundColor: sector.id === 1 ? '#4CAF50' : 
-                            sector.id === 2 ? '#FFD700' : '#0F974A' }
+                           sector.id === 2 ? '#FFD700' : '#0F974A' }
         ]}>
           <View style={styles.brandInfo}>
             <Image 
@@ -849,102 +873,34 @@ export default function ProductBrandScreen() {
           </View>
         </View>
 
-        {/* Filter Row */}
-        {renderFilterSection()}
+        {/* Sticky Filter Row */}
+        <View style={styles.filterRowWrapper}>
+          {renderFilterSection()}
+        </View>
 
         {/* Search Results */}
         {isSearching ? (
-          <View style={styles.searchResults}>
-            <Text style={styles.searchResultsTitle}>
-              {searchResults.length > 0 ? `${searchResults.length} kết quả` : 'Không tìm thấy kết quả'}
-            </Text>
-            <View style={styles.horizontalList}>
-              {searchResults.map((item) => (
-                <Link
-                  key={item.id}
-                  href={{
-                    pathname: "/(products)/product_baogia",
-                    params: { id: item.id.toString() }
-                  }}
-                  asChild
-                  onPress={() => {
-                    deactivateSearch(true);
-                    // Xác định loại hệ thống và phase để scroll
-                    const phaseType = getPhaseType(item);
-                    const isHybrid = item.installation_type?.toLowerCase() === 'hybrid';
-                    const systemPrefix = isHybrid ? 'hybrid' : 'ongrid';
-                    
-                    let sectionKey: SectionKey;
-                    if (phaseType === '3-phase-low') {
-                      sectionKey = `${systemPrefix}-3phase-low` as SectionKey;
-                    } else if (phaseType === '3-phase-high') {
-                      sectionKey = `${systemPrefix}-3phase-high` as SectionKey;
-                    } else if (phaseType === '3-phase') {
-                      sectionKey = `${systemPrefix}-3phase` as SectionKey;
-                    } else {
-                      sectionKey = `${systemPrefix}-1phase` as SectionKey;
-                    }
-                    
-                    // Scroll đến section tương ứng
-                    setTimeout(() => {
-                      scrollToSection(sectionKey);
-                    }, 100);
-                  }}
-                >
-                  <TouchableOpacity style={styles.horizontalCard}>
-                    <View style={styles.horizontalImageContainer}>
-                      {item.image ? (
-                        <Image 
-                          source={{ uri: item.image }} 
-                          style={styles.productImage} 
-                          resizeMode="cover" 
-                        />
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <Ionicons name="cube-outline" size={30} color="#888" />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.horizontalContentContainer}>
-                      <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-                      
-                      <View style={styles.productDetails}>
-                        <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
-                        <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
-                      </View>
-                      
-                      <View style={styles.priceContainer}>
-                        <Text style={styles.productPrice}>
-                          {new Intl.NumberFormat('vi-VN', { 
-                            style: 'currency', 
-                            currency: 'VND' 
-                          }).format(item.total_price)}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </Link>
-              ))}
-            </View>
-          </View>
+          renderSearchResults()
         ) : (
           <>
             {/* Best Selling Section */}
-            <Text style={styles.sectionTitle}>Bán chạy</Text>
-            <WhiteSpace size="lg" />
-            <Flex justify="between" align="center" style={{paddingHorizontal: 16}}>
-              <Text style={styles.sectionSubtitle}>{sector.name.toUpperCase()}</Text>
-              <TouchableOpacity>
-                <Flex align="center">
-                  <Text style={styles.viewAllText}>Tất cả</Text>
-                  <Image 
-                    source={require('../../assets/images/arrow-icon.png')} 
-                    style={{ width: 20, height: 20, marginLeft: 8 }} 
-                    resizeMode="contain"
-                  />
-                </Flex>
-              </TouchableOpacity>
-            </Flex>
+            <View style={{ paddingTop: 16 }}>
+              <Text style={styles.sectionTitle}>Bán chạy</Text>
+              <WhiteSpace size="lg" />
+              <Flex justify="between" align="center" style={{paddingHorizontal: 16}}>
+                <Text style={styles.sectionSubtitle}>{sector.name.toUpperCase()}</Text>
+                <TouchableOpacity>
+                  <Flex align="center">
+                    <Text style={styles.viewAllText}>Tất cả</Text>
+                    <Image 
+                      source={require('../../assets/images/arrow-icon.png')} 
+                      style={{ width: 20, height: 20, marginLeft: 8 }} 
+                      resizeMode="contain"
+                    />
+                  </Flex>
+                </TouchableOpacity>
+              </Flex>
+            </View>
             
             <WhiteSpace size="lg" />
             <View style={[styles.carouselContainer, { paddingBottom: 16 }]}>
@@ -1739,6 +1695,17 @@ const styles = StyleSheet.create({
     color: '#0F974A',
     textAlign: 'center',
   },
+  filterRowWrapper: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
+  },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1747,6 +1714,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     gap: 8,
     height: 64,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
   filterContainer: {
     flex: 1,
