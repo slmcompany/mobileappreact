@@ -21,6 +21,7 @@ type Combo = {
   installation_type?: string;
   power_output?: string;
   total_price?: number;
+  payback_period?: number;
 };
 
 // Định nghĩa kiểu dữ liệu cho sector
@@ -31,6 +32,26 @@ type Sector = {
   image: string;
   image_rectangular: string;
   list_combos: Combo[];
+};
+
+// Helper function to get power from name
+const getPowerFromName = (name: string) => {
+  const match = name.match(/(\d+(\.\d+)?)\s*kw/i);
+  return match ? match[1] : '5.5';
+};
+
+// Helper function to format power output
+const formatPowerOutput = (name: string): string => {
+  const power = getPowerFromName(name);
+  return `${Math.round(Number(power) * 80)}-${Math.round(Number(power) * 120)} kWh/tháng`;
+};
+
+// Helper function to format payback period from years
+const formatPaybackPeriod = (years: number | undefined): string => {
+  if (!years) return '... năm ... tháng';
+  const wholeYears = Math.floor(years);
+  const remainingMonths = Math.round((years % 1) * 12);
+  return `${wholeYears} năm ${remainingMonths} tháng`;
 };
 
 // Helper function to check phase type
@@ -395,48 +416,39 @@ export default function QuotationBasicInfo() {
                   <TouchableOpacity
                     key={combo.id}
                     style={[
-                      styles.comboCard,
+                      styles.horizontalCard,
                       selectedCombo?.id === combo.id ? styles.comboCardSelected : {}
                     ]}
                     onPress={() => handleComboSelect(combo)}
                   >
-                    <View style={styles.comboImageContainer}>
+                    <View style={styles.horizontalImageContainer}>
                       {combo.image ? (
                         <Image 
                           source={{ uri: combo.image }} 
-                          style={styles.comboImage}
-                          resizeMode="contain" 
+                          style={styles.productImage} 
+                          resizeMode="cover" 
                         />
                       ) : (
-                        <View style={styles.comboImagePlaceholder}>
-                          <Ionicons name="image-outline" size={24} color="#ABACC2" />
+                        <View style={styles.imagePlaceholder}>
+                          <Ionicons name="cube-outline" size={30} color="#888" />
                         </View>
                       )}
                     </View>
-                    <View style={styles.comboDetails}>
-                      <Text style={styles.comboName}>{combo.name}</Text>
-                      {combo.description && (
-                        <Text style={styles.comboDescription}>{combo.description}</Text>
-                      )}
-                      <View style={styles.priceAndTagsContainer}>
-                        <View style={styles.comboPrice}>
-                          <Text style={styles.comboPriceValue}>
-                            {(combo.total_price || combo.price).toLocaleString()}
-                          </Text>
-                          <Text style={styles.comboPriceCurrency}>đ</Text>
-                        </View>
-                        <View style={styles.tagsRow}>
-                          {getProductTag(combo).phase && (
-                            <View style={styles.phaseTag}>
-                              <Text style={styles.phaseTagText}>{getProductTag(combo).phase}</Text>
-                            </View>
-                          )}
-                          {getProductTag(combo).system && (
-                            <View style={styles.systemTag}>
-                              <Text style={styles.systemTagText}>{getProductTag(combo).system}</Text>
-                            </View>
-                          )}
-                        </View>
+                    <View style={styles.horizontalContentContainer}>
+                      <Text style={styles.productName} numberOfLines={2}>{combo.name}</Text>
+                      
+                      <View style={styles.productDetails}>
+                        <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(combo.name)}</Text>
+                        <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(combo.payback_period)}</Text>
+                      </View>
+                      
+                      <View style={styles.priceContainer}>
+                        <Text style={styles.productPrice}>
+                          {new Intl.NumberFormat('vi-VN', { 
+                            style: 'currency', 
+                            currency: 'VND' 
+                          }).format(combo.total_price || combo.price)}
+                        </Text>
                       </View>
                     </View>
                     {selectedCombo?.id === combo.id && (
@@ -604,94 +616,70 @@ const styles = StyleSheet.create({
   productList: {
     gap: 8,
   },
-  comboCard: {
+  horizontalCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
-    padding: 12,
     marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#27273E',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.16,
-    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
     position: 'relative',
   },
   comboCardSelected: {
     borderWidth: 1,
     borderColor: '#12B669',
   },
-  comboImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
+  horizontalImageContainer: {
+    width: 120,
+    height: 120,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
     overflow: 'hidden',
-    marginRight: 16,
   },
-  comboImage: {
+  productImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#F5F5F8',
   },
-  comboImagePlaceholder: {
+  imagePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#F5F5F8',
+    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  comboDetails: {
+  horizontalContentContainer: {
     flex: 1,
-    justifyContent: 'space-between',
+    padding: 12,
   },
-  comboName: {
+  productName: {
     fontSize: 14,
     fontWeight: '500',
     color: '#27273E',
     marginBottom: 4,
+    minHeight: 38,
+    lineHeight: 18,
   },
-  comboDescription: {
+  productDetails: {
+    gap: 2,
+  },
+  productDetail: {
     fontSize: 12,
     color: '#7B7D9D',
-    marginBottom: 8,
+    lineHeight: 16,
   },
-  priceAndTagsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
+  priceContainer: {
+    marginTop: 4,
   },
-  comboPrice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  comboPriceValue: {
+  productPrice: {
     fontSize: 16,
     fontWeight: '700',
     color: '#ED1C24',
-  },
-  comboPriceCurrency: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#ED1C24',
-    marginLeft: 2,
+    lineHeight: 20,
   },
   selectedComboIndicator: {
     position: 'absolute',
     top: 12,
     right: 12,
-  },
-  indicator: {
-    height: 34,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 8,
-  },
-  indicatorLine: {
-    width: 135,
-    height: 4,
-    backgroundColor: '#0A0E15',
-    borderRadius: 100,
   },
   bottomContainer: {
     flexDirection: 'row',
@@ -729,32 +717,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  phaseTag: {
-    backgroundColor: '#F5F5F8',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  phaseTagText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#7B7D9D',
-  },
-  systemTag: {
-    backgroundColor: '#ECF8F3',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  systemTagText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#0F974A',
   },
 }); 
