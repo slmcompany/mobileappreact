@@ -223,7 +223,8 @@ export default function ProductQuoteScreen() {
                                             {firstItem.merchandise.data_json && (
                                                 <View style={styles.specList}>
                                                     {Object.entries(firstItem.merchandise.data_json)
-                                                        .filter(([key]) => key !== 'price_vnd' && key !== 'area_m2' && key !== 'thickness_mm' && key !== 'height_mm' && key !== 'width_mm' && key !== 'warranty_years' && key !== 'phase_type' && key !== 'weight_kg' && key !== 'brand_ranking' && key !== 'installation_type' && key !== 'cell_brand' && key !== 'max_upgrade_kwh' && key !== 'inverter_ratting')
+                                                        .filter(([key]) => key !== 'price_vnd' && key !== 'area_m2' && key !== 'thickness_mm' && key !== 'height_mm' && key !== 'width_mm' && key !== 'warranty_years' && key !== 'phase_type' && key !== 'weight_kg' && key !== 'brand_ranking' && key !== 'installation_type' && key !== 'cell_brand' && key !== 'max_upgrade_kwh' && key !== 'inverter_rating')
+                                                        .slice(0, 2)
                                                         .map(([key, value], idx) => {
                                                         const displayKey = key === 'power_watt' ? 'Công suất' 
                                                             : key === 'technology' ? 'Công nghệ'
