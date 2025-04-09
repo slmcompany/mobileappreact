@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
+import { Link, Tabs, useRouter } from 'expo-router';
 import { Pressable, useColorScheme, View, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +23,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { authState } = useAuth();
   const userRoleId = authState.user?.role_id;
+  const router = useRouter();
   
   // Lọc các routes được hiển thị dựa vào role
   const filteredRoutes = state.routes.filter((route: any) => {
@@ -54,7 +55,15 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           });
 
           if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
+            if (route.name === 'products') {
+              // Chuyển hướng đến trang product_brand với id của SolarMax
+              router.push({
+                pathname: "/(products)/product_brand",
+                params: { id: "1" }
+              });
+            } else {
+              navigation.navigate(route.name);
+            }
           }
         };
 
@@ -71,7 +80,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         } else if (route.name === 'gallery') {
           iconSource = require('@/assets/images/nav-icon-5.png');
         } else if (route.name === 'profile_contract') {
-          iconSource = require('@/assets/images/nav-icon-2.png'); // Sử dụng cùng icon với account tạm thời
+          iconSource = require('@/assets/images/nav-icon-2.png');
         }
 
         return (
@@ -120,6 +129,10 @@ export default function TabLayout() {
         name="products"
         options={{
           title: 'Sản phẩm',
+          href: {
+            pathname: "/(products)/product_brand",
+            params: { id: "1" }
+          }
         }}
       />
       <Tabs.Screen

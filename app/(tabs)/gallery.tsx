@@ -453,48 +453,27 @@ export default function GalleryScreen() {
       
       // Parse JSON
       const sectorData = JSON.parse(sectorText);
-      
-      // Sử dụng fallback data thay vì gọi API content
-      const sectorsWithPostCount = Array.isArray(sectorData) ? sectorData.map((sector: Sector) => ({
-        ...sector,
-        post_count: 0  // Mặc định bằng 0, tránh gọi API content lỗi
-      })) : [];
+
+      // Tính toán số lượng bài viết cho mỗi sector
+      const sectorsWithPostCount = Array.isArray(sectorData) ? sectorData.map((sector: Sector) => {
+        const postCount = posts.filter(post => post.category?.sector === sector.code).length;
+        return {
+          ...sector,
+          post_count: postCount
+        };
+      }) : [];
 
       setSectors(sectorsWithPostCount);
     } catch (error) {
       console.error('Error fetching sectors:', error);
-      // Fallback data
-      setSectors([
-        {
-          id: 1,
-          name: 'SolarMax',
-          code: 'SLM',
-          image: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/06.%20Brand/01.%20SolarMax/SolarMax.jpg',
-          image_rectangular: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/Logo/Logo_SolarMax.jpg',
-          description: null,
-          tech_phone: null,
-          sale_phone: null,
-          post_count: 0
-        },
-        {
-          id: 2,
-          name: 'Eliton',
-          code: 'ELT',
-          image: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/06.%20Brand/02.%20Eliton/Eliton.jpg',
-          image_rectangular: 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/Logo/Logo_Eliton.jpg',
-          description: null,
-          tech_phone: null,
-          sale_phone: null,
-          post_count: 0
-        }
-      ]);
+      setSectors([]);
     }
   };
 
   // Thêm useEffect để fetch sectors
   useEffect(() => {
     fetchSectors();
-  }, []);
+  }, [posts]);
 
   useEffect(() => {
     fetchPosts();

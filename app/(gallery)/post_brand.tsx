@@ -18,8 +18,11 @@ interface Post {
     id: number;
     name: string;
     sector: string;
+    image?: string;
+    description?: string | null;
   };
   created_at?: string;
+  media_contents?: { kind: string; link: string }[];
 }
 
 interface Sector {
@@ -34,27 +37,42 @@ interface Sector {
 }
 
 interface Category {
-  id: string;
+  code: string;
+  id: number;
+  name: string;
+  sector: string;
+  image?: string;
+  description?: string | null;
+}
+
+interface CategoryUI {
+  id: number;
   title: string;
+  code: string;
   postCount: number;
   backgroundColor: string;
-  image: any;
-  code: string;
+  image_url: string;
 }
 
 interface CategoryCardProps {
   title: string;
   postCount: number;
   backgroundColor: string;
-  image: any;
+  image_url: string;
   onPress: () => void;
 }
 
 // Component CategoryCard
-const CategoryCard: React.FC<CategoryCardProps> = ({ title, postCount, backgroundColor, image, onPress }) => {
+const CategoryCard: React.FC<CategoryCardProps> = ({ title, postCount, backgroundColor, image_url, onPress }) => {
   return (
     <TouchableOpacity style={styles.categoryCard} onPress={onPress}>
-      <Image source={image} style={[styles.categoryImage, { backgroundColor }]} resizeMode="contain" />
+      <View style={styles.categoryImageContainer}>
+        <ImageWithFallback 
+          uri={image_url}
+          style={styles.categoryImage}
+          priority={true}
+        />
+      </View>
       <View style={styles.categoryContent}>
         <View style={styles.categoryTextContainer}>
           <Text style={styles.categoryTitle}>{title}</Text>
@@ -96,7 +114,7 @@ const ImageWithFallback: React.FC<{
         <Image 
           source={fallbackImage}
           style={style}
-          resizeMode="cover"
+          resizeMode="contain"
           onLoadEnd={() => {
             setIsLoading(false);
             setIsImageLoaded(true);
@@ -106,7 +124,7 @@ const ImageWithFallback: React.FC<{
         <Image 
           source={{ uri: uri }}
           style={[style, !isImageLoaded && { opacity: 0 }]}
-          resizeMode="cover"
+          resizeMode="contain"
           onLoadStart={() => setIsLoading(true)}
           onLoadEnd={() => {
             setIsLoading(false);
@@ -178,43 +196,10 @@ export default function PostBrandScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sector, setSector] = useState<Sector | null>(null);
-  const [categories, setCategories] = useState<Category[]>([
-    {
-      id: '1',
-      title: 'Hiểu Đúng Mua Đúng',
-      postCount: 0,
-      backgroundColor: '#363652',
-      image: require('../../assets/images/category_1.png'),
-      code: 'HDMD'
-    },
-    {
-      id: '2',
-      title: 'RìViu',
-      postCount: 0,
-      backgroundColor: '#363652',
-      image: require('../../assets/images/category_2.png'),
-      code: 'REVIEW'
-    },
-    {
-      id: '3',
-      title: 'Hỏi Xoay Hỏi Xoáy',
-      postCount: 0,
-      backgroundColor: '#363652',
-      image: require('../../assets/images/category_3.png'),
-      code: 'HXHX'
-    },
-    {
-      id: '4',
-      title: 'Em Biết Không?',
-      postCount: 0,
-      backgroundColor: '#363652',
-      image: require('../../assets/images/category_4.png'),
-      code: 'EBK'
-    },
-  ]);
+  const [categories, setCategories] = useState<CategoryUI[]>([]);
 
-  // Fetch thông tin sector
-  const fetchSector = async () => {
+  // Fetch thông tin sector và categories
+  const fetchSectorAndCategories = async () => {
     try {
       const response = await fetch('https://id.slmsolar.com/api/sector');
       if (!response.ok) {
@@ -229,12 +214,13 @@ export default function PostBrandScreen() {
     }
   };
 
-  // Fetch bài viết theo brand và cập nhật số lượng bài viết cho từng chuyên mục
-  const fetchPosts = async () => {
+  // Fetch bài viết và categories
+  const fetchPostsAndCategories = async () => {
     try {
       setLoading(true);
       setError(null);
       
+      // Fetch posts
       const response = await fetch('https://id.slmsolar.com/api/content');
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -242,39 +228,88 @@ export default function PostBrandScreen() {
       const data = await response.json();
       
       // Lọc bài viết theo sector code
-      const filteredPosts = data.filter((post: Post) => 
-        post.category?.sector === sector?.code
-      );
+      const filteredPosts = data.filter((post: Post) => {
+        if (!post.category?.sector || !sector?.code) return false;
+        return post.category.sector.toLowerCase() === sector.code.toLowerCase();
+      });
       
       setPosts(filteredPosts);
+      console.log('Filtered posts:', filteredPosts);
 
-      // Cập nhật số lượng bài viết cho từng chuyên mục
-      setCategories(prevCategories => 
-        prevCategories.map(category => ({
-          ...category,
-          postCount: filteredPosts.filter((post: Post) => 
-            post.category?.code === category.code
-          ).length
-        }))
-      );
+      // Tạo categories với số lượng bài viết và lấy ảnh từ category
+      const postCountByCategory = filteredPosts.reduce((acc: { [key: string]: { count: number; image?: string } }, post: Post) => {
+        const categoryCode = post.category?.code?.toUpperCase();
+        if (categoryCode) {
+          if (!acc[categoryCode]) {
+            acc[categoryCode] = {
+              count: 1,
+              image: post.category?.image // Lấy ảnh trực tiếp từ category với null safety
+            };
+          } else {
+            acc[categoryCode].count += 1;
+          }
+        }
+        return acc;
+      }, {});
+
+      console.log('Post count and images by category:', postCountByCategory);
+
+      // Tạo danh sách categories mới với số lượng bài viết và ảnh
+      const newCategories: CategoryUI[] = [
+        {
+          id: 1,
+          title: 'Hiểu Đúng Mua Đúng',
+          code: 'HDMD',
+          postCount: postCountByCategory['HDMD']?.count || 0,
+          backgroundColor: '#363652',
+          image_url: postCountByCategory['HDMD']?.image || sector?.image || ''
+        },
+        {
+          id: 2,
+          title: 'RìViu',
+          code: 'RVSLM',
+          postCount: postCountByCategory['RVSLM']?.count || 0,
+          backgroundColor: '#363652',
+          image_url: postCountByCategory['RVSLM']?.image || sector?.image || ''
+        },
+        {
+          id: 3,
+          title: 'Hỏi Xoay Hỏi Xoáy',
+          code: 'HXHX',
+          postCount: postCountByCategory['HXHX']?.count || 0,
+          backgroundColor: '#363652',
+          image_url: postCountByCategory['HXHX']?.image || sector?.image || ''
+        },
+        {
+          id: 4,
+          title: 'Em Biết Không?',
+          code: 'EBK',
+          postCount: postCountByCategory['EBK']?.count || 0,
+          backgroundColor: '#363652',
+          image_url: postCountByCategory['EBK']?.image || sector?.image || ''
+        }
+      ];
+
+      console.log('New categories:', newCategories);
+      setCategories(newCategories);
 
     } catch (error) {
-      console.error('Error fetching posts:', error);
-      setError('Không thể tải bài viết');
+      console.error('Error fetching data:', error);
+      setError('Không thể tải dữ liệu');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSector();
+    fetchSectorAndCategories();
   }, [brandId]);
 
   useEffect(() => {
-    if (sector) {
-      fetchPosts();
+    if (sector?.code) {
+      fetchPostsAndCategories();
     }
-  }, [sector]);
+  }, [sector?.code]);
 
   return (
     <>
@@ -295,7 +330,9 @@ export default function PostBrandScreen() {
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity 
               style={styles.retryButton}
-              onPress={() => fetchPosts()}
+              onPress={() => {
+                fetchSectorAndCategories();
+              }}
             >
               <Text style={styles.retryButtonText}>Thử lại</Text>
             </TouchableOpacity>
@@ -315,31 +352,47 @@ export default function PostBrandScreen() {
             {/* Brand Profile */}
             <View style={styles.brandProfile}>
               <View style={styles.brandInfo}>
-                <Image 
-                  source={require('../../assets/images/solarmax-logo.png')}
-                  style={styles.brandLogo}
-                  resizeMode="contain"
-                />
+                <View style={styles.brandLogoContainer}>
+                  <ImageWithFallback 
+                    uri={sector?.image_rectangular}
+                    style={styles.brandLogo}
+                    priority={true}
+                  />
+                </View>
                 <View style={styles.brandTextContainer}>
                   <Text style={styles.brandName}>{sector?.name || 'SolarMax'}</Text>
-                  <Text style={styles.brandPostCount}>{posts.length} bài viết</Text>
+                  <View style={styles.brandPostAndSocial}>
+                    <Text style={styles.brandPostCount}>
+                      {posts.length} bài viết
+                    </Text>
+                    <View style={styles.socialButtons}>
+                      <TouchableOpacity style={styles.socialButton}>
+                        <Ionicons name="logo-facebook" size={20} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.socialButton}>
+                        <Ionicons name="logo-youtube" size={20} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.socialButton}>
+                        <Ionicons name="logo-instagram" size={20} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               </View>
               
-              <View style={styles.socialButtons}>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-facebook" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-youtube" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-instagram" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-
               {/* Products Section */}
-              <TouchableOpacity style={styles.productsSection}>
+              <TouchableOpacity 
+                style={styles.productsSection}
+                onPress={() => {
+                  router.push({
+                    pathname: "/(products)/product_brand" as const,
+                    params: { 
+                      id: brandId,
+                      brandName: sector?.name || 'SolarMax'
+                    }
+                  });
+                }}
+              >
                 <View style={styles.productsLeft}>
                   <Ionicons name="cube-outline" size={24} color="#FFFFFF" />
                   <Text style={styles.productsTitle}>Sản phẩm của {sector?.name || 'SolarMax'}</Text>
@@ -353,13 +406,13 @@ export default function PostBrandScreen() {
 
             {/* Categories */}
             <View style={styles.categoriesContainer}>
-              {categories.map((category, index) => (
+              {categories.map((category) => (
                 <CategoryCard
                   key={category.id}
                   title={category.title}
                   postCount={category.postCount}
                   backgroundColor={category.backgroundColor}
-                  image={category.image}
+                  image_url={category.image_url}
                   onPress={() => {
                     router.push({
                       pathname: '/category/[id]' as const,
@@ -438,11 +491,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  brandLogo: {
+  brandLogoContainer: {
     width: 56,
     height: 56,
     borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    overflow: 'hidden',
     marginRight: 12,
+  },
+  brandLogo: {
+    width: '100%',
+    height: '100%',
   },
   brandTextContainer: {
     flex: 1,
@@ -457,10 +517,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.6)',
   },
+  brandPostAndSocial: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   socialButtons: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
   },
   socialButton: {
     width: 24,
@@ -507,9 +571,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   categoryImage: {
-    width: 40,
+    width: 60,
     height: 40,
+  },
+  categoryImageContainer: {
+    width: 80,
+    height: 56,
     borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#363652',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   categoryContent: {
     flex: 1,
