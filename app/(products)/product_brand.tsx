@@ -561,7 +561,7 @@ export default function ProductBrandScreen() {
     ]).start();
   };
 
-  const deactivateSearch = () => {
+  const deactivateSearch = (shouldReset: boolean = false) => {
     Animated.parallel([
       Animated.timing(searchWidth, {
         toValue: 40,
@@ -575,7 +575,11 @@ export default function ProductBrandScreen() {
       })
     ]).start(() => {
       setIsSearchActive(false);
-      setSearchQuery('');
+      if (shouldReset) {
+        setSearchQuery('');
+        setSearchResults([]);
+        setIsSearching(false);
+      }
     });
   };
 
@@ -611,7 +615,7 @@ export default function ProductBrandScreen() {
               }}
               asChild
               onPress={() => {
-                deactivateSearch();
+                deactivateSearch(true);
                 setSearchQuery('');
                 setSearchResults([]);
                 setIsSearching(false);
@@ -697,7 +701,7 @@ export default function ProductBrandScreen() {
               onChangeText={handleSearch}
               autoFocus
             />
-            <TouchableOpacity onPress={deactivateSearch}>
+            <TouchableOpacity onPress={() => deactivateSearch(true)}>
               <Image 
                 source={require('../../assets/images/cross.png')}
                 style={{ width: 20, height: 20 }}
@@ -780,14 +784,6 @@ export default function ProductBrandScreen() {
         }}
       />
 
-      {isSearchActive && (
-        <TouchableOpacity 
-          style={styles.fullScreenOverlay}
-          activeOpacity={1} 
-          onPress={deactivateSearch}
-        />
-      )}
-      
       <ScrollView 
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
@@ -872,10 +868,27 @@ export default function ProductBrandScreen() {
                   }}
                   asChild
                   onPress={() => {
-                    deactivateSearch();
-                    setSearchQuery('');
-                    setSearchResults([]);
-                    setIsSearching(false);
+                    deactivateSearch(true);
+                    // Xác định loại hệ thống và phase để scroll
+                    const phaseType = getPhaseType(item);
+                    const isHybrid = item.installation_type?.toLowerCase() === 'hybrid';
+                    const systemPrefix = isHybrid ? 'hybrid' : 'ongrid';
+                    
+                    let sectionKey: SectionKey;
+                    if (phaseType === '3-phase-low') {
+                      sectionKey = `${systemPrefix}-3phase-low` as SectionKey;
+                    } else if (phaseType === '3-phase-high') {
+                      sectionKey = `${systemPrefix}-3phase-high` as SectionKey;
+                    } else if (phaseType === '3-phase') {
+                      sectionKey = `${systemPrefix}-3phase` as SectionKey;
+                    } else {
+                      sectionKey = `${systemPrefix}-1phase` as SectionKey;
+                    }
+                    
+                    // Scroll đến section tương ứng
+                    setTimeout(() => {
+                      scrollToSection(sectionKey);
+                    }, 100);
                   }}
                 >
                   <TouchableOpacity style={styles.horizontalCard}>
@@ -1525,8 +1538,6 @@ const styles = StyleSheet.create({
   },
   horizontalList: {
     paddingHorizontal: 16,
-    flexDirection: 'column',
-    width: '100%',
   },
   productGrid: {
     flexDirection: 'row',
@@ -1670,36 +1681,23 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   horizontalCard: {
+    flexDirection: 'row',
     backgroundColor: '#fff',
     borderRadius: 8,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    marginBottom: 8,
-    width: '100%',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
   },
   horizontalImageContainer: {
     width: 120,
     height: 120,
-    backgroundColor: '#f5f5f5',
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,
+    overflow: 'hidden',
   },
   horizontalContentContainer: {
     flex: 1,
-    padding: 8,
-    justifyContent: 'space-between',
-    height: 120,
+    padding: 12,
   },
   phaseTitle: {
     fontSize: 16,
@@ -1865,13 +1863,13 @@ const styles = StyleSheet.create({
   },
   searchResults: {
     backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 12,
+    paddingVertical: 16,
   },
   searchResultsTitle: {
     fontSize: 14,
     color: '#7B7D9D',
     marginBottom: 12,
+    paddingHorizontal: 16,
   },
   fullScreenOverlay: {
     ...StyleSheet.absoluteFillObject,
