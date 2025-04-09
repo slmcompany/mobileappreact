@@ -415,11 +415,12 @@ export default function PostBrandScreen() {
                   image_url={category.image_url}
                   onPress={() => {
                     router.push({
-                      pathname: '/category/[id]' as const,
+                      pathname: "/(gallery)/post_category" as const,
                       params: { 
                         id: category.id,
                         categoryName: category.title,
-                        brandId: brandId
+                        brandId: brandId,
+                        categoryCode: category.code
                       }
                     });
                   }}
