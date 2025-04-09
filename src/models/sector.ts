@@ -100,6 +100,7 @@ export interface Combo {
   customer: any;
   pre_quote_merchandises: any[];
   grouped_merchandises: GroupedMerchandise[];
+  payback_period?: number;
 }
 
 export interface Sector {
