@@ -131,7 +131,6 @@ const ImageWithFallback: React.FC<{
             setIsImageLoaded(true);
           }}
           onError={() => {
-            console.log("Lỗi khi tải ảnh:", uri);
             setHasError(true);
             setIsLoading(false);
           }}
@@ -234,7 +233,6 @@ export default function PostBrandScreen() {
       });
       
       setPosts(filteredPosts);
-      console.log('Filtered posts:', filteredPosts);
 
       // Tạo categories với số lượng bài viết và lấy ảnh từ category
       const postCountByCategory = filteredPosts.reduce((acc: { [key: string]: { count: number; image?: string } }, post: Post) => {
@@ -251,8 +249,6 @@ export default function PostBrandScreen() {
         }
         return acc;
       }, {});
-
-      console.log('Post count and images by category:', postCountByCategory);
 
       // Tạo danh sách categories mới với số lượng bài viết và ảnh
       const newCategories: CategoryUI[] = [
@@ -290,7 +286,6 @@ export default function PostBrandScreen() {
         }
       ];
 
-      console.log('New categories:', newCategories);
       setCategories(newCategories);
 
     } catch (error) {

@@ -62,14 +62,11 @@ export default function QuotationCreateNew() {
 
   const handleCreateQuotation = () => {
     if (isLoading) {
-        console.log("Still checking customer ID...");
         return;
     }
     if (error) {
-        console.log("Cannot proceed due to an error:", error);
         return;
     }
-    console.log('Tạo báo giá với:', { customerId, phoneNumber, isNewCustomer });
     
     // Chuyển sang step 2 trong quy trình tạo báo giá
     router.push({

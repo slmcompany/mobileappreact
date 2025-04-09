@@ -120,11 +120,9 @@ export default function QuotationBasicInfo() {
           
           // Kiểm tra nếu có danh sách combos từ API
           if (foundSector.list_combos && foundSector.list_combos.length > 0) {
-            console.log('Combos từ API:', foundSector.list_combos);
             setFilteredCombos(foundSector.list_combos);
           } else {
             // Nếu API không trả về combos, sử dụng dữ liệu mẫu
-            console.log('Sử dụng danh sách combo mẫu');
             const sampleCombos: Combo[] = [
               {
                 id: 1,
@@ -204,14 +202,9 @@ export default function QuotationBasicInfo() {
 
   const handleContinue = () => {
     // Logic để xử lý khi người dùng nhấn nút tiếp tục
-    console.log('Lọc theo:', { systemType, phaseType });
-    console.log('Thông tin khách hàng:', { customerId, phoneNumber, isNewCustomer });
-    console.log('Sector:', sectorId);
     
     // Nếu đã chọn combo, truyền thông tin combo sang bước 4
     if (selectedCombo) {
-      console.log('Combo đã chọn:', selectedCombo);
-      
       router.push({
         pathname: '/quotation_details',
         params: { 
@@ -458,10 +451,7 @@ export default function QuotationBasicInfo() {
           </View>
         </ScrollView>
 
-        {/* Bottom indicator */}
-        <View style={styles.indicator}>
-          <View style={styles.indicatorLine} />
-        </View>
+      
         
         {/* Bottom action */}
         <View style={styles.bottomContainer}>

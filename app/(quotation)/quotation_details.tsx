@@ -165,6 +165,9 @@ export default function QuotationDetails() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // State cho việc xác nhận xóa sản phẩm
+  const [productToDelete, setProductToDelete] = useState<number | null>(null);
+
   // Lấy thông tin người dùng đăng nhập từ AsyncStorage
   useEffect(() => {
     const getUserData = async () => {
@@ -215,13 +218,33 @@ export default function QuotationDetails() {
 
   // Xử lý giảm số lượng sản phẩm
   const handleDecreaseQuantity = (productId: number) => {
-    setProducts(prevProducts => 
-      prevProducts.map(product => 
-        product.id === productId && product.quantity > 1
-          ? { ...product, quantity: product.quantity - 1 } 
-          : product
-      )
-    );
+    const product = products.find(p => p.id === productId);
+    if (product && product.quantity === 1) {
+      // Hiển thị dialog xác nhận khi giảm số lượng từ 1 xuống 0
+      Alert.alert(
+        "Xác nhận xóa",
+        "Bạn có chắc chắn muốn xóa sản phẩm này khỏi báo giá?",
+        [
+          {
+            text: "Hủy",
+            style: "cancel"
+          },
+          {
+            text: "Xóa",
+            onPress: () => handleDeleteProduct(productId),
+            style: "destructive"
+          }
+        ]
+      );
+    } else {
+      setProducts(prevProducts => 
+        prevProducts.map(product => 
+          product.id === productId && product.quantity > 1
+            ? { ...product, quantity: product.quantity - 1 } 
+            : product
+        )
+      );
+    }
   };
 
   // Xử lý xóa sản phẩm
@@ -540,7 +563,7 @@ export default function QuotationDetails() {
   // Trong hàm convertApiItemToProduct
   const convertApiItemToProduct = (item: ProductApiItem): Product => {
     // Tạo specs từ data_json
-    const specs = item.data_json ? Object.entries(item.data_json).slice(0, 2).map(([key, value]) => {
+    const specs = item.data_json ? Object.entries(item.data_json).map(([key, value]) => {
       // Xác định label dựa trên key
       let label = key;
       if (key === 'power_watt') label = 'Công suất';
@@ -561,6 +584,14 @@ export default function QuotationDetails() {
         value: typeof value === 'object' ? JSON.stringify(value) : String(value)
       };
     }) : [];
+
+    // Thêm thông tin bảo hành vào specs nếu có
+    if (item.data_json?.warranty_years && !specs.find(spec => spec.label === 'Bảo hành')) {
+      specs.push({
+        label: 'Bảo hành',
+        value: `${item.data_json.warranty_years} năm`
+      });
+    }
     
     // Xác định category từ template code
     let category: Category | undefined = undefined;
@@ -734,10 +765,18 @@ export default function QuotationDetails() {
                             <Text style={styles.drawerProductSpecValue}>{spec.value}</Text>
                           </View>
                         ))}
-                        {product.warranty_years && (!product.specs || product.specs.length < 2) && (
+                        {product.specs?.slice(0, 3).map((spec, index) => (
+                          <View key={`spec-${index}`} style={styles.drawerProductSpec}>
+                            <Text style={styles.drawerProductSpecLabel}>{spec.label}:</Text>
+                            <Text style={styles.drawerProductSpecValue}>{spec.value}</Text>
+                          </View>
+                        ))}
+                        {/* Hiển thị thông tin bảo hành nếu có */}
+                        {!product.specs?.some(spec => spec.label === 'Bảo hành') && product.warranty_years && product.warranty_years > 0 && (
                           <View style={styles.drawerProductSpec}>
-                            <Text style={styles.drawerProductSpecLabel}>Bảo hành:</Text>
-                            <Text style={styles.drawerProductSpecValue}>{product.warranty_years} năm</Text>
+                            <Text style={[styles.drawerProductSpecLabel, styles.warrantyText]}>
+                              Bảo hành: {product.warranty_years} năm
+                            </Text>
                           </View>
                         )}
                       </View>
@@ -931,28 +970,22 @@ export default function QuotationDetails() {
                       <View style={styles.productDetails}>
                         <View style={styles.productHeader}>
                           <Text style={styles.productName}>{product.name}</Text>
-                          <TouchableOpacity 
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteProduct(product.id)}
-                          >
-                            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
-                          </TouchableOpacity>
                         </View>
                         
                         <View style={styles.productSpecsContainer}>
-                          {product.description?.split(',').slice(0, 2).map((spec, index) => (
-                            <View key={index} style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>{spec.trim()}</Text>
-                            </View>
-                          ))}
-                          {product.specs?.slice(0, 2 - (product.description?.split(',').slice(0, 2).length || 0)).map((spec, index) => (
-                            <View key={`spec-${index}`} style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
-                            </View>
-                          ))}
-                          {product.warranty_years && product.specs?.length === 0 && !product.description && (
+                          {/* Hiển thị description_in_quotation */}
+                          {product.description && (
                             <View style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>Bảo hành: {product.warranty_years} năm</Text>
+                              <Text style={styles.productSpecText}>{product.description}</Text>
+                            </View>
+                          )}
+                          
+                          {/* Hiển thị thông tin bảo hành riêng biệt */}
+                          {!product.specs?.some(spec => spec.label === 'Bảo hành') && product.warranty_years && product.warranty_years > 0 && (
+                            <View style={styles.productSpec}>
+                              <Text style={[styles.productSpecText, styles.warrantyText]}>
+                                Bảo hành: {product.warranty_years} năm
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -1024,28 +1057,22 @@ export default function QuotationDetails() {
                       <View style={styles.productDetails}>
                         <View style={styles.productHeader}>
                           <Text style={styles.productName}>{product.name}</Text>
-                          <TouchableOpacity 
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteProduct(product.id)}
-                          >
-                            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
-                          </TouchableOpacity>
                         </View>
                         
                         <View style={styles.productSpecsContainer}>
-                          {product.description?.split(',').slice(0, 2).map((spec, index) => (
-                            <View key={index} style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>{spec.trim()}</Text>
-                            </View>
-                          ))}
-                          {product.specs?.slice(0, 2 - (product.description?.split(',').slice(0, 2).length || 0)).map((spec, index) => (
-                            <View key={`spec-${index}`} style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
-                            </View>
-                          ))}
-                          {product.warranty_years && product.specs?.length === 0 && !product.description && (
+                          {/* Hiển thị description_in_quotation */}
+                          {product.description && (
                             <View style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>Bảo hành: {product.warranty_years} năm</Text>
+                              <Text style={styles.productSpecText}>{product.description}</Text>
+                            </View>
+                          )}
+                          
+                          {/* Hiển thị thông tin bảo hành riêng biệt */}
+                          {!product.specs?.some(spec => spec.label === 'Bảo hành') && product.warranty_years && product.warranty_years > 0 && (
+                            <View style={styles.productSpec}>
+                              <Text style={[styles.productSpecText, styles.warrantyText]}>
+                                Bảo hành: {product.warranty_years} năm
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -1117,28 +1144,22 @@ export default function QuotationDetails() {
                       <View style={styles.productDetails}>
                         <View style={styles.productHeader}>
                           <Text style={styles.productName}>{product.name}</Text>
-                          <TouchableOpacity 
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteProduct(product.id)}
-                          >
-                            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
-                          </TouchableOpacity>
                         </View>
                         
                         <View style={styles.productSpecsContainer}>
-                          {product.description?.split(',').slice(0, 2).map((spec, index) => (
-                            <View key={index} style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>{spec.trim()}</Text>
-                            </View>
-                          ))}
-                          {product.specs?.slice(0, 2 - (product.description?.split(',').slice(0, 2).length || 0)).map((spec, index) => (
-                            <View key={`spec-${index}`} style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
-                            </View>
-                          ))}
-                          {product.warranty_years && product.specs?.length === 0 && !product.description && (
+                          {/* Hiển thị description_in_quotation */}
+                          {product.description && (
                             <View style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>Bảo hành: {product.warranty_years} năm</Text>
+                              <Text style={styles.productSpecText}>{product.description}</Text>
+                            </View>
+                          )}
+                          
+                          {/* Hiển thị thông tin bảo hành riêng biệt */}
+                          {!product.specs?.some(spec => spec.label === 'Bảo hành') && product.warranty_years && product.warranty_years > 0 && (
+                            <View style={styles.productSpec}>
+                              <Text style={[styles.productSpecText, styles.warrantyText]}>
+                                Bảo hành: {product.warranty_years} năm
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -1296,28 +1317,22 @@ export default function QuotationDetails() {
                       <View style={styles.productDetails}>
                         <View style={styles.productHeader}>
                           <Text style={styles.productName}>{product.name}</Text>
-                          <TouchableOpacity 
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteProduct(product.id)}
-                          >
-                            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
-                          </TouchableOpacity>
                         </View>
                         
                         <View style={styles.productSpecsContainer}>
-                          {product.description?.split(',').slice(0, 2).map((spec, index) => (
-                            <View key={index} style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>{spec.trim()}</Text>
-                            </View>
-                          ))}
-                          {product.specs?.slice(0, 2 - (product.description?.split(',').slice(0, 2).length || 0)).map((spec, index) => (
-                            <View key={`spec-${index}`} style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>{spec.label}: {spec.value}</Text>
-                            </View>
-                          ))}
-                          {product.warranty_years && product.specs?.length === 0 && !product.description && (
+                          {/* Hiển thị description_in_quotation */}
+                          {product.description && (
                             <View style={styles.productSpec}>
-                              <Text style={styles.productSpecText}>Bảo hành: {product.warranty_years} năm</Text>
+                              <Text style={styles.productSpecText}>{product.description}</Text>
+                            </View>
+                          )}
+                          
+                          {/* Hiển thị thông tin bảo hành riêng biệt */}
+                          {!product.specs?.some(spec => spec.label === 'Bảo hành') && product.warranty_years && product.warranty_years > 0 && (
+                            <View style={styles.productSpec}>
+                              <Text style={[styles.productSpecText, styles.warrantyText]}>
+                                Bảo hành: {product.warranty_years} năm
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -1667,7 +1682,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   productName: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '500',
     color: '#27273E',
   },
@@ -1679,7 +1694,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   productSpecText: {
-    fontSize: 8,
+    fontSize: 12,
     color: '#7B7D9D',
   },
   productPriceContainer: {
@@ -1926,7 +1941,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   drawerProductName: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '500',
     color: '#27273E',
   },
@@ -1949,11 +1964,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   drawerProductSpecLabel: {
-    fontSize: 8,
+    fontSize: 12,
     color: '#7B7D9D',
   },
   drawerProductSpecValue: {
-    fontSize: 8,
+    fontSize: 12,
     color: '#7B7D9D',
     marginLeft: 4,
   },
@@ -2028,5 +2043,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ED1C24',
     marginTop: 2,
+  },
+  warrantyText: {
+    color: '#12B669',
+    fontWeight: '500',
+    fontSize: 12,
   },
 }); 

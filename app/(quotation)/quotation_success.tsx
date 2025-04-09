@@ -50,14 +50,11 @@ export default function QuotationSuccess() {
         console.log('Bắt đầu lấy dữ liệu cho trang Success...');
         
         // Lấy thông tin người lập báo giá từ AsyncStorage - QUAN TRỌNG!!!
-        console.log('Đang lấy thông tin user đăng nhập từ AsyncStorage...');
-        const userDataString = await AsyncStorage.getItem('userData');
-        console.log('Data từ AsyncStorage:', userDataString ? 'Đã tìm thấy' : 'Không tìm thấy');
+        const userDataString = await AsyncStorage.getItem('@slm_user_data');
         
         if (userDataString) {
           try {
             const userData = JSON.parse(userDataString);
-            console.log('Thông tin user đã parse:', userData);
             
             const userCode = userData.code || '';
             const userName = userData.name || '';
@@ -65,15 +62,12 @@ export default function QuotationSuccess() {
             if (userName) {
               const formattedName = `${userCode} - ${userName}`;
               setAgentName(formattedName);
-              console.log('Đã lấy thông tin người lập báo giá:', formattedName);
               
               // Thử lấy thông tin mới nhất của người dùng từ API
               if (userData.id) {
-                console.log('Đang gọi API lấy thông tin mới nhất của user ID:', userData.id);
                 fetchLatestUserData(userData.id);
               }
             } else {
-              console.log('Tên người dùng không tìm thấy trong userData');
               // Sử dụng giá trị từ params nếu không có trong AsyncStorage
               setAgentName(params.agentName as string || '-');
             }
@@ -83,16 +77,14 @@ export default function QuotationSuccess() {
             setAgentName(params.agentName as string || '-');
           }
         } else {
-          console.log('Không tìm thấy userData trong AsyncStorage');
-          
           // Thử lấy dữ liệu từ API trước khi dùng params
           try {
+            const token = await AsyncStorage.getItem('@slm_token');
             const response = await fetch('https://id.slmsolar.com/api/auth/me', {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
-                // Thêm token nếu cần
-                'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+                'Authorization': token ? `Bearer ${token}` : ''
               }
             });
             
@@ -103,21 +95,17 @@ export default function QuotationSuccess() {
                 const userName = userData.name || '';
                 const formattedName = `${userCode} - ${userName}`;
                 setAgentName(formattedName);
-                console.log('Đã lấy thông tin người dùng từ API:', formattedName);
                 
                 // Lưu vào AsyncStorage cho lần sau
-                await AsyncStorage.setItem('userData', JSON.stringify(userData));
+                await AsyncStorage.setItem('@slm_user_data', JSON.stringify(userData));
               } else {
-                // Sử dụng giá trị từ params nếu API không trả về đúng định dạng
                 setAgentName(params.agentName as string || '-');
               }
             } else {
-              // Sử dụng giá trị từ params nếu API lỗi
               setAgentName(params.agentName as string || '-');
             }
           } catch (apiError) {
             console.error('Lỗi khi gọi API lấy thông tin người dùng:', apiError);
-            // Sử dụng giá trị từ params nếu API lỗi
             setAgentName(params.agentName as string || '-');
           }
         }
@@ -509,81 +497,43 @@ export default function QuotationSuccess() {
   // Hàm lấy thông tin mới nhất của người dùng từ API
   const fetchLatestUserData = async (userId: string | number) => {
     if (!userId) {
-      console.log('Không có userId, không thể gọi API');
+      console.log('Không có userId, bỏ qua việc gọi API');
       return;
     }
     
     try {
-      console.log('Đang gọi API lấy thông tin user với ID:', userId);
-      
-      // Lấy token từ AsyncStorage
-      const token = await AsyncStorage.getItem('token');
-      
-      const response = await fetch(`https://id.slmsolar.com/api/mini_admins/users/${userId}`, {
+      // Thử lấy thông tin từ API auth/me trước
+      const token = await AsyncStorage.getItem('@slm_token');
+      if (!token) {
+        console.log('Không có token, bỏ qua việc gọi API');
+        return;
+      }
+
+      const meResponse = await fetch('https://id.slmsolar.com/api/auth/me', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
+          'Authorization': `Bearer ${token}`,
         }
       });
       
-      console.log('API response status:', response.status);
-      
-      if (!response.ok) {
-        throw new Error(`API trả về lỗi: ${response.status}`);
-      }
-      
-      const userData = await response.json();
-      console.log('Kết quả từ API:', userData ? 'Thành công' : 'Không có dữ liệu');
-      
-      if (userData && userData.name) {
-        // Cập nhật thông tin người dùng trong AsyncStorage
-        await AsyncStorage.setItem('userData', JSON.stringify(userData));
-        console.log('Đã lưu thông tin mới nhất vào AsyncStorage');
-        
-        // Cập nhật hiển thị - không sử dụng ký tự • trực tiếp
-        const userCode = userData.code || '';
-        const userName = userData.name || '';
-        // Lưu riêng biệt để tránh vấn đề với ký tự đặc biệt
-        setAgentName(`${userCode} - ${userName}`);
-        console.log('Đã cập nhật thông tin người lập báo giá từ API:', userCode, userName);
+      if (meResponse.ok) {
+        const meData = await meResponse.json();
+        if (meData && meData.name) {
+          // Cập nhật thông tin người dùng trong AsyncStorage
+          await AsyncStorage.setItem('@slm_user_data', JSON.stringify(meData));
+          
+          // Cập nhật hiển thị
+          const userCode = meData.code || '';
+          const userName = meData.name || '';
+          setAgentName(`${userCode} - ${userName}`);
+          console.log('Đã cập nhật thông tin người lập báo giá từ API auth/me');
+        }
       } else {
-        console.log('API không trả về thông tin tên người dùng');
+        console.log('API auth/me không thành công, sử dụng dữ liệu từ AsyncStorage');
       }
     } catch (error) {
-      console.error('Lỗi khi lấy thông tin người dùng từ API:', error);
-      // Giữ nguyên thông tin hiện tại nếu có lỗi
-      
-      // Thử gọi API auth/me nếu API users không hoạt động
-      try {
-        console.log('Thử gọi API auth/me để lấy thông tin người dùng...');
-        const token = await AsyncStorage.getItem('token');
-        
-        const meResponse = await fetch('https://id.slmsolar.com/api/auth/me', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : '',
-          }
-        });
-        
-        if (meResponse.ok) {
-          const meData = await meResponse.json();
-          if (meData && meData.name) {
-            // Cập nhật thông tin người dùng trong AsyncStorage
-            await AsyncStorage.setItem('userData', JSON.stringify(meData));
-            
-            // Cập nhật hiển thị - không sử dụng ký tự • trực tiếp
-            const userCode = meData.code || '';
-            const userName = meData.name || '';
-            // Lưu riêng biệt để tránh vấn đề với ký tự đặc biệt
-            setAgentName(`${userCode} - ${userName}`);
-            console.log('Đã cập nhật thông tin người lập báo giá từ API auth/me:', userCode, userName);
-          }
-        }
-      } catch (meError) {
-        console.error('Lỗi khi gọi API auth/me:', meError);
-      }
+      console.log('Có lỗi khi gọi API, sử dụng dữ liệu từ AsyncStorage');
     }
   };
 
@@ -628,6 +578,9 @@ export default function QuotationSuccess() {
         
         {/* Thanh tiêu đề */}
         <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#7B7D9D" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/(tabs)')}>
             <Ionicons name="close" size={24} color="#7B7D9D" />
           </TouchableOpacity>
@@ -730,7 +683,7 @@ export default function QuotationSuccess() {
                   <Text style={styles.itemNumber}>1</Text>
                   <Text style={[styles.itemName, { flex: 1 }]}>TẤM QUANG NĂNG</Text>
                   <Text style={[styles.itemQuantity]}>
-                    {`${getPanels()[0].quantity} ${getPanels()[0].unit || 'tấm'}`}
+                    {`${getPanels()[0].quantity} ${getPanels()[0].unit || 'Tấm'}`}
                   </Text>
                 </View>
               </View>
@@ -743,7 +696,7 @@ export default function QuotationSuccess() {
                   <Text style={styles.itemNumber}>2</Text>
                   <Text style={[styles.itemName, { flex: 1 }]}>BIẾN TẦN</Text>
                   <Text style={[styles.itemQuantity]}>
-                    {`${getInverters()[0].quantity} ${getInverters()[0].unit || 'bộ'}`}
+                    {`${getInverters()[0].quantity} ${getInverters()[0].unit || 'Bộ'}`}
                   </Text>
                 </View>
               </View>
@@ -756,7 +709,7 @@ export default function QuotationSuccess() {
                   <Text style={styles.itemNumber}>3</Text>
                   <Text style={[styles.itemName, { flex: 1 }]}>PIN LƯU TRỮ</Text>
                   <Text style={[styles.itemQuantity]}>
-                    {`${getBatteries()[0].quantity} ${getBatteries()[0].unit || 'bộ'}`}
+                    {`${getBatteries()[0].quantity} ${getBatteries()[0].unit || 'Bộ'}`}
                   </Text>
                 </View>
               </View>
@@ -766,7 +719,9 @@ export default function QuotationSuccess() {
             <View style={styles.equipmentItem}>
               <View style={styles.itemRow}>
                 <Text style={styles.itemNumber}>4</Text>
-                <Text style={[styles.itemName, { flex: 1 }]}>HÌNH THỨC LẮP ĐẶT</Text>
+                <Text style={[styles.itemName, { flex: 1 }]}>
+                  {installationType === 'AP_MAI' ? 'HÌNH THỨC LẮP ĐẶT ÁP MÁI' : 'HÌNH THỨC LẮP ĐẶT KHUNG SẮT'}
+                </Text>
                 <Text style={[styles.itemQuantity]}>1 Bộ</Text>
               </View>
             </View>
@@ -815,7 +770,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     height: 56,
