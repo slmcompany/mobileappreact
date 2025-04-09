@@ -1,10 +1,42 @@
 import React, { useRef } from 'react';
-import { StyleSheet, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Platform, FlatList } from 'react-native';
+import { StyleSheet, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Platform, FlatList, Linking } from 'react-native';
 import { Text, WhiteSpace, WingBlank, Flex } from '@ant-design/react-native';
 import { Stack, useLocalSearchParams, router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSector } from '../../hooks/useSector';
-import { Combo, Sector } from '../../models/sector';
+import { Combo as BaseCombo, Sector } from '../../models/sector';
+
+interface Combo extends BaseCombo {
+  phase_type?: string;
+  capacity?: string;
+}
+
+// Extend the imported Sector type
+declare module '../../models/sector' {
+  interface Sector {
+    sale_phone?: string;
+  }
+}
+
+// Helper function to check phase type
+const getPhaseType = (combo: Combo) => {
+  const type = combo.type?.toLowerCase() || '';
+  const phaseType = combo.phase_type?.toLowerCase() || '';
+  
+  if (phaseType.includes('3-phase')) {
+    if (phaseType.includes('low voltage')) {
+      return '3-phase-low';
+    }
+    if (phaseType.includes('high voltage')) {
+      return '3-phase-high';
+    }
+    return '3-phase'; // general 3-phase if voltage not specified
+  }
+  if (phaseType.includes('1-phase') || type.includes('mot_pha')) {
+    return '1-phase';
+  }
+  return '';
+};
 
 // Component riêng biệt cho carousel sản phẩm
 const ProductSection = ({ 
@@ -39,16 +71,33 @@ const ProductSection = ({
     return title || 'Sản phẩm';
   };
 
-  const ProductItem = ({ item }: { item: Combo }) => {
-    const getProductTag = (combo: Combo) => {
-      if (combo.installation_type) {
-        return combo.installation_type.toUpperCase();
-      } else if (combo.type) {
-        return combo.type;
-      }
-      return 'ĐỘC LẬP';
+  const getProductTag = (combo: Combo) => {
+    const tags = {
+      installation: combo.installation_type ? combo.installation_type.toUpperCase() : null,
+      phase: null as string | null,
+      system: null as string | null
     };
+    
+    const phaseType = getPhaseType(combo);
+    if (phaseType === '3-phase-low') {
+      tags.phase = '3 PHA ÁP THẤP';
+    } else if (phaseType === '3-phase-high') {
+      tags.phase = '3 PHA ÁP CAO';
+    } else if (phaseType === '1-phase') {
+      tags.phase = '1 PHA';
+    }
 
+    // Xác định loại hệ
+    if (combo.installation_type?.toLowerCase() === 'ongrid') {
+      tags.system = 'BÁM TẢI';
+    } else if (combo.installation_type?.toLowerCase() === 'hybrid') {
+      tags.system = 'ĐỘC LẬP';
+    }
+    
+    return tags;
+  };
+
+  const ProductItem = ({ item }: { item: Combo }) => {
     const getFormattedProductName = (combo: Combo) => {
       let name = combo.name;
       if (combo.type === 'DOC_LAP_MOT_PHA') {
@@ -68,7 +117,7 @@ const ProductSection = ({
       return (
         <Link
           href={{
-            pathname: "/(products)/product_detail",
+            pathname: "/(products)/product_baogia",
             params: { id: item.id.toString() }
           }}
           asChild
@@ -86,14 +135,14 @@ const ProductSection = ({
                   <Ionicons name="cube-outline" size={30} color="#888" />
                 </View>
               )}
-              {item.installation_type && (
-                <View style={styles.tagContainerHorizontal}>
-                  <Text style={styles.tagText}>{item.installation_type.toUpperCase()}</Text>
+              {getProductTag(item).installation && (
+                <View style={styles.tagContainer}>
+                  <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
                 </View>
               )}
             </View>
             <View style={styles.horizontalContentContainer}>
-              <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+              <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
               
               <View style={styles.productDetails}>
                 <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
@@ -107,6 +156,18 @@ const ProductSection = ({
                     currency: 'VND' 
                   }).format(item.total_price)}
                 </Text>
+                <View style={styles.tagsRow}>
+                  {getProductTag(item).phase && (
+                    <View style={styles.phaseTag}>
+                      <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                    </View>
+                  )}
+                  {getProductTag(item).system && (
+                    <View style={styles.systemTag}>
+                      <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
             </View>
           </TouchableOpacity>
@@ -118,7 +179,7 @@ const ProductSection = ({
     return (
       <Link
         href={{
-          pathname: "/(products)/product_detail",
+          pathname: "/(products)/product_baogia",
           params: { id: item.id.toString() }
         }}
         asChild
@@ -147,14 +208,16 @@ const ProductSection = ({
                 <Ionicons name="cube-outline" size={40} color="#888" />
               </View>
             )}
-            {getProductTag(item) && (
-              <View style={styles.tagContainer}>
-                <Text style={styles.tagText}>{getProductTag(item)}</Text>
-              </View>
-            )}
+            <View style={styles.tagsContainer}>
+              {getProductTag(item).installation && (
+                <View style={styles.tagContainer}>
+                  <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                </View>
+              )}
+            </View>
           </View>
           <View style={styles.productInfo}>
-            <Text style={styles.productName} numberOfLines={2}>{getFormattedProductName(item)}</Text>
+            <Text style={styles.productName} numberOfLines={1}>{getFormattedProductName(item)}</Text>
             
             {showDetails && (
               <View style={styles.productDetails}>
@@ -170,6 +233,18 @@ const ProductSection = ({
                   currency: 'VND' 
                 }).format(item.total_price)}
               </Text>
+              <View style={styles.tagsRow}>
+                {getProductTag(item).phase && (
+                  <View style={styles.phaseTag}>
+                    <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                  </View>
+                )}
+                {getProductTag(item).system && (
+                  <View style={styles.systemTag}>
+                    <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
         </TouchableOpacity>
@@ -245,19 +320,37 @@ export default function ProductBrandScreen() {
   const cardWidth = (width - (HORIZONTAL_PADDING * 2) - (CARD_MARGIN * (VISIBLE_CARDS - 1))) / VISIBLE_CARDS;
   const flatListRef = useRef<FlatList>(null);
 
-  // Tạo tag cho sản phẩm dựa vào installation_type nếu có
   const getProductTag = (combo: Combo) => {
-    if (combo.installation_type) {
-      return combo.installation_type.toUpperCase();
+    const tags = {
+      installation: combo.installation_type ? combo.installation_type.toUpperCase() : null,
+      phase: null as string | null,
+      system: null as string | null
+    };
+    
+    const phaseType = getPhaseType(combo);
+    if (phaseType === '3-phase-low') {
+      tags.phase = '3 PHA ÁP THẤP';
+    } else if (phaseType === '3-phase-high') {
+      tags.phase = '3 PHA ÁP CAO';
+    } else if (phaseType === '1-phase') {
+      tags.phase = '1 PHA';
     }
-    return null;
+
+    // Xác định loại hệ
+    if (combo.installation_type?.toLowerCase() === 'ongrid') {
+      tags.system = 'BÁM TẢI';
+    } else if (combo.installation_type?.toLowerCase() === 'hybrid') {
+      tags.system = 'ĐỘC LẬP';
+    }
+    
+    return tags;
   };
 
   const renderProductItem = ({ item }: { item: Combo }) => (
     <TouchableOpacity 
       style={[styles.productCard, { width: (width - 80) / 2.5, marginHorizontal: 8, marginBottom: 16 }]}
       onPress={() => router.push({
-        pathname: "/(products)/product_detail",
+        pathname: "/(products)/product_baogia",
         params: { id: item.id.toString() }
       })}
     >
@@ -279,14 +372,16 @@ export default function ProductBrandScreen() {
             <Ionicons name="cube-outline" size={40} color="#888" />
           </View>
         )}
-        {getProductTag(item) && (
-          <View style={styles.tagContainer}>
-            <Text style={styles.tagText}>{getProductTag(item)}</Text>
-          </View>
-        )}
+        <View style={styles.tagsContainer}>
+          {getProductTag(item).installation && (
+            <View style={styles.tagContainer}>
+              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+            </View>
+          )}
+        </View>
       </View>
       <View style={{ padding: 12, flex: 1 }}>
-        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
         <Text style={styles.productPrice}>
           {new Intl.NumberFormat('vi-VN', { 
             style: 'currency', 
@@ -339,9 +434,11 @@ export default function ProductBrandScreen() {
         options={{
           headerTitle: '',
           headerShadowVisible: false,
+          headerTransparent: false,
+          headerBlurEffect: 'regular',
           headerStyle: {
             backgroundColor: sector.id === 1 ? '#4CAF50' : 
-                             sector.id === 2 ? '#FFD700' : '#0F974A',
+                           sector.id === 2 ? '#FFD700' : '#0F974A',
           },
           headerRight: () => (
             <TouchableOpacity style={styles.headerButton}>
@@ -371,13 +468,26 @@ export default function ProductBrandScreen() {
               <Text style={styles.brandName}>{sector.name}</Text>
               <Text style={styles.brandProducts}>{sector.list_combos?.length || 0} sản phẩm</Text>
             </View>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => {
+                if (sector.sale_phone) {
+                  Linking.openURL(`tel:${sector.sale_phone}`);
+                }
+              }}
+            >
               <Ionicons name="call-outline" size={20} color="#27273E" />
               <Text style={styles.actionText}>Hotline</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.brandActions}>
-            <TouchableOpacity style={[styles.actionButton, styles.actionButtonFull]}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.actionButtonFull]}
+              onPress={() => router.push({
+                pathname: "/(tabs)/gallery",
+                params: { sector_id: sector.id }
+              })}
+            >
               <Ionicons name="play-circle-outline" size={20} color="#27273E" />
               <Text style={styles.actionText}>Nội dung của {sector.name}</Text>
               <Text style={styles.actionCount}>{sector.list_contents?.length || 0} bài viết</Text>
@@ -419,119 +529,587 @@ export default function ProductBrandScreen() {
         {/* Carousel sản phẩm Ongrid có thông tin chi tiết */}
         <View style={styles.productSection}>
           <Text style={styles.sectionTitle}>Hệ Bám tải</Text>
-          <View style={styles.horizontalList}>
-            {ongridProducts.length > 0 ? (
-              ongridProducts.map((item) => (
-                <Link
-                  key={item.id}
-                  href={{
-                    pathname: "/(products)/product_detail",
-                    params: { id: item.id.toString() }
-                  }}
-                  asChild
-                >
-                  <TouchableOpacity style={styles.horizontalCard}>
-                    <View style={styles.horizontalImageContainer}>
-                      {item.image ? (
-                        <Image 
-                          source={{ uri: item.image }} 
-                          style={styles.productImage} 
-                          resizeMode="cover" 
-                        />
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <Ionicons name="cube-outline" size={30} color="#888" />
+          
+          {/* Nhóm 1 pha */}
+          {ongridProducts.some(item => getPhaseType(item) === '1-phase') && (
+            <>
+              <Text style={styles.phaseTitle}>1 Pha</Text>
+              <View style={styles.horizontalList}>
+                {ongridProducts
+                  .filter(item => getPhaseType(item) === '1-phase')
+                  .map((item) => (
+                    <Link
+                      key={item.id}
+                      href={{
+                        pathname: "/(products)/product_baogia",
+                        params: { id: item.id.toString() }
+                      }}
+                      asChild
+                    >
+                      <TouchableOpacity style={styles.horizontalCard}>
+                        <View style={styles.horizontalImageContainer}>
+                          {item.image ? (
+                            <Image 
+                              source={{ uri: item.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
+                          {getProductTag(item).installation && (
+                            <View style={styles.tagContainer}>
+                              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                            </View>
+                          )}
                         </View>
-                      )}
-                      {item.installation_type && (
-                        <View style={styles.tagContainerHorizontal}>
-                          <Text style={styles.tagText}>{item.installation_type.toUpperCase()}</Text>
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(item.total_price)}
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {getProductTag(item).phase && (
+                                <View style={styles.phaseTag}>
+                                  <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                                </View>
+                              )}
+                              {getProductTag(item).system && (
+                                <View style={styles.systemTag}>
+                                  <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
                         </View>
-                      )}
-                    </View>
-                    <View style={styles.horizontalContentContainer}>
-                      <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-                      
-                      <View style={styles.productDetails}>
-                        <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
-                        <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
-                      </View>
-                      
-                      <View style={styles.priceContainer}>
-                        <Text style={styles.productPrice}>
-                          {new Intl.NumberFormat('vi-VN', { 
-                            style: 'currency', 
-                            currency: 'VND' 
-                          }).format(item.total_price)}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </Link>
-              ))
-            ) : (
-              <Text style={styles.emptyText}>Không có sản phẩm</Text>
-            )}
-          </View>
+                      </TouchableOpacity>
+                    </Link>
+                  ))}
+              </View>
+            </>
+          )}
+
+          {/* Nhóm 3 pha (không xác định điện áp) */}
+          {ongridProducts.some(item => getPhaseType(item) === '3-phase') && (
+            <>
+              <Text style={styles.phaseTitle}>3 Pha</Text>
+              <View style={styles.horizontalList}>
+                {ongridProducts
+                  .filter(item => getPhaseType(item) === '3-phase')
+                  .map((item) => (
+                    <Link
+                      key={item.id}
+                      href={{
+                        pathname: "/(products)/product_baogia",
+                        params: { id: item.id.toString() }
+                      }}
+                      asChild
+                    >
+                      <TouchableOpacity style={styles.horizontalCard}>
+                        <View style={styles.horizontalImageContainer}>
+                          {item.image ? (
+                            <Image 
+                              source={{ uri: item.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
+                          {getProductTag(item).installation && (
+                            <View style={styles.tagContainer}>
+                              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(item.total_price)}
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {getProductTag(item).phase && (
+                                <View style={styles.phaseTag}>
+                                  <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                                </View>
+                              )}
+                              {getProductTag(item).system && (
+                                <View style={styles.systemTag}>
+                                  <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Link>
+                  ))}
+              </View>
+            </>
+          )}
+
+          {/* Nhóm 3 pha áp thấp */}
+          {ongridProducts.some(item => getPhaseType(item) === '3-phase-low') && (
+            <>
+              <Text style={styles.phaseTitle}>3 Pha - Áp thấp</Text>
+              <View style={styles.horizontalList}>
+                {ongridProducts
+                  .filter(item => getPhaseType(item) === '3-phase-low')
+                  .map((item) => (
+                    <Link
+                      key={item.id}
+                      href={{
+                        pathname: "/(products)/product_baogia",
+                        params: { id: item.id.toString() }
+                      }}
+                      asChild
+                    >
+                      <TouchableOpacity style={styles.horizontalCard}>
+                        <View style={styles.horizontalImageContainer}>
+                          {item.image ? (
+                            <Image 
+                              source={{ uri: item.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
+                          {getProductTag(item).installation && (
+                            <View style={styles.tagContainer}>
+                              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(item.total_price)}
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {getProductTag(item).phase && (
+                                <View style={styles.phaseTag}>
+                                  <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                                </View>
+                              )}
+                              {getProductTag(item).system && (
+                                <View style={styles.systemTag}>
+                                  <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Link>
+                  ))}
+              </View>
+            </>
+          )}
+
+          {/* Nhóm 3 pha áp cao */}
+          {ongridProducts.some(item => getPhaseType(item) === '3-phase-high') && (
+            <>
+              <Text style={styles.phaseTitle}>3 Pha - Áp cao</Text>
+              <View style={styles.horizontalList}>
+                {ongridProducts
+                  .filter(item => getPhaseType(item) === '3-phase-high')
+                  .map((item) => (
+                    <Link
+                      key={item.id}
+                      href={{
+                        pathname: "/(products)/product_baogia",
+                        params: { id: item.id.toString() }
+                      }}
+                      asChild
+                    >
+                      <TouchableOpacity style={styles.horizontalCard}>
+                        <View style={styles.horizontalImageContainer}>
+                          {item.image ? (
+                            <Image 
+                              source={{ uri: item.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
+                          {getProductTag(item).installation && (
+                            <View style={styles.tagContainer}>
+                              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(item.total_price)}
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {getProductTag(item).phase && (
+                                <View style={styles.phaseTag}>
+                                  <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                                </View>
+                              )}
+                              {getProductTag(item).system && (
+                                <View style={styles.systemTag}>
+                                  <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Link>
+                  ))}
+              </View>
+            </>
+          )}
+
+          {ongridProducts.length === 0 && (
+            <Text style={styles.emptyText}>Không có sản phẩm</Text>
+          )}
         </View>
 
         {/* Carousel sản phẩm Hybrid (Độc lập) có thông tin chi tiết */}
         <View style={styles.productSection}>
           <Text style={styles.sectionTitle}>Hệ Độc lập</Text>
-          <View style={styles.horizontalList}>
-            {hybridProducts.length > 0 ? (
-              hybridProducts.map((item) => (
-                <Link
-                  key={item.id}
-                  href={{
-                    pathname: "/(products)/product_detail",
-                    params: { id: item.id.toString() }
-                  }}
-                  asChild
-                >
-                  <TouchableOpacity style={styles.horizontalCard}>
-                    <View style={styles.horizontalImageContainer}>
-                      {item.image ? (
-                        <Image 
-                          source={{ uri: item.image }} 
-                          style={styles.productImage} 
-                          resizeMode="cover" 
-                        />
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <Ionicons name="cube-outline" size={30} color="#888" />
+          
+          {/* Nhóm 1 pha */}
+          {hybridProducts.some(item => getPhaseType(item) === '1-phase') && (
+            <>
+              <Text style={styles.phaseTitle}>1 Pha</Text>
+              <View style={styles.horizontalList}>
+                {hybridProducts
+                  .filter(item => getPhaseType(item) === '1-phase')
+                  .map((item) => (
+                    <Link
+                      key={item.id}
+                      href={{
+                        pathname: "/(products)/product_baogia",
+                        params: { id: item.id.toString() }
+                      }}
+                      asChild
+                    >
+                      <TouchableOpacity style={styles.horizontalCard}>
+                        <View style={styles.horizontalImageContainer}>
+                          {item.image ? (
+                            <Image 
+                              source={{ uri: item.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
+                          {getProductTag(item).installation && (
+                            <View style={styles.tagContainer}>
+                              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                            </View>
+                          )}
                         </View>
-                      )}
-                      {item.installation_type && (
-                        <View style={styles.tagContainerHorizontal}>
-                          <Text style={styles.tagText}>{item.installation_type.toUpperCase()}</Text>
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(item.total_price)}
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {getProductTag(item).phase && (
+                                <View style={styles.phaseTag}>
+                                  <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                                </View>
+                              )}
+                              {getProductTag(item).system && (
+                                <View style={styles.systemTag}>
+                                  <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
                         </View>
-                      )}
-                    </View>
-                    <View style={styles.horizontalContentContainer}>
-                      <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-                      
-                      <View style={styles.productDetails}>
-                        <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
-                        <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
-                      </View>
-                      
-                      <View style={styles.priceContainer}>
-                        <Text style={styles.productPrice}>
-                          {new Intl.NumberFormat('vi-VN', { 
-                            style: 'currency', 
-                            currency: 'VND' 
-                          }).format(item.total_price)}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </Link>
-              ))
-            ) : (
-              <Text style={styles.emptyText}>Không có sản phẩm</Text>
-            )}
-          </View>
+                      </TouchableOpacity>
+                    </Link>
+                  ))}
+              </View>
+            </>
+          )}
+
+          {/* Nhóm 3 pha (không xác định điện áp) */}
+          {hybridProducts.some(item => getPhaseType(item) === '3-phase') && (
+            <>
+              <Text style={styles.phaseTitle}>3 Pha</Text>
+              <View style={styles.horizontalList}>
+                {hybridProducts
+                  .filter(item => getPhaseType(item) === '3-phase')
+                  .map((item) => (
+                    <Link
+                      key={item.id}
+                      href={{
+                        pathname: "/(products)/product_baogia",
+                        params: { id: item.id.toString() }
+                      }}
+                      asChild
+                    >
+                      <TouchableOpacity style={styles.horizontalCard}>
+                        <View style={styles.horizontalImageContainer}>
+                          {item.image ? (
+                            <Image 
+                              source={{ uri: item.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
+                          {getProductTag(item).installation && (
+                            <View style={styles.tagContainer}>
+                              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(item.total_price)}
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {getProductTag(item).phase && (
+                                <View style={styles.phaseTag}>
+                                  <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                                </View>
+                              )}
+                              {getProductTag(item).system && (
+                                <View style={styles.systemTag}>
+                                  <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Link>
+                  ))}
+              </View>
+            </>
+          )}
+
+          {/* Nhóm 3 pha áp thấp */}
+          {hybridProducts.some(item => getPhaseType(item) === '3-phase-low') && (
+            <>
+              <Text style={styles.phaseTitle}>3 Pha - Áp thấp</Text>
+              <View style={styles.horizontalList}>
+                {hybridProducts
+                  .filter(item => getPhaseType(item) === '3-phase-low')
+                  .map((item) => (
+                    <Link
+                      key={item.id}
+                      href={{
+                        pathname: "/(products)/product_baogia",
+                        params: { id: item.id.toString() }
+                      }}
+                      asChild
+                    >
+                      <TouchableOpacity style={styles.horizontalCard}>
+                        <View style={styles.horizontalImageContainer}>
+                          {item.image ? (
+                            <Image 
+                              source={{ uri: item.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
+                          {getProductTag(item).installation && (
+                            <View style={styles.tagContainer}>
+                              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(item.total_price)}
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {getProductTag(item).phase && (
+                                <View style={styles.phaseTag}>
+                                  <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                                </View>
+                              )}
+                              {getProductTag(item).system && (
+                                <View style={styles.systemTag}>
+                                  <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Link>
+                  ))}
+              </View>
+            </>
+          )}
+
+          {/* Nhóm 3 pha áp cao */}
+          {hybridProducts.some(item => getPhaseType(item) === '3-phase-high') && (
+            <>
+              <Text style={styles.phaseTitle}>3 Pha - Áp cao</Text>
+              <View style={styles.horizontalList}>
+                {hybridProducts
+                  .filter(item => getPhaseType(item) === '3-phase-high')
+                  .map((item) => (
+                    <Link
+                      key={item.id}
+                      href={{
+                        pathname: "/(products)/product_baogia",
+                        params: { id: item.id.toString() }
+                      }}
+                      asChild
+                    >
+                      <TouchableOpacity style={styles.horizontalCard}>
+                        <View style={styles.horizontalImageContainer}>
+                          {item.image ? (
+                            <Image 
+                              source={{ uri: item.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
+                          {getProductTag(item).installation && (
+                            <View style={styles.tagContainer}>
+                              <Text style={styles.tagText}>{getProductTag(item).installation}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {item.power_output || '400-600 kWh/tháng'}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(item.total_price)}
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {getProductTag(item).phase && (
+                                <View style={styles.phaseTag}>
+                                  <Text style={styles.phaseTagText}>{getProductTag(item).phase}</Text>
+                                </View>
+                              )}
+                              {getProductTag(item).system && (
+                                <View style={styles.systemTag}>
+                                  <Text style={styles.systemTagText}>{getProductTag(item).system}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Link>
+                  ))}
+              </View>
+            </>
+          )}
+
+          {hybridProducts.length === 0 && (
+            <Text style={styles.emptyText}>Không có sản phẩm</Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -724,6 +1302,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#27273E',
     marginBottom: 4,
+    flexShrink: 1,
   },
   productDetails: {
     gap: 4,
@@ -764,15 +1343,34 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: 16,
   },
-  tagContainer: {
+  tagsContainer: {
     position: 'absolute',
     top: 8,
     left: 0,
+    flexDirection: 'column',
+    gap: 4,
+  },
+  tagContainer: {
     backgroundColor: '#fff',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderTopRightRadius: 4,
     borderBottomRightRadius: 4,
+  },
+  tagContainerHorizontal: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+    marginBottom: 4,
+  },
+  productImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tagText: {
     fontSize: 10,
@@ -810,21 +1408,44 @@ const styles = StyleSheet.create({
     padding: 12,
     justifyContent: 'space-between',
   },
-  tagContainerHorizontal: {
-    position: 'absolute',
-    top: 8,
-    left: 0,
-    backgroundColor: '#fff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderTopRightRadius: 4,
-    borderBottomRightRadius: 4,
+  phaseTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#7B7D9D',
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
   },
-  productImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
+  tagsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    flexWrap: 'nowrap',
+  },
+  phaseTag: {
+    backgroundColor: '#F5F5F8',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  phaseTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#7B7D9D',
+    textAlign: 'center',
+  },
+  systemTag: {
+    backgroundColor: '#ECF8F3',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  systemTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#0F974A',
+    textAlign: 'center',
   },
 }); 
