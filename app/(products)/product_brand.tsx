@@ -254,16 +254,6 @@ const ProductSection = ({
       <WhiteSpace size="lg" />
       <Flex justify="between" align="center" style={{paddingHorizontal: 16}}>
         <Text style={styles.sectionSubtitle}>{sectorName ? sectorName.toUpperCase() : title}</Text>
-        <TouchableOpacity>
-          <Flex align="center">
-            <Text style={styles.viewAllText}>Tất cả</Text>
-            <Image 
-              source={require('../../assets/images/arrow-icon.png')} 
-              style={{ width: 20, height: 20, marginLeft: 8 }} 
-              resizeMode="contain"
-            />
-          </Flex>
-        </TouchableOpacity>
       </Flex>
       
       <WhiteSpace size="lg" />
@@ -884,24 +874,8 @@ export default function ProductBrandScreen() {
         ) : (
           <>
             {/* Best Selling Section */}
-            <View style={{ paddingTop: 16 }}>
-              <Text style={styles.sectionTitle}>Bán chạy</Text>
-              <WhiteSpace size="lg" />
-              <Flex justify="between" align="center" style={{paddingHorizontal: 16}}>
-                <Text style={styles.sectionSubtitle}>{sector.name.toUpperCase()}</Text>
-                <TouchableOpacity>
-                  <Flex align="center">
-                    <Text style={styles.viewAllText}>Tất cả</Text>
-                    <Image 
-                      source={require('../../assets/images/arrow-icon.png')} 
-                      style={{ width: 20, height: 20, marginLeft: 8 }} 
-                      resizeMode="contain"
-                    />
-                  </Flex>
-                </TouchableOpacity>
-              </Flex>
-            </View>
-            
+            <WhiteSpace size="lg" />
+            <Text style={styles.sectionTitle}>Bán chạy</Text>
             <WhiteSpace size="lg" />
             <View style={[styles.carouselContainer, { paddingBottom: 16 }]}>
               <FlatList
