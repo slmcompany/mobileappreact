@@ -130,7 +130,9 @@ export default function ProductQuoteScreen() {
                                 <View style={styles.productHeaderInfoItem}>
                                     <Ionicons name="time-outline" size={16} color="#0F974A" />
                                     <Text style={styles.productHeaderInfoText}>
-                                        Thời gian hoàn vốn: {product.payback_period ? `${product.payback_period} năm` : 'Đang cập nhật'}
+                                        Thời gian hoàn vốn: {product.payback_period ? 
+                                            `${Math.floor(product.payback_period)} năm ${Math.round((product.payback_period % 1) * 12)} tháng` 
+                                            : 'Đang cập nhật'}
                                     </Text>
                                 </View>
                             </View>
