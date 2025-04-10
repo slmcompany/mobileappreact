@@ -22,6 +22,12 @@ type Combo = {
   power_output?: string;
   total_price?: number;
   payback_period?: number;
+  output_min?: string;
+  output_max?: string;
+  data_json?: {
+    output_min?: string;
+    output_max?: string;
+  };
 };
 
 // Định nghĩa kiểu dữ liệu cho sector
@@ -41,9 +47,11 @@ const getPowerFromName = (name: string) => {
 };
 
 // Helper function to format power output
-const formatPowerOutput = (name: string): string => {
-  const power = getPowerFromName(name);
-  return `${Math.round(Number(power) * 80)}-${Math.round(Number(power) * 120)} kWh/tháng`;
+const formatPowerOutput = (combo: Combo): string => {
+  if (combo.output_min && combo.output_max) {
+    return `${combo.output_min}-${combo.output_max} kWh/tháng`;
+  }
+  return 'N/A';
 };
 
 // Helper function to format payback period from years
@@ -409,9 +417,9 @@ export default function QuotationBasicInfo() {
 
             {/* Sản phẩm gợi ý */}
             <View style={styles.suggestedProductsContainer}>
-              <Text style={styles.suggestedTitle}>SẢN PHẨM GỢI Ý</Text>
+              <Text style={styles.sectionTitle}>SẢN PHẨM GỢI Ý</Text>
               
-              <View style={styles.productList}>
+              <View style={styles.horizontalList}>
                 {filteredCombos.map((combo) => (
                   <TouchableOpacity
                     key={combo.id}
@@ -438,7 +446,7 @@ export default function QuotationBasicInfo() {
                       <Text style={styles.productName} numberOfLines={2}>{combo.name}</Text>
                       
                       <View style={styles.productDetails}>
-                        <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(combo.name)}</Text>
+                        <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(combo)}</Text>
                         <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(combo.payback_period)}</Text>
                       </View>
                       
@@ -607,13 +615,13 @@ const styles = StyleSheet.create({
   suggestedProductsContainer: {
     marginTop: 24,
   },
-  suggestedTitle: {
+  sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
     color: '#7B7D9D',
     marginBottom: 12,
   },
-  productList: {
+  horizontalList: {
     gap: 8,
   },
   horizontalCard: {
