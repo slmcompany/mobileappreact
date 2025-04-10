@@ -154,16 +154,11 @@ const ContentGallery = ({
   };
 
   const handleContentPress = (content: Content) => {
-    if (detailInModal) {
-      setSelectedContent(content);
-      setModalVisible(true);
-    } else {
-      // Điều hướng đến màn hình chi tiết
-      router.push({
-        pathname: "/(content)/content_detail",
-        params: { id: content.id }
-      });
-    }
+    // Điều hướng đến màn hình chi tiết bài viết
+    router.push({
+      pathname: "/(gallery)/post-detail",
+      params: { id: content.id }
+    });
   };
 
   const navigateToViewAll = () => {
