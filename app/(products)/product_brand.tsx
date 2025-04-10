@@ -28,9 +28,11 @@ const getPowerFromName = (name: string) => {
 };
 
 // Helper function to format power output
-const formatPowerOutput = (name: string): string => {
-  const power = getPowerFromName(name);
-  return `${Math.round(Number(power) * 80)}-${Math.round(Number(power) * 120)} kWh/tháng`;
+const formatPowerOutput = (combo: Combo): string => {
+  if (combo.output_min && combo.output_max) {
+    return `${combo.output_min}-${combo.output_max} kWh/tháng`;
+  }
+  return 'N/A';
 };
 
 // Helper function to check phase type
@@ -155,7 +157,7 @@ const ProductSection = ({
               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
               
               <View style={styles.productDetails}>
-                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
               </View>
               
@@ -212,7 +214,7 @@ const ProductSection = ({
             
             {showDetails && (
               <View style={styles.productDetails}>
-                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
               </View>
             )}
@@ -631,7 +633,7 @@ export default function ProductBrandScreen() {
                   <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                   
                   <View style={styles.productDetails}>
-                    <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                    <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                     <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                   </View>
                   
@@ -927,7 +929,7 @@ export default function ProductBrandScreen() {
                               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                               
                               <View style={styles.productDetails}>
-                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                               </View>
                               
@@ -981,7 +983,7 @@ export default function ProductBrandScreen() {
                               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                               
                               <View style={styles.productDetails}>
-                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                               </View>
                               
@@ -1035,7 +1037,7 @@ export default function ProductBrandScreen() {
                               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                               
                               <View style={styles.productDetails}>
-                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                               </View>
                               
@@ -1089,7 +1091,7 @@ export default function ProductBrandScreen() {
                               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                               
                               <View style={styles.productDetails}>
-                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                               </View>
                               
@@ -1152,7 +1154,7 @@ export default function ProductBrandScreen() {
                               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                               
                               <View style={styles.productDetails}>
-                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                               </View>
                               
@@ -1206,7 +1208,7 @@ export default function ProductBrandScreen() {
                               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                               
                               <View style={styles.productDetails}>
-                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                               </View>
                               
@@ -1260,7 +1262,7 @@ export default function ProductBrandScreen() {
                               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                               
                               <View style={styles.productDetails}>
-                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                               </View>
                               
@@ -1314,7 +1316,7 @@ export default function ProductBrandScreen() {
                               <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                               
                               <View style={styles.productDetails}>
-                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item.name)}</Text>
+                                <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(item)}</Text>
                                 <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(item.payback_period)}</Text>
                               </View>
                               

@@ -288,6 +288,8 @@ export default function PostDetailScreen() {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           keyExtractor={item => item.id.toString()}
+          snapToInterval={width}
+          decelerationRate="fast"
           onMomentumScrollEnd={(event) => {
             const slideWidth = width;
             const newIndex = Math.floor(event.nativeEvent.contentOffset.x / slideWidth) + 1;
@@ -298,7 +300,7 @@ export default function PostDetailScreen() {
               <Image 
                 source={{ uri: item.uri }} 
                 style={styles.postImage}
-                resizeMode="cover"
+                resizeMode="contain"
               />
               {item.kind === 'video' && (
                 <View style={styles.playButtonOverlay}>
@@ -335,8 +337,20 @@ export default function PostDetailScreen() {
               <Ionicons name="chevron-forward" size={24} color="white" />
             </TouchableOpacity>
             
-            <View style={styles.slideIndicator}>
-              <Text style={styles.slideIndicatorText}>
+            <View style={styles.paginationContainer}>
+              {galleryItems.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.paginationDot,
+                    currentSlide === index + 1 && styles.paginationDotActive
+                  ]}
+                />
+              ))}
+            </View>
+
+            <View style={styles.imageCounter}>
+              <Text style={styles.imageCounterText}>
                 {currentSlide}/{post.media_contents.length}
               </Text>
             </View>
@@ -360,30 +374,90 @@ export default function PostDetailScreen() {
   };
 
   // Hàm tải ảnh
-  const downloadImage = async (imageUrl: string) => {
+  const downloadImage = async (post: Post, currentIndex: number = 0) => {
     try {
-      // Xin quyền truy cập media library
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Lỗi', 'Cần cấp quyền để tải ảnh');
         return;
       }
 
-      // Tải ảnh
+      const imageContents = post.media_contents?.filter(media => media.kind === "image") || [];
+      if (imageContents.length === 0) {
+        Alert.alert('Lỗi', 'Không tìm thấy ảnh để tải');
+        return;
+      }
+
+      const imageToDownload = imageContents[currentIndex];
+      if (!imageToDownload) {
+        Alert.alert('Lỗi', 'Không tìm thấy ảnh để tải');
+        return;
+      }
+
       const { uri } = await FileSystem.downloadAsync(
-        imageUrl,
-        FileSystem.documentDirectory + 'temp_image.jpg'
+        imageToDownload.link,
+        FileSystem.documentDirectory + `temp_image_${imageToDownload.id}.jpg`
       );
 
-      // Lưu vào thư viện
       await MediaLibrary.saveToLibraryAsync(uri);
-      
-      // Xóa file tạm
       await FileSystem.deleteAsync(uri);
 
       Alert.alert('Thành công', 'Đã tải ảnh về thiết bị');
     } catch (error) {
+      console.error('Lỗi khi tải ảnh:', error);
       Alert.alert('Lỗi', 'Không thể tải ảnh');
+    }
+    setShowOptions(false);
+  };
+
+  // Hàm tải nhiều ảnh
+  const downloadMultipleImages = async (post: Post) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Lỗi', 'Cần cấp quyền để tải ảnh');
+        return;
+      }
+
+      const imageContents = post.media_contents?.filter(media => media.kind === "image") || [];
+      if (imageContents.length === 0) {
+        Alert.alert('Lỗi', 'Không tìm thấy ảnh để tải');
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      Alert.alert('Đang tải', `Đang tải ${imageContents.length} ảnh...`);
+
+      for (const media of imageContents) {
+        try {
+          console.log('Đang tải ảnh:', media.link);
+          const { uri } = await FileSystem.downloadAsync(
+            media.link,
+            FileSystem.documentDirectory + `temp_image_${media.id}.jpg`
+          );
+
+          await MediaLibrary.saveToLibraryAsync(uri);
+          await FileSystem.deleteAsync(uri);
+          successCount++;
+        } catch (error) {
+          console.error('Lỗi khi tải ảnh:', media.link, error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        Alert.alert(
+          'Thành công', 
+          `Đã tải thành công ${successCount} ảnh${failCount > 0 ? `, ${failCount} ảnh thất bại` : ''}`
+        );
+      } else {
+        Alert.alert('Lỗi', 'Không thể tải bất kỳ ảnh nào');
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải nhiều ảnh:', error);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi tải ảnh');
     }
     setShowOptions(false);
   };
@@ -542,14 +616,30 @@ export default function PostDetailScreen() {
                 <TouchableOpacity 
                   style={styles.optionItem}
                   onPress={() => {
-                    if (post?.media_contents?.[currentSlide - 1]?.link) {
-                      downloadImage(post.media_contents[currentSlide - 1].link);
+                    if (post) {
+                      downloadImage(post, currentSlide - 1);
                     }
                   }}
                 >
                   <Ionicons name="download-outline" size={24} color="#333" />
-                  <Text style={styles.optionText}>Tải ảnh</Text>
+                  <Text style={styles.optionText}>Tải ảnh hiện tại</Text>
                 </TouchableOpacity>
+
+                {(post?.media_contents?.filter(media => media.kind === "image") || []).length > 1 && (
+                  <TouchableOpacity 
+                    style={styles.optionItem}
+                    onPress={() => {
+                      if (post) {
+                        downloadMultipleImages(post);
+                      }
+                    }}
+                  >
+                    <Ionicons name="images-outline" size={24} color="#333" />
+                    <Text style={styles.optionText}>
+                      Tải tất cả ảnh ({post?.media_contents?.filter(media => media.kind === "image").length || 0})
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 
                 <TouchableOpacity 
                   style={styles.optionItem}
@@ -697,13 +787,14 @@ const styles = StyleSheet.create({
   postImage: {
     width: width,
     height: width,
+    backgroundColor: '#f5f5f5',
   },
   slideNavButton: {
     position: 'absolute',
     top: '50%',
     transform: [{ translateY: -24 }],
     padding: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 24,
     width: 48,
     height: 48,
@@ -717,18 +808,23 @@ const styles = StyleSheet.create({
   slideNavRight: {
     right: 10,
   },
-  slideIndicator: {
+  paginationContainer: {
     position: 'absolute',
-    right: 10,
-    bottom: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    bottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
   },
-  slideIndicatorText: {
-    color: '#ffffff',
-    fontSize: 12,
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: '#fff',
+    width: 24,
   },
   noImageContainer: {
     width: width,
@@ -850,5 +946,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 15,
     color: '#333',
+  },
+  imageCounter: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  imageCounterText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
   },
 }); 

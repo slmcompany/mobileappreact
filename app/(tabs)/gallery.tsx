@@ -530,7 +530,7 @@ export default function GalleryScreen() {
   };
 
   // Hàm tải ảnh
-  const downloadImage = async (imageUrl: string) => {
+  const downloadImage = async (post: Post, currentIndex: number = 0) => {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
@@ -538,9 +538,21 @@ export default function GalleryScreen() {
         return;
       }
 
+      const imageContents = post.media_contents?.filter(media => media.kind === "image") || [];
+      if (imageContents.length === 0) {
+        Alert.alert('Lỗi', 'Không tìm thấy ảnh để tải');
+        return;
+      }
+
+      const imageToDownload = imageContents[currentIndex];
+      if (!imageToDownload) {
+        Alert.alert('Lỗi', 'Không tìm thấy ảnh để tải');
+        return;
+      }
+
       const { uri } = await FileSystem.downloadAsync(
-        imageUrl,
-        FileSystem.documentDirectory + 'temp_image.jpg'
+        imageToDownload.link,
+        FileSystem.documentDirectory + `temp_image_${imageToDownload.id}.jpg`
       );
 
       await MediaLibrary.saveToLibraryAsync(uri);
@@ -548,7 +560,64 @@ export default function GalleryScreen() {
 
       Alert.alert('Thành công', 'Đã tải ảnh về thiết bị');
     } catch (error) {
+      console.error('Lỗi khi tải ảnh:', error);
       Alert.alert('Lỗi', 'Không thể tải ảnh');
+    }
+    setShowOptions(false);
+  };
+
+  // Hàm tải nhiều ảnh
+  const downloadMultipleImages = async (post: Post) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Lỗi', 'Cần cấp quyền để tải ảnh');
+        return;
+      }
+
+      // Lấy tất cả ảnh từ media_contents
+      const imageContents = post.media_contents?.filter(media => media.kind === "image") || [];
+      if (imageContents.length === 0) {
+        Alert.alert('Lỗi', 'Không tìm thấy ảnh để tải');
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      // Hiển thị thông báo đang tải
+      Alert.alert('Đang tải', `Đang tải ${imageContents.length} ảnh...`);
+
+      // Tải từng ảnh một
+      for (const media of imageContents) {
+        try {
+          console.log('Đang tải ảnh:', media.link);
+          const { uri } = await FileSystem.downloadAsync(
+            media.link,
+            FileSystem.documentDirectory + `temp_image_${media.id}.jpg`
+          );
+
+          await MediaLibrary.saveToLibraryAsync(uri);
+          await FileSystem.deleteAsync(uri);
+          successCount++;
+        } catch (error) {
+          console.error('Lỗi khi tải ảnh:', media.link, error);
+          failCount++;
+        }
+      }
+
+      // Hiển thị kết quả
+      if (successCount > 0) {
+        Alert.alert(
+          'Thành công', 
+          `Đã tải thành công ${successCount} ảnh${failCount > 0 ? `, ${failCount} ảnh thất bại` : ''}`
+        );
+      } else {
+        Alert.alert('Lỗi', 'Không thể tải bất kỳ ảnh nào');
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải nhiều ảnh:', error);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi tải ảnh');
     }
     setShowOptions(false);
   };
@@ -556,9 +625,29 @@ export default function GalleryScreen() {
   // Hàm chia sẻ
   const shareContent = async (post: Post) => {
     try {
-      await Share.share({
-        message: `${post.title}\n\n${stripHtmlTags(post.content || '')}`,
-      });
+      if (post.imageUrl) {
+        try {
+          const { uri } = await FileSystem.downloadAsync(
+            post.imageUrl,
+            FileSystem.documentDirectory + 'temp_image.jpg'
+          );
+          
+          await Share.share({
+            url: uri,
+            message: `${post.title}\n\n${stripHtmlTags(post.content || '')}`
+          });
+        } catch (error) {
+          console.log('Không thể tải ảnh để chia sẻ:', error);
+          // Fallback to text only sharing if image download fails
+          await Share.share({
+            message: `${post.title}\n\n${stripHtmlTags(post.content || '')}`
+          });
+        }
+      } else {
+        await Share.share({
+          message: `${post.title}\n\n${stripHtmlTags(post.content || '')}`
+        });
+      }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể chia sẻ nội dung');
     }
@@ -667,10 +756,41 @@ export default function GalleryScreen() {
 
                     {post.hasImage && (
                       <View style={styles.postImageContainer}>
-                        <ImageWithFallback
-                          uri={post.imageUrl}
-                          style={styles.postImage}
+                        <FlatList
+                          data={post.media_contents?.filter(media => media.kind === "image") || []}
+                          horizontal
+                          pagingEnabled
+                          showsHorizontalScrollIndicator={false}
+                          keyExtractor={(item) => item.id.toString()}
+                          renderItem={({ item }) => (
+                            <ImageWithFallback
+                              uri={item.link}
+                              style={styles.postImage}
+                            />
+                          )}
+                          onViewableItemsChanged={handleViewableItemsChanged}
+                          viewabilityConfig={viewabilityConfig}
                         />
+                        {(post.media_contents?.filter(media => media.kind === "image") || []).length > 1 && (
+                          <>
+                            <View style={styles.dotsContainer}>
+                              {(post.media_contents?.filter(media => media.kind === "image") || []).map((_, index) => (
+                                <View
+                                  key={index}
+                                  style={[
+                                    styles.dot,
+                                    currentImageIndexes[post.id] === index && styles.activeDot
+                                  ]}
+                                />
+                              ))}
+                            </View>
+                            <View style={styles.imageCounter}>
+                              <Text style={styles.imageCounterText}>
+                                {((currentImageIndexes[post.id] || 0) + 1)}/{(post.media_contents?.filter(media => media.kind === "image") || []).length}
+                              </Text>
+                            </View>
+                          </>
+                        )}
                       </View>
                     )}
                     
@@ -730,14 +850,30 @@ export default function GalleryScreen() {
                 <TouchableOpacity 
                   style={styles.optionItem}
                   onPress={() => {
-                    if (selectedPost?.imageUrl) {
-                      downloadImage(selectedPost.imageUrl);
+                    if (selectedPost) {
+                      downloadImage(selectedPost, currentImageIndexes[selectedPost.id] || 0);
                     }
                   }}
                 >
                   <Ionicons name="download-outline" size={24} color="#333" />
-                  <Text style={styles.optionText}>Tải ảnh</Text>
+                  <Text style={styles.optionText}>Tải ảnh hiện tại</Text>
                 </TouchableOpacity>
+
+                {(selectedPost?.media_contents?.filter(media => media.kind === "image") || []).length > 1 && (
+                  <TouchableOpacity 
+                    style={styles.optionItem}
+                    onPress={() => {
+                      if (selectedPost) {
+                        downloadMultipleImages(selectedPost);
+                      }
+                    }}
+                  >
+                    <Ionicons name="images-outline" size={24} color="#333" />
+                    <Text style={styles.optionText}>
+                      Tải tất cả ảnh ({selectedPost?.media_contents?.filter(media => media.kind === "image").length || 0})
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 
                 <TouchableOpacity 
                   style={styles.optionItem}
@@ -890,8 +1026,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   postImage: {
-    width: '100%',
-    height: '100%',
+    width: Dimensions.get('window').width,
+    height: undefined,
+    aspectRatio: 1,
     backgroundColor: '#f5f5f5',
     resizeMode: 'cover',
   },
@@ -952,16 +1089,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dotsContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingRight: 5,
   },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#ddd',
-    marginRight: 5,
+    marginHorizontal: 3,
   },
   activeDot: {
     backgroundColor: '#D9261C',

@@ -240,6 +240,8 @@ export default function ProductQuoteScreen() {
                                                             ? `${String(value)} kW`
                                                             : key === 'storage_capacity_kwh'
                                                             ? `${String(value)} kWh`
+                                                            : key === 'power_watt'
+                                                            ? `${String(value)} Wp`
                                                             : String(value);
                                                             
                                                         return (

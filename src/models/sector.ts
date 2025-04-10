@@ -102,6 +102,8 @@ export interface Combo {
   grouped_merchandises: GroupedMerchandise[];
   payback_period?: number;
   phase_type?: string;
+  output_min?: string;
+  output_max?: string;
 }
 
 export interface Sector {

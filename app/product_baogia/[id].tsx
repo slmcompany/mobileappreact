@@ -213,7 +213,7 @@ export default function ProductBaoGiaPage() {
               <View style={styles.equipmentDetails}>
                 <Text style={styles.equipmentName}>{item.merchandise.name}</Text>
                 {item.merchandise.data_json.power_watt && (
-                  <Text style={styles.equipmentSpecs}>Công suất: {item.merchandise.data_json.power_watt}W</Text>
+                  <Text style={styles.equipmentSpecs}>Công suất: {item.merchandise.data_json.power_watt} Wp</Text>
                 )}
                 {item.merchandise.data_json.technology && (
                   <Text style={styles.equipmentSpecs}>Công nghệ: {item.merchandise.data_json.technology}</Text>

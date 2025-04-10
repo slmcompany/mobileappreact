@@ -581,7 +581,7 @@ export default function QuotationDetails() {
       
       return {
         label,
-        value: typeof value === 'object' ? JSON.stringify(value) : String(value)
+        value: typeof value === 'object' ? JSON.stringify(value) : key === 'power_watt' ? `${String(value)} Wp` : String(value)
       };
     }) : [];
 
