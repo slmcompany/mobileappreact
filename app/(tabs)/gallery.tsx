@@ -899,7 +899,7 @@ export default function GalleryScreen() {
                   <TouchableOpacity 
                     style={styles.optionItem}
                     onPress={async () => {
-                      const videoContent = selectedPost.media_contents.find(media => media.kind === "video");
+                      const videoContent = selectedPost?.media_contents?.find(media => media.kind === "video");
                       if (videoContent?.link) {
                         const youtubeUrl = `https://www.youtube.com/watch?v=${videoContent.link}`;
                         await Clipboard.setStringAsync(youtubeUrl);
@@ -1214,10 +1214,15 @@ const styles = StyleSheet.create({
     padding: 4,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
+  webViewContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
   webViewHeader: {
     height: 50,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 15,
     backgroundColor: 'white',
     borderBottomWidth: 1,
@@ -1225,6 +1230,18 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 8,
+  },
+  webViewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: '#000',
   },
   webViewLoading: {
     position: 'absolute',
@@ -1234,68 +1251,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  categoryTag: {
-    backgroundColor: '#FFF1F0',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    maxWidth: '60%',
-    borderWidth: 1,
-    borderColor: '#FFE4E1',
-  },
-  categoryText: {
-    fontSize: 12,
-    color: '#D9261C',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  postTextOnly: {
-    paddingVertical: 20,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    margin: 15,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  postDescriptionLarge: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#212529',
-  },
-  playButtonOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  playButton: {
-    width: 64,
-    height: 64,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  contentPreview: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-end'
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    flexGrow: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   modalOverlay: {
     flex: 1,
@@ -1326,42 +1282,60 @@ const styles = StyleSheet.create({
     height: undefined,
     aspectRatio: 1,
   },
-  webViewContainer: {
+  scrollView: {
     flex: 1,
-    backgroundColor: 'white',
   },
-  webViewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  scrollViewContent: {
+    flexGrow: 1,
   },
-  closeButton: {
-    padding: 8,
-  },
-  webViewTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  webView: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  webViewLoading: {
+  playButtonOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  playButton: {
+    width: 64,
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  postTextOnly: {
+    paddingVertical: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    margin: 15,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  categoryTag: {
+    backgroundColor: '#FFF1F0',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    maxWidth: '60%',
+    borderWidth: 1,
+    borderColor: '#FFE4E1',
+  },
+  categoryText: {
+    fontSize: 12,
+    color: '#D9261C',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  postDescriptionLarge: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#212529',
   },
 }); 
