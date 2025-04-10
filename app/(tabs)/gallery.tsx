@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Image, Linking, Alert, ImageStyle, StyleProp, ViewStyle, useWindowDimensions, Modal, FlatList, Dimensions, Platform, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Image, Linking, Alert, ImageStyle, StyleProp, ViewStyle, useWindowDimensions, Modal, FlatList, Dimensions, Platform, StatusBar, Share } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
@@ -12,6 +12,9 @@ import RenderHtml, {
   MixedStyleDeclaration
 } from 'react-native-render-html';
 import WebView from 'react-native-webview';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 
 // Định nghĩa kiểu dữ liệu
 interface MediaContent {
@@ -303,6 +306,8 @@ export default function GalleryScreen() {
   const [webViewVisible, setWebViewVisible] = useState(false);
   const [webViewUrl, setWebViewUrl] = useState('');
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: number]: number }>({});
+  const [showOptions, setShowOptions] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   
   const insets = useSafeAreaInsets();
 
@@ -513,6 +518,53 @@ export default function GalleryScreen() {
     itemVisiblePercentThreshold: 50
   };
 
+  // Hàm copy nội dung
+  const copyContent = async (post: Post) => {
+    try {
+      await Clipboard.setStringAsync(stripHtmlTags(post.content || ''));
+      Alert.alert('Thành công', 'Đã copy nội dung vào clipboard');
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể copy nội dung');
+    }
+    setShowOptions(false);
+  };
+
+  // Hàm tải ảnh
+  const downloadImage = async (imageUrl: string) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Lỗi', 'Cần cấp quyền để tải ảnh');
+        return;
+      }
+
+      const { uri } = await FileSystem.downloadAsync(
+        imageUrl,
+        FileSystem.documentDirectory + 'temp_image.jpg'
+      );
+
+      await MediaLibrary.saveToLibraryAsync(uri);
+      await FileSystem.deleteAsync(uri);
+
+      Alert.alert('Thành công', 'Đã tải ảnh về thiết bị');
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể tải ảnh');
+    }
+    setShowOptions(false);
+  };
+
+  // Hàm chia sẻ
+  const shareContent = async (post: Post) => {
+    try {
+      await Share.share({
+        message: `${post.title}\n\n${stripHtmlTags(post.content || '')}`,
+      });
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể chia sẻ nội dung');
+    }
+    setShowOptions(false);
+  };
+
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#27273E" />
@@ -602,7 +654,13 @@ export default function GalleryScreen() {
                       <Text style={styles.postTime}>
                         {post.created_at ? formatTimeAgo(post.created_at) : '0 phút trước'}
                       </Text>
-                      <TouchableOpacity style={styles.moreButton}>
+                      <TouchableOpacity 
+                        style={styles.moreButton}
+                        onPress={() => {
+                          setSelectedPost(post);
+                          setShowOptions(true);
+                        }}
+                      >
                         <Ionicons name="ellipsis-vertical" size={16} color="#666" />
                       </TouchableOpacity>
                     </View>
@@ -655,6 +713,59 @@ export default function GalleryScreen() {
               ))}
             </View>
           )}
+          
+          {/* Options Modal */}
+          <Modal
+            visible={showOptions}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowOptions(false)}
+          >
+            <TouchableOpacity 
+              style={styles.modalOverlay}
+              activeOpacity={1} 
+              onPress={() => setShowOptions(false)}
+            >
+              <View style={styles.optionsContainer}>
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    if (selectedPost?.imageUrl) {
+                      downloadImage(selectedPost.imageUrl);
+                    }
+                  }}
+                >
+                  <Ionicons name="download-outline" size={24} color="#333" />
+                  <Text style={styles.optionText}>Tải ảnh</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    if (selectedPost) {
+                      copyContent(selectedPost);
+                    }
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={24} color="#333" />
+                  <Text style={styles.optionText}>Copy nội dung</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    if (selectedPost) {
+                      shareContent(selectedPost);
+                    }
+                  }}
+                >
+                  <Ionicons name="share-social-outline" size={24} color="#333" />
+                  <Text style={styles.optionText}>Chia sẻ</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+          
         </ScrollView>
       </SafeAreaView>
     </>
@@ -973,5 +1084,28 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     flexGrow: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  optionsContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  optionText: {
+    fontSize: 16,
+    marginLeft: 15,
+    color: '#333',
   },
 }); 

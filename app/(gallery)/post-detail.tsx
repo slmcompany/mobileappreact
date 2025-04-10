@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, Text, View, ScrollView, 
   TouchableOpacity, Image, Dimensions, 
-  ActivityIndicator, FlatList, StatusBar, Linking, Modal
+  ActivityIndicator, FlatList, StatusBar, Linking, Modal,
+  Share, Alert
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,9 @@ import RenderHtml, {
 } from 'react-native-render-html';
 import * as ExpoLinking from 'expo-linking';
 import WebView from 'react-native-webview';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 
 // Định nghĩa kiểu dữ liệu
 interface MediaContent {
@@ -149,6 +153,7 @@ export default function PostDetailScreen() {
   const [currentSlide, setCurrentSlide] = useState(1);
   const [webViewVisible, setWebViewVisible] = useState(false);
   const [webViewUrl, setWebViewUrl] = useState('');
+  const [showOptions, setShowOptions] = useState(false);
   
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -341,6 +346,62 @@ export default function PostDetailScreen() {
     );
   };
 
+  // Hàm copy nội dung
+  const copyContent = async () => {
+    if (post) {
+      try {
+        await Clipboard.setStringAsync(post.content.replace(/<[^>]*>/g, ''));
+        Alert.alert('Thành công', 'Đã copy nội dung vào clipboard');
+      } catch (error) {
+        Alert.alert('Lỗi', 'Không thể copy nội dung');
+      }
+    }
+    setShowOptions(false);
+  };
+
+  // Hàm tải ảnh
+  const downloadImage = async (imageUrl: string) => {
+    try {
+      // Xin quyền truy cập media library
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Lỗi', 'Cần cấp quyền để tải ảnh');
+        return;
+      }
+
+      // Tải ảnh
+      const { uri } = await FileSystem.downloadAsync(
+        imageUrl,
+        FileSystem.documentDirectory + 'temp_image.jpg'
+      );
+
+      // Lưu vào thư viện
+      await MediaLibrary.saveToLibraryAsync(uri);
+      
+      // Xóa file tạm
+      await FileSystem.deleteAsync(uri);
+
+      Alert.alert('Thành công', 'Đã tải ảnh về thiết bị');
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể tải ảnh');
+    }
+    setShowOptions(false);
+  };
+
+  // Hàm chia sẻ
+  const shareContent = async () => {
+    if (post) {
+      try {
+        await Share.share({
+          message: `${post.title}\n\n${post.content.replace(/<[^>]*>/g, '')}`,
+        });
+      } catch (error) {
+        Alert.alert('Lỗi', 'Không thể chia sẻ nội dung');
+      }
+    }
+    setShowOptions(false);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -359,7 +420,10 @@ export default function PostDetailScreen() {
           <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chi tiết bài viết</Text>
-        <View style={styles.iconPlaceholder} />
+       
+        <TouchableOpacity onPress={() => setShowOptions(true)}>
+          <Ionicons name="ellipsis-vertical" size={24} color="#666" />
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -460,6 +524,50 @@ export default function PostDetailScreen() {
                 )}
               />
             </SafeAreaView>
+          </Modal>
+
+          {/* Options Modal */}
+          <Modal
+            visible={showOptions}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowOptions(false)}
+          >
+            <TouchableOpacity 
+              style={styles.modalOverlay}
+              activeOpacity={1} 
+              onPress={() => setShowOptions(false)}
+            >
+              <View style={styles.optionsContainer}>
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    if (post?.media_contents?.[currentSlide - 1]?.link) {
+                      downloadImage(post.media_contents[currentSlide - 1].link);
+                    }
+                  }}
+                >
+                  <Ionicons name="download-outline" size={24} color="#333" />
+                  <Text style={styles.optionText}>Tải ảnh</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={copyContent}
+                >
+                  <Ionicons name="copy-outline" size={24} color="#333" />
+                  <Text style={styles.optionText}>Copy nội dung</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={shareContent}
+                >
+                  <Ionicons name="share-social-outline" size={24} color="#333" />
+                  <Text style={styles.optionText}>Chia sẻ</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           </Modal>
         </>
       ) : (
@@ -719,5 +827,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  optionsContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  optionText: {
+    fontSize: 16,
+    marginLeft: 15,
+    color: '#333',
   },
 }); 
