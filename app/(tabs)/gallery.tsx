@@ -505,7 +505,7 @@ export default function GalleryScreen() {
   // Thêm hàm xử lý khi scroll kết thúc
   const handleViewableItemsChanged = React.useCallback(({ viewableItems, changed }: any) => {
     if (viewableItems.length > 0) {
-      const postId = viewableItems[0].item.postId;
+      const postId = viewableItems[0].item.id;
       const index = viewableItems[0].index;
       setCurrentImageIndexes(prev => ({
         ...prev,
@@ -516,6 +516,12 @@ export default function GalleryScreen() {
 
   const viewabilityConfig = {
     itemVisiblePercentThreshold: 50
+  };
+
+  // Thêm hàm xử lý video
+  const handleVideoPress = (videoId: string) => {
+    setWebViewUrl(`https://www.youtube.com/embed/${videoId}`);
+    setWebViewVisible(true);
   };
 
   // Hàm copy nội dung
@@ -757,16 +763,30 @@ export default function GalleryScreen() {
                     {post.hasImage && (
                       <View style={styles.postImageContainer}>
                         <FlatList
-                          data={post.media_contents?.filter(media => media.kind === "image") || []}
+                          data={post.media_contents || []}
                           horizontal
                           pagingEnabled
                           showsHorizontalScrollIndicator={false}
                           keyExtractor={(item) => item.id.toString()}
                           renderItem={({ item }) => (
-                            <ImageWithFallback
-                              uri={item.link}
-                              style={styles.postImage}
-                            />
+                            <View style={styles.slideItemContainer}>
+                              <ImageWithFallback
+                                uri={item.kind === 'video' 
+                                  ? (item.thumbnail || `https://img.youtube.com/vi/${item.link}/hqdefault.jpg`) 
+                                  : item.link}
+                                style={styles.postImage}
+                              />
+                              {item.kind === 'video' && (
+                                <View style={styles.playButtonOverlay}>
+                                  <TouchableOpacity 
+                                    style={styles.playButton}
+                                    onPress={() => handleVideoPress(item.link)}
+                                  >
+                                    <Ionicons name="play-circle" size={64} color="white" />
+                                  </TouchableOpacity>
+                                </View>
+                              )}
+                            </View>
                           )}
                           onViewableItemsChanged={handleViewableItemsChanged}
                           viewabilityConfig={viewabilityConfig}
@@ -874,6 +894,27 @@ export default function GalleryScreen() {
                     </Text>
                   </TouchableOpacity>
                 )}
+
+                {selectedPost?.media_contents?.some(media => media.kind === "video") && (
+                  <TouchableOpacity 
+                    style={styles.optionItem}
+                    onPress={async () => {
+                      const videoContent = selectedPost.media_contents.find(media => media.kind === "video");
+                      if (videoContent?.link) {
+                        const youtubeUrl = `https://www.youtube.com/watch?v=${videoContent.link}`;
+                        await Clipboard.setStringAsync(youtubeUrl);
+                        Alert.alert(
+                          'Thành công',
+                          'Đã sao chép link YouTube vào clipboard',
+                          [{ text: 'OK' }]
+                        );
+                      }
+                    }}
+                  >
+                    <Ionicons name="copy-outline" size={24} color="#333" />
+                    <Text style={styles.optionText}>Copy link YouTube</Text>
+                  </TouchableOpacity>
+                )}
                 
                 <TouchableOpacity 
                   style={styles.optionItem}
@@ -900,6 +941,36 @@ export default function GalleryScreen() {
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
+          </Modal>
+          
+          {/* Video Modal */}
+          <Modal
+            visible={webViewVisible}
+            animationType="slide"
+            onRequestClose={() => setWebViewVisible(false)}
+          >
+            <SafeAreaView style={styles.webViewContainer}>
+              <View style={styles.webViewHeader}>
+                <TouchableOpacity 
+                  onPress={() => setWebViewVisible(false)}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color="#333" />
+                </TouchableOpacity>
+                <Text style={styles.webViewTitle}>Video</Text>
+                <View style={styles.headerSpacer} />
+              </View>
+              <WebView 
+                source={{ uri: webViewUrl }}
+                style={styles.webView}
+                startInLoadingState={true}
+                renderLoading={() => (
+                  <View style={styles.webViewLoading}>
+                    <ActivityIndicator size="large" color="#D9261C" />
+                  </View>
+                )}
+              />
+            </SafeAreaView>
           </Modal>
           
         </ScrollView>
@@ -1248,5 +1319,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 15,
     color: '#333',
+  },
+  slideItemContainer: {
+    position: 'relative',
+    width: Dimensions.get('window').width,
+    height: undefined,
+    aspectRatio: 1,
+  },
+  webViewContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  webViewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  webViewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  webViewLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
 }); 

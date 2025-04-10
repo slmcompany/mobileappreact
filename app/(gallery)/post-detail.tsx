@@ -640,6 +640,27 @@ export default function PostDetailScreen() {
                     </Text>
                   </TouchableOpacity>
                 )}
+
+                {post?.media_contents?.some(media => media.kind === "video") && (
+                  <TouchableOpacity 
+                    style={styles.optionItem}
+                    onPress={async () => {
+                      const videoContent = post.media_contents.find(media => media.kind === "video");
+                      if (videoContent?.link) {
+                        const youtubeUrl = `https://www.youtube.com/watch?v=${videoContent.link}`;
+                        await Clipboard.setStringAsync(youtubeUrl);
+                        Alert.alert(
+                          'Thành công',
+                          'Đã sao chép link YouTube vào clipboard',
+                          [{ text: 'OK' }]
+                        );
+                      }
+                    }}
+                  >
+                    <Ionicons name="copy-outline" size={24} color="#333" />
+                    <Text style={styles.optionText}>Copy link YouTube</Text>
+                  </TouchableOpacity>
+                )}
                 
                 <TouchableOpacity 
                   style={styles.optionItem}
@@ -960,5 +981,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '500',
+  },
+  copyButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 8,
   },
 }); 

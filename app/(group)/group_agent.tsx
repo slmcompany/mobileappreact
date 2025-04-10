@@ -393,12 +393,12 @@ const styles = StyleSheet.create({
     color: '#7B7D9D',
   },
   salesAmount: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '500',
     color: '#ED1C24',
   },
   orderCount: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '500',
     color: '#9394B0',
   },
@@ -409,12 +409,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   bonusLabelText: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '500',
     color: '#7B7D9D',
   },
   bonusAmount: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '500',
     color: '#ED1C24',
     textAlign: 'right',

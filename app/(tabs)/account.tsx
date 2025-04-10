@@ -23,7 +23,6 @@ interface PotentialCustomer {
 interface OldCustomer {
   id: number;
   name: string;
-  phone: string;
   email: string;
   province: string;
   district: string;
@@ -119,7 +118,9 @@ export default function AccountScreen() {
     <View style={styles.customerCard}>
       <View style={styles.customerInfo}>
         <Text style={styles.customerName}>{item.name}</Text>
-        <Text style={styles.customerPhone}>{item.phone || 'Chưa có số điện thoại'}</Text>
+        {'phone' in item && item.phone && (
+          <Text style={styles.customerPhone}>{item.phone}</Text>
+        )}
         {'tax_code' in item && item.tax_code && (
           <Text style={styles.customerDetail}>MST: {item.tax_code}</Text>
         )}
@@ -131,9 +132,11 @@ export default function AccountScreen() {
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="book-outline" size={20} color="#2E90FA" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="call-outline" size={20} color="#ED1C24" />
-        </TouchableOpacity>
+        {!('tax_code' in item) && item.phone && (
+          <TouchableOpacity style={styles.actionButton}>
+            <Ionicons name="call-outline" size={20} color="#ED1C24" />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
