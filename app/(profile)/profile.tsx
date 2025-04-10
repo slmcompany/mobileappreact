@@ -118,11 +118,7 @@ const ProfileScreen = () => {
             <View style={styles.roleContainer}>
               <TouchableOpacity style={styles.roleButton}>
                 <View style={styles.roleButtonContent}>
-                  <Text style={styles.agentLevel}>ĐẠI LÝ CẤP 1</Text>
-                  <View style={styles.roleSwitch}>
-                    <Text style={styles.roleButtonText}>Xem với vai trò Khách hàng</Text>
-                    <Ionicons name="swap-horizontal" size={20} color="white" />
-                  </View>
+                  <Text style={styles.agentLevel}>{authState.user?.role?.name?.toUpperCase() || 'CUSTOMER'}</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -472,16 +468,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  roleSwitch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  roleButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
   },
   agentLevel: {
     color: 'white',
