@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Alert, Clipboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import CustomerInfoDrawer from './components/CustomerInfoDrawer';
 
 // Định nghĩa kiểu dữ liệu cho sản phẩm trong báo giá
 type Product = {
@@ -22,26 +23,29 @@ type Product = {
 export default function QuotationSuccess() {
   // Lấy thông tin từ params
   const params = useLocalSearchParams();
-  const customerCode = params.customerId as string || '';
-  const createdTime = params.createdTime as string || '';
-  const phoneNumber = params.phoneNumber as string || '';
+  const customerCode = params.customerId as string;
+  const createdTime = params.createdTime as string;
+  const phoneNumber = params.phoneNumber as string;
   const systemType = params.systemType as string || 'HYBRID';
   const phaseType = params.phaseType as string || 'ONE_PHASE';
   const totalPriceParam = params.totalPrice as string || '0';
   const installationType = params.installationType as string || 'AP_MAI';
+  const isNewCustomer = params.isNewCustomer === 'true';
   
   // State cho danh sách sản phẩm
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalPrice, setTotalPrice] = useState(totalPriceParam !== '0' ? totalPriceParam : '0');
-  const [customerName, setCustomerName] = useState('-');
-  const [dealer, setDealer] = useState('-');
+  const [customerName, setCustomerName] = useState<string | null>(null);
+  const [dealer, setDealer] = useState<string | null>(null);
   
   // State cho thông tin người lập báo giá
-  const [agentName, setAgentName] = useState('');
+  const [agentName, setAgentName] = useState<string | null>(null);
   
   // Tính tổng công suất từ danh sách tấm pin
   const [totalPower, setTotalPower] = useState('');
+
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
 
   // Hàm lấy dữ liệu sản phẩm và thông tin người dùng từ AsyncStorage
   useEffect(() => {
@@ -49,7 +53,7 @@ export default function QuotationSuccess() {
       try {
         console.log('Bắt đầu lấy dữ liệu cho trang Success...');
         
-        // Lấy thông tin người lập báo giá từ AsyncStorage - QUAN TRỌNG!!!
+        // Lấy thông tin người lập báo giá từ AsyncStorage
         const userDataString = await AsyncStorage.getItem('@slm_user_data');
         
         if (userDataString) {
@@ -60,7 +64,7 @@ export default function QuotationSuccess() {
             const userName = userData.name || '';
             
             if (userName) {
-              const formattedName = `${userCode} - ${userName}`;
+              const formattedName = `${userCode} ${userName}`;
               setAgentName(formattedName);
               
               // Thử lấy thông tin mới nhất của người dùng từ API
@@ -68,13 +72,11 @@ export default function QuotationSuccess() {
                 fetchLatestUserData(userData.id);
               }
             } else {
-              // Sử dụng giá trị từ params nếu không có trong AsyncStorage
-              setAgentName(params.agentName as string || '-');
+              setAgentName(params.agentName as string || null);
             }
           } catch (parseError) {
             console.error('Lỗi khi parse userData:', parseError);
-            // Sử dụng giá trị từ params nếu không parse được
-            setAgentName(params.agentName as string || '-');
+            setAgentName(params.agentName as string || null);
           }
         } else {
           // Thử lấy dữ liệu từ API trước khi dùng params
@@ -93,20 +95,20 @@ export default function QuotationSuccess() {
               if (userData && userData.name) {
                 const userCode = userData.code || '';
                 const userName = userData.name || '';
-                const formattedName = `${userCode} - ${userName}`;
+                const formattedName = `${userCode} ${userName}`;
                 setAgentName(formattedName);
                 
                 // Lưu vào AsyncStorage cho lần sau
                 await AsyncStorage.setItem('@slm_user_data', JSON.stringify(userData));
               } else {
-                setAgentName(params.agentName as string || '-');
+                setAgentName(params.agentName as string || null);
               }
             } else {
-              setAgentName(params.agentName as string || '-');
+              setAgentName(params.agentName as string || null);
             }
           } catch (apiError) {
             console.error('Lỗi khi gọi API lấy thông tin người dùng:', apiError);
-            setAgentName(params.agentName as string || '-');
+            setAgentName(params.agentName as string || null);
           }
         }
         
@@ -128,16 +130,36 @@ export default function QuotationSuccess() {
           }
         }
         
-        // Lấy thông tin khách hàng nếu có
-        const customerData = await AsyncStorage.getItem('customerData');
-        if (customerData) {
-          const parsedCustomerData = JSON.parse(customerData);
-          if (parsedCustomerData.name) {
-            setCustomerName(parsedCustomerData.name);
+        // Chỉ lấy thông tin khách hàng nếu có mã khách hàng và không phải khách hàng mới
+        if (customerCode && !isNewCustomer) {
+          try {
+            const customerData = await AsyncStorage.getItem('customerData');
+            if (customerData) {
+              const parsedCustomerData = JSON.parse(customerData);
+              // Kiểm tra thêm điều kiện mã khách hàng phải khớp
+              if (parsedCustomerData.assumed_code === customerCode) {
+                if (parsedCustomerData.name) {
+                  setCustomerName(parsedCustomerData.name);
+                }
+                if (parsedCustomerData.agent_id) {
+                  setDealer(`SLM${parsedCustomerData.agent_id}`);
+                }
+              } else {
+                // Nếu mã khách hàng không khớp, xóa dữ liệu cũ
+                await AsyncStorage.removeItem('customerData');
+                setCustomerName(null);
+                setDealer(null);
+              }
+            }
+          } catch (error) {
+            console.error('Lỗi khi xử lý thông tin khách hàng:', error);
+            setCustomerName(null);
+            setDealer(null);
           }
-          if (parsedCustomerData.agent_id) {
-            setDealer(`SLM${parsedCustomerData.agent_id}`);
-          }
+        } else {
+          // Nếu không có mã khách hàng hoặc là khách hàng mới, đảm bảo không có dữ liệu khách hàng
+          setCustomerName(null);
+          setDealer(null);
         }
       } catch (error) {
         console.error('Lỗi khi lấy dữ liệu:', error);
@@ -336,7 +358,7 @@ export default function QuotationSuccess() {
               <div class="section-title">THÔNG TIN KHÁCH HÀNG</div>
               <div class="info-row">
                 <div class="label">Họ và tên:</div>
-                <div class="value">${customerName}</div>
+                <div class="value">${customerName || '-'}</div>
               </div>
               <div class="info-row">
                 <div class="label">Số điện thoại:</div>
@@ -344,7 +366,7 @@ export default function QuotationSuccess() {
               </div>
               <div class="info-row">
                 <div class="label">Đại lý phụ trách:</div>
-                <div class="value">${dealer}</div>
+                <div class="value">${dealer || '-'}</div>
               </div>
             </div>
             
@@ -526,7 +548,7 @@ export default function QuotationSuccess() {
           // Cập nhật hiển thị
           const userCode = meData.code || '';
           const userName = meData.name || '';
-          setAgentName(`${userCode} - ${userName}`);
+          setAgentName(`${userCode} ${userName}`);
           console.log('Đã cập nhật thông tin người lập báo giá từ API auth/me');
         }
       } else {
@@ -570,6 +592,21 @@ export default function QuotationSuccess() {
     return 'Không xác định';
   };
 
+  // Hàm xử lý copy mã khách hàng
+  const handleCopyCustomerCode = async () => {
+    if (customerCode) {
+      await Clipboard.setString(customerCode);
+      Alert.alert('Thông báo', 'Đã sao chép mã khách hàng');
+    }
+  };
+
+  const handleUpdateCustomerInfo = (data: { name: string; phone: string; dealer: string }) => {
+    setCustomerName(data.name);
+    setDealer(data.dealer);
+    // Note: phoneNumber is from params, so we can't update it directly
+    // You might want to update it in your backend or state management
+  };
+
   return (
     <React.Fragment>
       <Stack.Screen options={{ headerShown: false }} />
@@ -603,7 +640,17 @@ export default function QuotationSuccess() {
             <View style={styles.sectionContent}>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Mã khách hàng</Text>
-                <Text style={styles.infoValue}>{customerCode || '-'}</Text>
+                <View style={styles.customerCodeContainer}>
+                  <Text style={styles.infoValue}>{customerCode || '-'}</Text>
+                  {customerCode && (
+                    <TouchableOpacity 
+                      style={styles.copyButton}
+                      onPress={handleCopyCustomerCode}
+                    >
+                      <Ionicons name="copy-outline" size={16} color="#7B7D9D" />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Người lập báo giá</Text>
@@ -620,14 +667,14 @@ export default function QuotationSuccess() {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>THÔNG TIN KHÁCH HÀNG</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => setIsDrawerVisible(true)}>
                 <Text style={styles.updateButton}>Cập nhật</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.sectionContent}>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Họ và tên</Text>
-                <Text style={styles.infoValue}>{customerName}</Text>
+                <Text style={styles.infoValue}>{customerName || '-'}</Text>
               </View>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Số điện thoại</Text>
@@ -635,7 +682,7 @@ export default function QuotationSuccess() {
               </View>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Đại lý phụ trách</Text>
-                <Text style={styles.infoValue}>{dealer}</Text>
+                <Text style={styles.infoValue}>{dealer || '-'}</Text>
               </View>
             </View>
           </View>
@@ -765,6 +812,15 @@ export default function QuotationSuccess() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <CustomerInfoDrawer
+          visible={isDrawerVisible}
+          onClose={() => setIsDrawerVisible(false)}
+          customerName={customerName}
+          phoneNumber={phoneNumber}
+          dealer={dealer}
+          onSave={handleUpdateCustomerInfo}
+        />
       </SafeAreaView>
     </React.Fragment>
   );
@@ -936,5 +992,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     flex: 1,
+  },
+  customerCodeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  copyButton: {
+    padding: 4,
   },
 }); 
