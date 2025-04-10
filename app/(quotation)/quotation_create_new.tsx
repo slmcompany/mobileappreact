@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import debounce from 'lodash.debounce';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function QuotationCreateNew() {
   const [customerId, setCustomerId] = useState('');
@@ -66,6 +67,13 @@ export default function QuotationCreateNew() {
     }
     if (error) {
         return;
+    }
+    
+    // Xóa thông tin khách hàng cũ trong AsyncStorage nếu là khách hàng mới
+    if (isNewCustomer) {
+      AsyncStorage.removeItem('customerData').catch(error => {
+        console.error('Lỗi khi xóa thông tin khách hàng cũ:', error);
+      });
     }
     
     // Chuyển sang step 2 trong quy trình tạo báo giá
