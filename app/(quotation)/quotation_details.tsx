@@ -745,7 +745,11 @@ export default function QuotationDetails() {
                           resizeMode="contain" 
                         />
                       ) : (
-                        <View style={styles.drawerImagePlaceholder} />
+                        <View style={styles.drawerImagePlaceholder}>
+                          <Text>
+                            <Ionicons name="image-outline" size={24} color="#ABACC2" />
+                          </Text>
+                        </View>
                       )}
                     </View>
                     <View style={styles.drawerProductDetails}>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Alert, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Alert, Clipboard, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,17 +8,167 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import CustomerInfoDrawer from './components/CustomerInfoDrawer';
+import { captureRef } from 'react-native-view-shot';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 // Định nghĩa kiểu dữ liệu cho sản phẩm trong báo giá
-type Product = {
+interface Product {
   id: number;
   name: string;
-  description?: string;
   price: number;
   quantity: number;
+  unit: string;
+  imageUrl?: string;
+  warranty_years?: string | number;
   category?: 'PANEL' | 'INVERTER' | 'BATTERY' | 'ACCESSORY';
-  unit?: string;
+  description?: string;
+  specs?: Record<string, string | number>;
+}
+
+// Cập nhật kiểu dữ liệu cho data_json
+type MerchandiseDataJson = {
+  power_watt?: string;
+  width_mm?: string;
+  height_mm?: string;
+  thickness_mm?: string;
+  area_m2?: string;
+  weight_kg?: string;
+  technology?: string;
+  warranty_years?: string;
+  price_vnd?: string;
+  ac_power_kw?: number;
+  dc_max_power_kw?: number;
+  installation_type?: string;
+  phase_type?: string;
+  brand_ranking?: number;
+  storage_capacity_kwh?: string;
 };
+
+// Cập nhật kiểu dữ liệu cho PreQuoteMerchandiseItem
+type PreQuoteMerchandiseItem = {
+  id: number;
+  merchandise_id: number;
+  quantity: number;
+  pre_quote_id: number;
+  note: string | null;
+  price: number;
+  warranty_years: number;
+  imageUrl?: string;
+  merchandise: {
+    id: number;
+    supplier_id: number | null;
+    name: string;
+    unit: string;
+    data_json: MerchandiseDataJson;
+    active: boolean;
+    template_id: number;
+    brand_id: number;
+    code: string;
+    data_sheet_link: string;
+    description_in_contract: string;
+    created_at: string;
+  };
+};
+
+// Thêm kiểu dữ liệu mới
+type GroupedMerchandise = {
+  template: {
+    id: number;
+    sector_id: number;
+    gm: number;
+    code: string;
+    name: string;
+    structure_json: any | null;
+    is_main: boolean;
+  };
+  pre_quote_merchandises: PreQuoteMerchandiseItem[];
+  price_on_gm: number;
+};
+
+interface Merchandise {
+  id: number;
+  supplier_id: number | null;
+  name: string;
+  unit: string;
+  data_json: any;
+  active: boolean;
+  template_id: number;
+  brand_id: number;
+  code: string;
+  data_sheet_link: string;
+  description_in_contract: string;
+  created_at: string;
+  images?: Array<{ link: string }>;
+}
+
+interface PanelItem {
+  specs: {
+    power_watt?: string | number;
+    technology?: string;
+    warranty_years?: string | number;
+  };
+  quantity: number;
+  name: string;
+  power: string;
+  technology: string;
+  warranty: string;
+  id: number;
+  merchandise_id: number;
+  pre_quote_id: number;
+  note: string | null;
+  price: number;
+  unit: string;
+  imageUrl?: string;
+  warranty_years?: string | number;
+  merchandise: Merchandise;
+}
+
+interface InverterItem {
+  specs: {
+    ac_power_kw?: string | number;
+    dc_max_power_kw?: string | number;
+    warranty_years?: string | number;
+  };
+  quantity: number;
+  name: string;
+  ac_power: string;
+  dc_power: string;
+  warranty: string;
+  id: number;
+  merchandise_id: number;
+  pre_quote_id: number;
+  note: string | null;
+  price: number;
+  unit: string;
+  imageUrl?: string;
+  warranty_years?: string | number;
+  merchandise: Merchandise;
+}
+
+interface BatteryItem {
+  specs: {
+    storage_capacity_kwh?: string | number;
+    technology?: string;
+    warranty_years?: string | number;
+  };
+  quantity: number;
+  name: string;
+  capacity: string;
+  technology: string;
+  warranty: string;
+  id: number;
+  merchandise_id: number;
+  pre_quote_id: number;
+  note: string | null;
+  price: number;
+  unit: string;
+  imageUrl?: string;
+  warranty_years?: string | number;
+  merchandise: Merchandise;
+}
+
+const { width: screenWidth } = Dimensions.get('window');
+const itemImageSize = screenWidth / 4;
 
 export default function QuotationSuccess() {
   // Lấy thông tin từ params
@@ -46,6 +196,20 @@ export default function QuotationSuccess() {
   const [totalPower, setTotalPower] = useState('');
 
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+
+  // Thêm state để lưu danh sách template
+  const [groupedMerchandises, setGroupedMerchandises] = useState<GroupedMerchandise[]>([]);
+
+  // Khai báo refs trong component
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const headerRef = React.useRef<View>(null);
+  const successContainerRef = React.useRef<View>(null);
+  const sectionContainerRef = React.useRef<View>(null);
+  const equipmentListRef = React.useRef<View>(null);
+  const equipmentListDuplicateRef = React.useRef<View>(null);
+  const taxAndHotlineRef = React.useRef<View>(null);
+  const companyInfoRef = React.useRef<View>(null);
+  const socialContainerRef = React.useRef<View>(null);
 
   // Hàm lấy dữ liệu sản phẩm và thông tin người dùng từ AsyncStorage
   useEffect(() => {
@@ -119,7 +283,7 @@ export default function QuotationSuccess() {
           setProducts(parsedProducts);
           
           // Tính tổng công suất từ các tấm pin
-          calculateTotalPower(parsedProducts);
+          calculateTotalPower();
         }
         
         // Lấy tổng giá trị đơn hàng nếu chưa có
@@ -171,35 +335,61 @@ export default function QuotationSuccess() {
     fetchData();
   }, []);
 
+  // Thêm useEffect để fetch combo data
+  useEffect(() => {
+    const fetchComboData = async () => {
+      try {
+        const response = await fetch('https://id.slmsolar.com/api/sector');
+        if (response.ok) {
+          const data = await response.json();
+          // Tìm combo đầu tiên có grouped_merchandises
+          const firstComboWithGroups = data
+            .flatMap((sector: any) => sector.list_combos || [])
+            .find((combo: any) => combo.grouped_merchandises?.length > 0);
+          
+          if (firstComboWithGroups?.grouped_merchandises) {
+            setGroupedMerchandises(firstComboWithGroups.grouped_merchandises);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching combo data:', error);
+      }
+    };
+
+    fetchComboData();
+  }, []);
+
   // Hàm tính tổng công suất từ tấm pin
-  const calculateTotalPower = (productsList: Product[]) => {
-    const panels = productsList.filter(p => p.category === 'PANEL');
+  const calculateTotalPower = () => {
+    if (!groupedMerchandises.length) return 'N/A';
     
-    if (panels.length === 0) {
-      setTotalPower('N/A');
-      return;
-    }
+    const panelGroup = groupedMerchandises.find(group => group.template.code === 'PIN_PV');
+    if (!panelGroup) return 'N/A';
     
     let totalWatts = 0;
-    panels.forEach(panel => {
-      // Tìm giá trị công suất từ tên hoặc mô tả
-      const nameParts = panel.name.split('|');
-      if (nameParts.length > 1) {
-        const powerPart = nameParts.find(part => part.trim().includes('W'));
-        if (powerPart) {
-          const watts = parseInt(powerPart.trim().replace(/[^0-9]/g, '')) || 0;
-          totalWatts += watts * panel.quantity;
-        }
+    panelGroup.pre_quote_merchandises.forEach(item => {
+      const powerWatt = item.merchandise.data_json?.power_watt;
+      if (powerWatt) {
+        const watts = typeof powerWatt === 'string' ? 
+          parseInt(powerWatt) : 
+          powerWatt;
+        totalWatts += watts * item.quantity;
       }
     });
     
     if (totalWatts > 0) {
       const kW = totalWatts / 1000;
-      setTotalPower(`${kW.toString()}kW`);
-    } else {
-      setTotalPower('N/A');
+      return `${kW.toFixed(2)}kW`;
     }
+    
+    return 'N/A';
   };
+
+  // Cập nhật useEffect để theo dõi thay đổi của groupedMerchandises
+  useEffect(() => {
+    const power = calculateTotalPower();
+    setTotalPower(power);
+  }, [groupedMerchandises]);
 
   // Hàm định dạng giá tiền
   const formatPrice = (price: string | number): string => {
@@ -209,290 +399,234 @@ export default function QuotationSuccess() {
     return roundedPrice.toLocaleString('vi-VN') + ' VND';
   };
 
-  // Tạo HTML cho PDF
-  const createPDFHTML = () => {
-    // Lấy ngày hiện tại để đặt tên file
-    const currentDate = new Date().toLocaleDateString('vi-VN');
-    
-    // Tạo các phần HTML cho mỗi loại sản phẩm
-    const renderProductGroup = (title: string, products: Product[]) => {
-      if (products.length === 0) return '';
-      
-      const productRows = products.map((product, index) => {
-        return `
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd;">${formatProductName(product)}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${formatQuantity(product)}</td>
-          </tr>
-        `;
-      }).join('');
-      
-      return `
-        <div style="margin-top: 16px; margin-bottom: 8px;">
-          <h3 style="font-size: 14px; color: #7B7D9D; margin-bottom: 8px;">${title}</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <th style="padding: 8px; text-align: left; font-size: 12px; color: #7B7D9D;">Tên sản phẩm</th>
-              <th style="padding: 8px; text-align: right; font-size: 12px; color: #7B7D9D;">Số lượng</th>
-            </tr>
-            ${productRows}
-          </table>
-        </div>
-      `;
-    };
-
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Báo giá SLM Solar</title>
-          <style>
-            body {
-              font-family: 'Helvetica', Arial, sans-serif;
-              margin: 0;
-              padding: 0;
-              color: #27273E;
-              font-size: 12px;
-            }
-            .container {
-              padding: 20px;
-              max-width: 800px;
-              margin: 0 auto;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 20px;
-              border-bottom: 1px solid #EFEFEF;
-              padding-bottom: 20px;
-            }
-            .logo {
-              max-width: 150px;
-              margin-bottom: 10px;
-            }
-            h1 {
-              color: #ED1C24;
-              font-size: 22px;
-              margin-bottom: 10px;
-            }
-            .date {
-              color: #7B7D9D;
-              font-size: 12px;
-              margin-bottom: 20px;
-            }
-            .section {
-              margin-bottom: 20px;
-              border-bottom: 1px solid #EFEFEF;
-              padding-bottom: 20px;
-            }
-            .section-title {
-              font-size: 16px;
-              color: #7B7D9D;
-              margin-bottom: 10px;
-              font-weight: bold;
-            }
-            .info-row {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 8px;
-            }
-            .label {
-              color: #7B7D9D;
-              flex: 1;
-            }
-            .value {
-              color: #27273E;
-              font-weight: 500;
-              flex: 1;
-              text-align: right;
-            }
-            .total-price {
-              color: #ED1C24;
-              font-weight: bold;
-              font-size: 16px;
-            }
-            .footer {
-              text-align: center;
-              color: #7B7D9D;
-              margin-top: 30px;
-              font-size: 10px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-            th, td {
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              color: #7B7D9D;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <img src="https://slmsolar.com/wp-content/uploads/2023/05/logo-solarmax.webp" alt="SLM Solar Logo" class="logo">
-              <h1>BÁO GIÁ HỆ THỐNG ĐIỆN NĂNG LƯỢNG MẶT TRỜI</h1>
-              <div class="date">Ngày lập báo giá: ${createdTime || currentDate}</div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">THÔNG TIN CHUNG</div>
-              <div class="info-row">
-                <div class="label">Mã khách hàng:</div>
-                <div class="value">${customerCode || '-'}</div>
-              </div>
-              <div class="info-row">
-                <div class="label">Người lập báo giá:</div>
-                <div class="value">${agentName}</div>
-              </div>
-              <div class="info-row">
-                <div class="label">Thời gian lập báo giá:</div>
-                <div class="value">${createdTime || currentDate}</div>
-              </div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">THÔNG TIN KHÁCH HÀNG</div>
-              <div class="info-row">
-                <div class="label">Họ và tên:</div>
-                <div class="value">${customerName || '-'}</div>
-              </div>
-              <div class="info-row">
-                <div class="label">Số điện thoại:</div>
-                <div class="value">${phoneNumber || '-'}</div>
-              </div>
-              <div class="info-row">
-                <div class="label">Đại lý phụ trách:</div>
-                <div class="value">${dealer || '-'}</div>
-              </div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">THÔNG TIN SẢN PHẨM</div>
-              <div class="info-row">
-                <div class="label">Sản phẩm:</div>
-                <div class="value">HỆ THỐNG ĐIỆN NLMT SOLARMAX</div>
-              </div>
-              <div class="info-row">
-                <div class="label">Phân loại:</div>
-                <div class="value">
-                  ${systemType === 'HYBRID' ? 'HYBRID' : 'BÁM TẢI'} • 
-                  ${phaseType === 'ONE_PHASE' ? 'MỘT PHA' : 'BA PHA'}
-                </div>
-              </div>
-              <div class="info-row">
-                <div class="label">Công suất:</div>
-                <div class="value">${totalPower || '-'}</div>
-              </div>
-              <div class="info-row">
-                <div class="label">Giá trị đơn hàng (bao gồm VAT):</div>
-                <div class="value total-price">${formatPrice(totalPrice)}</div>
-              </div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">CHI TIẾT BÁO GIÁ</div>
-              
-              ${renderProductGroup('1. TẤM QUANG NĂNG', getPanels())}
-              ${renderProductGroup('2. BIẾN TẦN', getInverters())}
-              ${renderProductGroup('3. PIN LƯU TRỮ', getBatteries())}
-              
-              <div style="margin-top: 16px; margin-bottom: 8px;">
-                <h3 style="font-size: 14px; color: #7B7D9D; margin-bottom: 8px;">4. HÌNH THỨC LẮP ĐẶT</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <th style="padding: 8px; text-align: left; font-size: 12px; color: #7B7D9D;">Kiểu lắp đặt</th>
-                    <th style="padding: 8px; text-align: right; font-size: 12px; color: #7B7D9D;">Số lượng</th>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;">${installationType === 'AP_MAI' ? 'Áp mái' : 'Khung sắt'}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">Trọn gói</td>
-                  </tr>
-                </table>
-              </div>
-              
-              ${renderProductGroup('5. PHỤ KIỆN, VẬT TƯ', getAccessories())}
-            </div>
-            
-            <div class="footer">
-              <p>© SLM Solar - Thương hiệu thuộc Công ty TNHH SLM Việt Nam</p>
-              <p>Địa chỉ: 115/5 Phổ Quang, Phường 9, Quận Phú Nhuận, Thành phố Hồ Chí Minh</p>
-              <p>Hotline: 1900 232425 | Email: info@slmsolar.com</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
+  // Thêm hàm mới để đảm bảo render hoàn tất
+  const waitForRender = async () => {
+    return new Promise(resolve => {
+      requestAnimationFrame(() => {
+        setTimeout(resolve, 1000);
+      });
+    });
   };
 
-  // Hàm xử lý tải xuống báo giá
+  // Hàm ghép ảnh
+  const combineImages = async (imageUris: string[]): Promise<string> => {
+    try {
+      // Tạo một ảnh trắng làm nền
+      const backgroundImage = await ImageManipulator.manipulateAsync(
+        imageUris[0],
+        [],
+        { format: ImageManipulator.SaveFormat.JPEG, compress: 1 }
+      );
+
+      // Ghép từng ảnh vào nền
+      let combinedImage = backgroundImage;
+      for (let i = 1; i < imageUris.length; i++) {
+        const currentImage = await ImageManipulator.manipulateAsync(
+          imageUris[i],
+          [],
+          {
+            format: ImageManipulator.SaveFormat.JPEG,
+            compress: 1,
+            base64: false,
+          }
+        );
+
+        // Tạo một ảnh mới bằng cách nối dọc
+        combinedImage = await ImageManipulator.manipulateAsync(
+          combinedImage.uri,
+          [
+            {
+              resize: {
+                width: combinedImage.width,
+                height: combinedImage.height + currentImage.height
+              }
+            }
+          ],
+          {
+            format: ImageManipulator.SaveFormat.JPEG,
+            compress: 1,
+            base64: false,
+          }
+        );
+      }
+
+      return combinedImage.uri;
+    } catch (error) {
+      console.error('Lỗi khi ghép ảnh:', error);
+      throw error;
+    }
+  };
+
+  // Sửa lại hàm handleDownloadQuotation
   const handleDownloadQuotation = async () => {
     try {
-      // Hiển thị thông báo đang tạo PDF
-      Alert.alert('Thông báo', 'Đang tạo file PDF báo giá. Vui lòng đợi trong giây lát...');
+      Alert.alert('Thông báo', 'Đang tạo ảnh báo giá. Vui lòng đợi trong giây lát...');
 
-      // Tạo HTML cho PDF
-      const html = createPDFHTML();
-      
-      // Tạo file PDF
-      const { uri } = await Print.printToFileAsync({
-        html,
-        base64: false
+      const fileName = `bao-gia-slm-solar-${Date.now()}.jpg`;
+      const filePath = `${FileSystem.documentDirectory}${fileName}`;
+
+      // Scroll đến đầu trang
+      if (scrollViewRef.current) {
+        (scrollViewRef.current as any).scrollTo({ y: 0, animated: false });
+      }
+
+      // Đợi một chút để đảm bảo scroll đã hoàn tất
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Chụp toàn bộ ScrollView
+      const uri = await captureRef(scrollViewRef, {
+        format: 'jpg',
+        quality: 1,
+        result: 'tmpfile',
+        height: 5000,
+        snapshotContentContainer: true
       });
-      
-      console.log('PDF created at', uri);
-      
-      // Tạo tên file PDF mới có dấu thời gian
-      const fileName = `bao-gia-slm-solar-${Date.now()}.pdf`;
-      const newUri = FileSystem.documentDirectory + fileName;
-      
-      // Sao chép file đến thư mục document để có thể chia sẻ
+
+      // Kiểm tra xem ảnh có tồn tại không
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) {
+        throw new Error('Không thể tạo ảnh');
+      }
+
+      // Sao chép file
       await FileSystem.copyAsync({
         from: uri,
-        to: newUri
+        to: filePath
       });
-      
-      console.log('PDF copied to', newUri);
-      
-      // Kiểm tra xem thiết bị có hỗ trợ chia sẻ không
+
       const isAvailable = await Sharing.isAvailableAsync();
       
       if (isAvailable) {
-        // Chia sẻ file PDF
-        await Sharing.shareAsync(newUri, {
-          mimeType: 'application/pdf',
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'image/jpeg',
           dialogTitle: 'Chia sẻ báo giá SLM Solar',
-          UTI: 'com.adobe.pdf'
+          UTI: 'public.jpeg'
         });
-        
-        console.log('Sharing PDF completed');
       } else {
-        // Nếu không hỗ trợ chia sẻ, thông báo cho người dùng
         Alert.alert(
           'Thông báo', 
           'Thiết bị của bạn không hỗ trợ tính năng chia sẻ file. Vui lòng cập nhật phiên bản mới nhất của ứng dụng.'
         );
       }
-      
-      // Xóa file tạm sau khi chia sẻ
+
       await FileSystem.deleteAsync(uri, { idempotent: true });
+      await FileSystem.deleteAsync(filePath, { idempotent: true });
       
     } catch (error) {
-      console.error('Lỗi khi tạo hoặc chia sẻ PDF:', error);
+      console.error('Lỗi khi tạo hoặc chia sẻ ảnh:', error);
       Alert.alert(
         'Lỗi', 
-        'Đã xảy ra lỗi khi tạo hoặc chia sẻ file PDF. Vui lòng thử lại sau.'
+        'Đã xảy ra lỗi khi tạo hoặc chia sẻ ảnh. Vui lòng thử lại sau.'
       );
     }
   };
 
   // Lọc sản phẩm theo loại
-  const getPanels = () => products.filter(p => p.category === 'PANEL');
-  const getInverters = () => products.filter(p => p.category === 'INVERTER');
-  const getBatteries = () => products.filter(p => p.category === 'BATTERY');
+  const getPanels = (): PanelItem[] => {
+    if (!groupedMerchandises.length) return [];
+    const panelGroup = groupedMerchandises.find(group => group.template.code === 'PIN_PV');
+    if (!panelGroup) return [];
+    
+    return panelGroup.pre_quote_merchandises.map(item => ({
+      specs: item.merchandise.data_json || {},
+      quantity: item.quantity || 0,
+      name: item.merchandise.name || '',
+      power: item.merchandise.data_json?.power_watt ? `${item.merchandise.data_json.power_watt}W` : 'N/A',
+      technology: item.merchandise.data_json?.technology || 'N/A',
+      warranty: item.merchandise.data_json?.warranty_years ? `${item.merchandise.data_json.warranty_years} năm` : 'N/A',
+      id: item.id,
+      merchandise_id: item.merchandise_id,
+      pre_quote_id: item.pre_quote_id,
+      note: item.note,
+      price: item.price,
+      unit: item.merchandise.unit || '',
+      merchandise: item.merchandise || {
+        id: 0,
+        supplier_id: null,
+        name: '',
+        unit: '',
+        data_json: {},
+        active: false,
+        template_id: 0,
+        brand_id: 0,
+        code: '',
+        data_sheet_link: '',
+        description_in_contract: '',
+        created_at: '',
+      },
+    }));
+  };
+
+  const getInverters = (): InverterItem[] => {
+    if (!groupedMerchandises.length) return [];
+    const inverterGroup = groupedMerchandises.find(group => group.template.code === 'INVERTER_DC_AC');
+    if (!inverterGroup) return [];
+    
+    return inverterGroup.pre_quote_merchandises.map(item => ({
+      specs: item.merchandise.data_json || {},
+      quantity: item.quantity || 0,
+      name: item.merchandise.name || '',
+      ac_power: item.merchandise.data_json?.ac_power_kw ? `${item.merchandise.data_json.ac_power_kw}kW` : 'N/A',
+      dc_power: item.merchandise.data_json?.dc_max_power_kw ? `${item.merchandise.data_json.dc_max_power_kw}kW` : 'N/A',
+      warranty: item.merchandise.data_json?.warranty_years ? `${item.merchandise.data_json.warranty_years} năm` : 'N/A',
+      id: item.id,
+      merchandise_id: item.merchandise_id,
+      pre_quote_id: item.pre_quote_id,
+      note: item.note,
+      price: item.price,
+      unit: item.merchandise.unit || '',
+      merchandise: item.merchandise || {
+        id: 0,
+        supplier_id: null,
+        name: '',
+        unit: '',
+        data_json: {},
+        active: false,
+        template_id: 0,
+        brand_id: 0,
+        code: '',
+        data_sheet_link: '',
+        description_in_contract: '',
+        created_at: '',
+      },
+    }));
+  };
+
+  const getBatteries = (): BatteryItem[] => {
+    if (!groupedMerchandises.length) return [];
+    const batteryGroup = groupedMerchandises.find(group => group.template.code === 'BATTERY_STORAGE');
+    if (!batteryGroup) return [];
+    
+    return batteryGroup.pre_quote_merchandises.map(item => ({
+      specs: item.merchandise.data_json || {},
+      quantity: item.quantity || 0,
+      name: item.merchandise.name || '',
+      capacity: item.merchandise.data_json?.storage_capacity_kwh ? `${item.merchandise.data_json.storage_capacity_kwh}kWh` : 'N/A',
+      technology: item.merchandise.data_json?.technology || 'N/A',
+      warranty: item.merchandise.data_json?.warranty_years ? `${item.merchandise.data_json.warranty_years} năm` : 'N/A',
+      id: item.id,
+      merchandise_id: item.merchandise_id,
+      pre_quote_id: item.pre_quote_id,
+      note: item.note,
+      price: item.price,
+      unit: item.merchandise.unit || '',
+      merchandise: item.merchandise || {
+        id: 0,
+        supplier_id: null,
+        name: '',
+        unit: '',
+        data_json: {},
+        active: false,
+        template_id: 0,
+        brand_id: 0,
+        code: '',
+        data_sheet_link: '',
+        description_in_contract: '',
+        created_at: '',
+      },
+    }));
+  };
+
   const getAccessories = () => products.filter(p => p.category === 'ACCESSORY' || !p.category);
   
   // Định dạng tên hiển thị cho sản phẩm
@@ -607,6 +741,30 @@ export default function QuotationSuccess() {
     // You might want to update it in your backend or state management
   };
 
+  const formatPaybackPeriod = (years: number | undefined): string => {
+    if (!years) return 'N/A';
+    return `${years} năm`;
+  };
+
+  const getPowerFromName = (name: string) => {
+    const match = name.match(/(\d+(?:\.\d+)?)\s*(?:kW|kWh)/i);
+    return match ? match[1] : 'N/A';
+  };
+
+  const formatPowerOutput = (combo: any): string => {
+    if (!combo) return 'N/A';
+    const power = getPowerFromName(combo.name);
+    return power ? `${power}kW` : 'N/A';
+  };
+
+  const getPhaseType = (combo: any) => {
+    if (!combo) return 'N/A';
+    const name = combo.name.toLowerCase();
+    if (name.includes('1 pha') || name.includes('1pha')) return '1 PHA';
+    if (name.includes('3 pha') || name.includes('3pha')) return '3 PHA';
+    return 'N/A';
+  };
+
   return (
     <React.Fragment>
       <Stack.Screen options={{ headerShown: false }} />
@@ -614,7 +772,7 @@ export default function QuotationSuccess() {
         <StatusBar barStyle="dark-content" />
         
         {/* Thanh tiêu đề */}
-        <View style={styles.header}>
+        <View ref={headerRef} style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#7B7D9D" />
           </TouchableOpacity>
@@ -623,204 +781,349 @@ export default function QuotationSuccess() {
           </TouchableOpacity>
         </View>
 
-        {/* Nội dung thông báo thành công */}
-        <View style={styles.successContainer}>
-          <Text style={styles.successTitle}>Báo giá đã được tạo thành công!</Text>
-          <Text style={styles.successDescription}>
-            Vui lòng kiểm tra thông tin tóm tắt của báo giá bên dưới. Bạn có thể tải về bản báo giá dưới dạng PDF để gửi đến khách hàng bằng cách nhấn vào nút "BÁO GIÁ KHẢO SÁT" hoặc "BÁO GIÁ CHI TIẾT".
-          </Text>
-        </View>
-
-        <ScrollView style={styles.scrollView}>
-          {/* Thông tin chung */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>THÔNG TIN CHUNG</Text>
+        <View style={{ flex: 1 }}>
+          <ScrollView 
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollViewContent}
+            scrollEnabled={true}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            {/* Nội dung thông báo thành công */}
+            <View ref={successContainerRef} style={styles.successContainer}>
+              <Text style={styles.successTitle}>Báo giá đã được tạo thành công!</Text>
+              <Text style={styles.successDescription}>
+                Vui lòng kiểm tra thông tin tóm tắt của báo giá bên dưới. Bạn có thể tải về bản báo giá dưới dạng PDF để gửi đến khách hàng bằng cách nhấn vào nút "BÁO GIÁ KHẢO SÁT" hoặc "BÁO GIÁ CHI TIẾT".
+              </Text>
             </View>
-            <View style={styles.sectionContent}>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Mã khách hàng</Text>
-                <View style={styles.customerCodeContainer}>
-                  <Text style={styles.infoValue}>{customerCode || '-'}</Text>
-                  {customerCode && (
-                    <TouchableOpacity 
-                      style={styles.copyButton}
-                      onPress={handleCopyCustomerCode}
-                    >
-                      <Ionicons name="copy-outline" size={16} color="#7B7D9D" />
-                    </TouchableOpacity>
-                  )}
+
+            {/* Thông tin sản phẩm */}
+            <View ref={sectionContainerRef} style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>THÔNG TIN SẢN PHẨM</Text>
+              </View>
+              <View style={styles.sectionContent}>
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel}>Sản phẩm</Text>
+                  <Text style={styles.infoValue}>HỆ THỐNG ĐIỆN NLMT SOLARMAX</Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel}>Phân loại</Text>
+                  <Text style={styles.infoValue}>
+                    {systemType === 'HYBRID' ? 'HYBRID' : 'BÁM TẢI'}{' '}
+                    <Text>•</Text>{' '}
+                    {phaseType === 'ONE_PHASE' ? 'MỘT PHA' : 'BA PHA'}
+                  </Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel}>Công suất</Text>
+                  <Text style={styles.infoValue}>{totalPower}</Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <View>
+                    <Text style={styles.infoLabel}>Giá trị đơn hàng</Text>
+                    <Text style={styles.infoSubLabel}>(Bao gồm VAT)</Text>
+                  </View>
+                  <Text style={styles.totalPrice}>{formatPrice(totalPrice)}</Text>
                 </View>
               </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Người lập báo giá</Text>
-                <Text style={styles.infoValue}>{displayAgentName()}</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Thời gian lập báo giá</Text>
-                <Text style={styles.infoValue}>{createdTime || '-'}</Text>
+            </View>
+
+            {/* Equipment List with Images */}
+            <View ref={equipmentListRef} style={styles.equipmentList}>
+              {(() => {
+                let itemNumber = 1;
+                return (
+                  <>
+                    {/* Tấm quang năng */}
+                    {getPanels().length > 0 && getPanels()[0] && (
+                      <View style={styles.equipmentCard}>
+                        <View style={styles.itemRow}>
+                          <View style={styles.imageContainer}>
+                            {getPanels()[0].warranty_years && (
+                              <View style={styles.warrantyTag}>
+                                <Text style={styles.warrantyText}>
+                                  Bảo hành {getPanels()[0].warranty}
+                                </Text>
+                              </View>
+                            )}
+                            <Image 
+                              source={getPanels()[0]?.merchandise?.images?.[0]?.link ? 
+                                { uri: getPanels()[0]?.merchandise?.images?.[0]?.link } : 
+                                require('@/assets/images/replace-holder.png')}
+                              style={styles.itemImage}
+                              resizeMode="cover"
+                            />
+                          </View>
+                          <View style={styles.itemContent}>
+                            <Text style={styles.itemName}>{getPanels()[0].name}</Text>
+                            <View style={styles.productDetails}>
+                              {getPanels()[0] && (
+                                <>
+                                  <Text style={styles.productDetail}>
+                                    Công suất: {getPanels()[0].power}
+                                  </Text>
+                                  <Text style={styles.productDetail}>
+                                    Công nghệ: {getPanels()[0].technology}
+                                  </Text>
+                                  <Text style={styles.productDetail}>
+                                    Bảo hành: {getPanels()[0].warranty}
+                                  </Text>
+                                </>
+                              )}
+                            </View>
+                            <View style={styles.priceContainer}>
+                              <Text style={styles.productPrice}>
+                                {getPanels()[0].price ? formatPrice(getPanels()[0].price) : '0 VND'}
+                              </Text>
+                              <View style={styles.quantityContainer}>
+                                <Text style={styles.quantityLabel}>Số lượng</Text>
+                                <View style={styles.quantityBadge}>
+                                  <Text style={styles.quantityValue}>
+                                    {getPanels()[0].quantity}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Biến tần */}
+                    {getInverters().length > 0 && getInverters()[0] && (
+                      <View style={styles.equipmentCard}>
+                        <View style={styles.itemRow}>
+                          <View style={styles.imageContainer}>
+                            {getInverters()[0].warranty_years && (
+                              <View style={styles.warrantyTag}>
+                                <Text style={styles.warrantyText}>
+                                  Bảo hành {getInverters()[0].warranty}
+                                </Text>
+                              </View>
+                            )}
+                            <Image 
+                              source={getInverters()[0]?.merchandise?.images?.[0]?.link ? 
+                                { uri: getInverters()[0]?.merchandise?.images?.[0]?.link } : 
+                                require('@/assets/images/replace-holder.png')}
+                              style={styles.itemImage}
+                              resizeMode="cover"
+                            />
+                          </View>
+                          <View style={styles.itemContent}>
+                            <Text style={styles.itemName}>{getInverters()[0].name}</Text>
+                            <View style={styles.productDetails}>
+                              {getInverters()[0] && (
+                                <>
+                                  <Text style={styles.productDetail}>
+                                    Công suất AC: {getInverters()[0].ac_power}
+                                  </Text>
+                                  <Text style={styles.productDetail}>
+                                    Đầu vào DC Max: {getInverters()[0].dc_power}
+                                  </Text>
+                                  <Text style={styles.productDetail}>
+                                    Bảo hành: {getInverters()[0].warranty}
+                                  </Text>
+                                </>
+                              )}
+                            </View>
+                            <View style={styles.priceContainer}>
+                              <Text style={styles.productPrice}>
+                                {getInverters()[0].price ? formatPrice(getInverters()[0].price) : '0 VND'}
+                              </Text>
+                              <View style={styles.quantityContainer}>
+                                <Text style={styles.quantityLabel}>Số lượng</Text>
+                                <View style={styles.quantityBadge}>
+                                  <Text style={styles.quantityValue}>
+                                    {getInverters()[0].quantity}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Pin lưu trữ */}
+                    {getBatteries().length > 0 && getBatteries()[0] && (
+                      <View style={styles.equipmentCard}>
+                        <View style={styles.itemRow}>
+                          <View style={styles.imageContainer}>
+                            {getBatteries()[0].warranty_years && (
+                              <View style={styles.warrantyTag}>
+                                <Text style={styles.warrantyText}>
+                                  Bảo hành {getBatteries()[0].warranty}
+                                </Text>
+                              </View>
+                            )}
+                            <Image 
+                              source={getBatteries()[0]?.merchandise?.images?.[0]?.link ? 
+                                { uri: getBatteries()[0]?.merchandise?.images?.[0]?.link } : 
+                                require('@/assets/images/replace-holder.png')}
+                              style={styles.itemImage}
+                              resizeMode="cover"
+                            />
+                          </View>
+                          <View style={styles.itemContent}>
+                            <Text style={styles.itemName}>{getBatteries()[0].name}</Text>
+                            <View style={styles.productDetails}>
+                              {getBatteries()[0] && (
+                                <>
+                                  <Text style={styles.productDetail}>
+                                    Dung lượng: {getBatteries()[0].capacity}
+                                  </Text>
+                                  <Text style={styles.productDetail}>
+                                    Công nghệ: {getBatteries()[0].technology}
+                                  </Text>
+                                  <Text style={styles.productDetail}>
+                                    Bảo hành: {getBatteries()[0].warranty}
+                                  </Text>
+                                </>
+                              )}
+                            </View>
+                            <View style={styles.priceContainer}>
+                              <Text style={styles.productPrice}>
+                                {getBatteries()[0].price ? formatPrice(getBatteries()[0].price) : '0 VND'}
+                              </Text>
+                              <View style={styles.quantityContainer}>
+                                <Text style={styles.quantityLabel}>Số lượng</Text>
+                                <View style={styles.quantityBadge}>
+                                  <Text style={styles.quantityValue}>
+                                    {getBatteries()[0].quantity}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </>
+                );
+              })()}
+            </View>
+
+            {/* Chi tiết báo giá */}
+            <View ref={equipmentListDuplicateRef} style={styles.equipmentListDuplicate}>
+              <Text style={[styles.sectionTitle, { textAlign: 'center', fontSize: 14, fontWeight: '700', marginBottom: 20 }]}>DANH MỤC THIẾT BỊ</Text>
+              
+              {groupedMerchandises.map((group, index) => (
+                <View key={group.template.id} style={styles.equipmentItem}>
+                  <View style={styles.itemRow}>
+                    <Text style={styles.itemNumber}>{index + 1}</Text>
+                    <Text style={[styles.itemName, { flex: 1 }]}>{group.template.name.toUpperCase()}</Text>
+                    <Text style={[styles.itemQuantity]}>
+                      {group.template.code === 'PIN_PV' && getPanels().length > 0 ? 
+                        `${getPanels()[0].quantity} ${getPanels()[0].unit || 'Tấm'}` :
+                      group.template.code === 'INVERTER_DC_AC' && getInverters().length > 0 ?
+                        `${getInverters()[0].quantity} ${getInverters()[0].unit || 'Bộ'}` :
+                      group.template.code === 'BATTERY_STORAGE' && getBatteries().length > 0 ?
+                        `${getBatteries()[0].quantity} ${getBatteries()[0].unit || 'Bộ'}` :
+                        '1 Bộ'
+                      }
+                    </Text>
+                  </View>
+                </View>
+              ))}
+
+              {/* Hình thức lắp đặt luôn ở cuối */}
+              <View style={styles.equipmentItem}>
+                <View style={styles.itemRow}>
+                  <Text style={styles.itemNumber}>{groupedMerchandises.length + 1}</Text>
+                  <Text style={[styles.itemName, { flex: 1 }]}>
+                    {installationType === 'AP_MAI' ? 'HÌNH THỨC LẮP ĐẶT ÁP MÁI' : 'HÌNH THỨC LẮP ĐẶT KHUNG SẮT'}
+                  </Text>
+                  <Text style={[styles.itemQuantity]}>1 Bộ</Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* Thông tin khách hàng */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>THÔNG TIN KHÁCH HÀNG</Text>
-              <TouchableOpacity onPress={() => setIsDrawerVisible(true)}>
-                <Text style={styles.updateButton}>Cập nhật</Text>
+            {/* Tax Info and Hotline */}
+            <View ref={taxAndHotlineRef} style={styles.taxAndHotlineContainer}>
+              <View style={styles.taxInfoContainer}>
+                <Text style={styles.taxInfoText}>Giá đã bao gồm thuế. Phí vận chuyển và các chi phí</Text>
+                <Text style={styles.taxInfoText}>khác (nếu có) sẽ được thông báo tới quý khách hàng</Text>
+                <Text style={styles.taxInfoText}>thông qua nhân viên tư vấn.</Text>
+              </View>
+              <TouchableOpacity style={styles.phoneButton}>
+                <Ionicons name="call" size={20} color="#fff" />
+                <Text style={styles.phoneNumber}>0969 66 33 87</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.sectionContent}>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Họ và tên</Text>
-                <Text style={styles.infoValue}>{customerName || '-'}</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Số điện thoại</Text>
-                <Text style={styles.infoValue}>{phoneNumber || '-'}</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Đại lý phụ trách</Text>
-                <Text style={styles.infoValue}>{dealer || '-'}</Text>
-              </View>
-            </View>
-          </View>
 
-          {/* Thông tin sản phẩm */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>THÔNG TIN SẢN PHẨM</Text>
-            </View>
-            <View style={styles.sectionContent}>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Sản phẩm</Text>
-                <Text style={styles.infoValue}>HỆ THỐNG ĐIỆN NLMT SOLARMAX</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Phân loại</Text>
-                <Text style={styles.infoValue}>
-                  {systemType === 'HYBRID' ? 'HYBRID' : 'BÁM TẢI'}{' '}
-                  <Text>•</Text>{' '}
-                  {phaseType === 'ONE_PHASE' ? 'MỘT PHA' : 'BA PHA'}
-                </Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Công suất</Text>
-                <Text style={styles.infoValue}>{totalPower || '-'}</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <View>
-                  <Text style={styles.infoLabel}>Giá trị đơn hàng</Text>
-                  <Text style={styles.infoSubLabel}>(Bao gồm VAT)</Text>
-                </View>
-                <Text style={styles.totalPrice}>{formatPrice(totalPrice)}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Chi tiết báo giá */}
-          <View style={styles.equipmentListDuplicate}>
-            <Text style={styles.sectionTitle}>DANH MỤC THIẾT BỊ</Text>
-            
-            {(() => {
-              let itemNumber = 1;
-              return (
-                <>
-                  {/* Tấm quang năng */}
-                  {getPanels().length > 0 && (
-                    <View style={styles.equipmentItem}>
-                      <View style={styles.itemRow}>
-                        <Text style={styles.itemNumber}>{itemNumber++}</Text>
-                        <Text style={[styles.itemName, { flex: 1 }]}>TẤM QUANG NĂNG</Text>
-                        <Text style={[styles.itemQuantity]}>
-                          {`${getPanels()[0].quantity} ${getPanels()[0].unit || 'Tấm'}`}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Biến tần */}
-                  {getInverters().length > 0 && (
-                    <View style={styles.equipmentItem}>
-                      <View style={styles.itemRow}>
-                        <Text style={styles.itemNumber}>{itemNumber++}</Text>
-                        <Text style={[styles.itemName, { flex: 1 }]}>BIẾN TẦN</Text>
-                        <Text style={[styles.itemQuantity]}>
-                          {`${getInverters()[0].quantity} ${getInverters()[0].unit || 'Bộ'}`}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Pin lưu trữ */}
-                  {getBatteries().length > 0 && (
-                    <View style={styles.equipmentItem}>
-                      <View style={styles.itemRow}>
-                        <Text style={styles.itemNumber}>{itemNumber++}</Text>
-                        <Text style={[styles.itemName, { flex: 1 }]}>PIN LƯU TRỮ</Text>
-                        <Text style={[styles.itemQuantity]}>
-                          {`${getBatteries()[0].quantity} ${getBatteries()[0].unit || 'Bộ'}`}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Hình thức lắp đặt */}
-                  <View style={styles.equipmentItem}>
-                    <View style={styles.itemRow}>
-                      <Text style={styles.itemNumber}>{itemNumber++}</Text>
-                      <Text style={[styles.itemName, { flex: 1 }]}>
-                        {installationType === 'AP_MAI' ? 'HÌNH THỨC LẮP ĐẶT ÁP MÁI' : 'HÌNH THỨC LẮP ĐẶT KHUNG SẮT'}
-                      </Text>
-                      <Text style={[styles.itemQuantity]}>1 Bộ</Text>
-                    </View>
+            {/* Company Info */}
+            <View ref={companyInfoRef} style={styles.companyInfo}>
+              <View style={styles.companyInfoRow}>
+                <View style={styles.companyDetails}>
+                  <Text style={styles.companyName}>CÔNG TY CỔ PHẦN ĐẦU TƯ SLM</Text>
+                  <View style={styles.addressContainer}>
+                    <Text style={styles.companyAddress}>Tầng 5, Tòa nhà Diamond Flower Tower</Text>
+                    <Text style={styles.companyAddress}>Số 01, Đ. Hoàng Đạo Thúy, P. Nhân Chính</Text>
+                    <Text style={styles.companyAddress}>Quận Thanh Xuân, Hà Nội</Text>
                   </View>
+                </View>
+                <Image 
+                  source={require('@/assets/images/qr-bank.png')}
+                  style={styles.qrCode}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
 
-                  {/* Phụ kiện, vật tư */}
-                  {getAccessories().length > 0 && (
-                    <View style={styles.equipmentItem}>
-                      <View style={styles.itemRow}>
-                        <Text style={styles.itemNumber}>{itemNumber++}</Text>
-                        <Text style={[styles.itemName, { flex: 1 }]}>PHỤ KIỆN, VẬT TƯ</Text>
-                        <Text style={[styles.itemQuantity]}>1 Bộ</Text>
-                      </View>
-                    </View>
-                  )}
-                </>
-              );
-            })()}
-          </View>
-        </ScrollView>
+            {/* Website and Social Media */}
+            <View ref={socialContainerRef} style={styles.socialContainer}>
+              <View style={styles.websiteRow}>
+                <Ionicons name="globe-outline" size={12} color="#fff" />
+                <Text style={styles.socialText}>www.slmsolar.com</Text>
+              </View>
+              <View style={styles.socialRow}>
+                <View style={styles.socialIconsGroup}>
+                  <View style={styles.socialIconBox}>
+                    <Ionicons name="logo-facebook" size={8} color="#7B7D9D" />
+                  </View>
+                  <View style={styles.socialIconBox}>
+                    <Ionicons name="logo-youtube" size={8} color="#7B7D9D" />
+                  </View>
+                  <View style={styles.socialIconBox}>
+                    <Ionicons name="logo-tiktok" size={8} color="#7B7D9D" />
+                  </View>
+                </View>
+                <Text style={styles.socialText}>@solarmax87</Text>
+              </View>
+            </View>
+          </ScrollView>
 
-        {/* Nút tải xuống báo giá */}
-        <View style={styles.bottomContainer}>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.downloadButton, styles.surveyButton]}
-              onPress={handleDownloadQuotation}
-            >
-              <Ionicons name="document-text-outline" size={18} color="#27273E" />
-              <Text style={styles.surveyButtonText}>BÁO GIÁ KHẢO SÁT</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.downloadButton, styles.detailButton]}
-              onPress={handleDownloadQuotation}
-            >
-              <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.detailButtonText}>BÁO GIÁ CHI TIẾT</Text>
-            </TouchableOpacity>
+          {/* Bottom action - Hiển thị chi tiết giá nếu có khung sắt */}
+          <View style={styles.bottomContainer}>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.downloadButton, styles.surveyButton]}
+                onPress={handleDownloadQuotation}
+              >
+                <Ionicons name="document-text-outline" size={18} color="#27273E" />
+                <Text style={styles.surveyButtonText}>BÁO GIÁ KHẢO SÁT</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.downloadButton, styles.detailButton]}
+                onPress={handleDownloadQuotation}
+              >
+                <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.detailButtonText}>BÁO GIÁ CHI TIẾT</Text>
+              </TouchableOpacity>
+            </View>
           </View>
+
+          <CustomerInfoDrawer
+            visible={isDrawerVisible}
+            onClose={() => setIsDrawerVisible(false)}
+            customerName={customerName}
+            phoneNumber={phoneNumber}
+            dealer={dealer}
+            onSave={handleUpdateCustomerInfo}
+          />
         </View>
-
-        <CustomerInfoDrawer
-          visible={isDrawerVisible}
-          onClose={() => setIsDrawerVisible(false)}
-          customerName={customerName}
-          phoneNumber={phoneNumber}
-          dealer={dealer}
-          onSave={handleUpdateCustomerInfo}
-        />
       </SafeAreaView>
     </React.Fragment>
   );
@@ -837,26 +1140,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     height: 56,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 40,
+    minHeight: '100%',
   },
   successContainer: {
     paddingHorizontal: 16,
     paddingBottom: 24,
-    gap: 24,
+    paddingTop: 32,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
   },
   successTitle: {
     fontSize: 24,
     fontWeight: '400',
     color: '#27273E',
     lineHeight: 32,
+    marginBottom: 24,
   },
   successDescription: {
     fontSize: 14,
     color: '#7B7D9D',
     lineHeight: 20,
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: '#F5F5F8',
   },
   sectionContainer: {
     backgroundColor: '#FFFFFF',
@@ -932,17 +1245,17 @@ const styles = StyleSheet.create({
   },
   itemNumber: {
     width: 24,
-    fontSize: 12,
+    fontSize: 14,
     color: '#091E42',
     textAlign: 'center',
   },
   itemName: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#091E42',
     flex: 1,
   },
   itemQuantity: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#091E42',
     paddingHorizontal: 8,
     backgroundColor: '#F5F5F8',
@@ -1000,5 +1313,208 @@ const styles = StyleSheet.create({
   },
   copyButton: {
     padding: 4,
+  },
+  taxAndHotlineContainer: {
+    backgroundColor: '#F5F5F8',
+    padding: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 16,
+    marginHorizontal: 16,
+    borderRadius: 8,
+  },
+  taxInfoContainer: {
+    flex: 1,
+  },
+  taxInfoText: {
+    fontSize: 10,
+    lineHeight: 16,
+    color: '#7B7D9D',
+  },
+  phoneButton: {
+    backgroundColor: '#ED1C24',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 8,
+  },
+  phoneNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  companyInfo: {
+    padding: 16,
+    backgroundColor: '#DCDCE6',
+    marginTop: 16,
+    marginHorizontal: 16,
+    borderRadius: 8,
+  },
+  companyInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  companyDetails: {
+    flex: 1,
+    marginRight: 16,
+  },
+  companyName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#27273E',
+    marginBottom: 8,
+  },
+  addressContainer: {
+    gap: 2,
+  },
+  companyAddress: {
+    fontSize: 12,
+    color: '#27273E',
+    lineHeight: 16,
+  },
+  qrCode: {
+    width: 120,
+    height: 120,
+    borderRadius: 4,
+    maxHeight: 120,
+  },
+  socialContainer: {
+    backgroundColor: '#27273E',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 6,
+    paddingHorizontal: 16,
+    gap: 14,
+    marginTop: 16,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    borderRadius: 8,
+  },
+  websiteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  socialIconsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  socialIconBox: {
+    width: 16,
+    height: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  socialText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+    lineHeight: 16,
+  },
+  equipmentList: {
+    padding: 16,
+    gap: 12,
+  },
+  equipmentCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  warrantyTag: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: '#ED1C24',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 1,
+  },
+  warrantyText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  itemImage: {
+    width: itemImageSize,
+    height: itemImageSize,
+    borderRadius: 4,
+    backgroundColor: '#F5F5F8',
+  },
+  itemContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  productDetails: {
+    gap: 2,
+  },
+  productDetail: {
+    fontSize: 12,
+    color: '#7B7D9D',
+    lineHeight: 16,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ED1C24',
+    lineHeight: 20
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-end',
+    marginTop: 8,
+  },
+  quantityLabel: {
+    fontSize: 8,
+    lineHeight: 12,
+    color: '#7B7D9D',
+  },
+  quantityBadge: {
+    backgroundColor: '#7B7D9D',
+    paddingHorizontal: 6,
+    height: 16,
+    minWidth: 16,
+    borderRadius: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quantityValue: {
+    fontSize: 8,
+    lineHeight: 12,
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
 }); 
