@@ -631,13 +631,6 @@ export default function NewContactScreen() {
         </TouchableOpacity>
       </View>
       
-      {currentUser && (
-        <View style={styles.agentInfoContainer}>
-          <Text style={styles.agentInfoText}>
-            Đại lý: <Text style={styles.agentInfoValue}>{currentUser.name}</Text> (ID: {currentUser.id})
-          </Text>
-        </View>
-      )}
       
       <ScrollView style={styles.formContainer} contentContainerStyle={{ paddingTop: 0 }}>
         <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>

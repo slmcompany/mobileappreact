@@ -12,6 +12,11 @@ interface User {
   address?: string;
   avatar?: string;
   code?: string;
+  role?: {
+    name: string;
+    description: string | null;
+    id: number;
+  };
 }
 
 // Định nghĩa interface cho commission
@@ -155,7 +160,8 @@ export default function StatsScreen() {
           phone: data.phone || '',
           address: data.address || '',
           avatar: data.avatar || '',
-          code: data.code || `AG${data.id || '0000'}`
+          code: data.code || `AG${data.id || '0000'}`,
+          role: data.role
         });
       }
     } catch (error) {
@@ -353,7 +359,7 @@ export default function StatsScreen() {
               <View style={styles.companyInfo}>
                 <Text style={styles.companyName}>CÔNG TY CP ĐẦU TƯ SLM</Text>
                 <View style={styles.agentBadge}>
-                  <Text style={styles.agentBadgeText}>ĐẠI LÝ CẤP 1</Text>
+                  <Text style={styles.agentBadgeText}>{user?.role?.name?.toUpperCase() || 'CUSTOMER'}</Text>
                 </View>
               </View>
             </View>

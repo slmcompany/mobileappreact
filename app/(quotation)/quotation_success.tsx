@@ -627,7 +627,7 @@ export default function QuotationSuccess() {
         <View style={styles.successContainer}>
           <Text style={styles.successTitle}>Báo giá đã được tạo thành công!</Text>
           <Text style={styles.successDescription}>
-            Vui lòng kiểm tra thông tin tóm tắt của báo giá bên dưới. Bạn có thể tải về bản báo giá dưới dạng PDF để gửi đến khách hàng bằng cách nhấn vào nút "TẢI XUỐNG BÁO GIÁ".
+            Vui lòng kiểm tra thông tin tóm tắt của báo giá bên dưới. Bạn có thể tải về bản báo giá dưới dạng PDF để gửi đến khách hàng bằng cách nhấn vào nút "BÁO GIÁ KHẢO SÁT" hoặc "BÁO GIÁ CHI TIẾT".
           </Text>
         </View>
 

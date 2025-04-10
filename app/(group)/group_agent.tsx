@@ -187,14 +187,7 @@ export default function GroupAgentScreen() {
   // Loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Cộng đồng</Text>
-          <View style={{width: 24}} />
-        </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ED1C24" />
           <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
@@ -206,14 +199,7 @@ export default function GroupAgentScreen() {
   // Error state
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Cộng đồng</Text>
-          <View style={{width: 24}} />
-        </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
         <View style={styles.loadingContainer}>
           <Ionicons name="alert-circle-outline" size={48} color="#ED1C24" />
           <Text style={styles.errorText}>{error}</Text>
@@ -223,16 +209,7 @@ export default function GroupAgentScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header tùy chỉnh */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Cộng đồng</Text>
-        <View style={{width: 24}} />
-      </View>
-      
+    <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
       <ScrollView style={styles.scrollContainer}>
         {/* Group Info Section */}
         <View style={styles.groupInfoSection}>
@@ -322,26 +299,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F8',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
-  },
-  backButton: {
-    width: 24,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
   },
   scrollContainer: {
     flex: 1,
