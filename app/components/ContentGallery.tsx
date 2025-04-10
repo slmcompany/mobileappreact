@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Image, FlatList, TouchableOpacity, ActivityIndicator, Dimensions, Modal, ScrollView, Linking, Alert, Share } from 'react-native';
+import { StyleSheet, View, Text, Image, FlatList, TouchableOpacity, ActivityIndicator, Dimensions, Modal, ScrollView, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import WebView from 'react-native-webview';
-import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
 
 // Định nghĩa interface cho nội dung media
 interface MediaContent {
@@ -87,8 +84,6 @@ const ContentGallery = ({
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [webViewHeight, setWebViewHeight] = useState<number>(500);
-  const [showOptions, setShowOptions] = useState<boolean>(false);
-  const [selectedOptionsContent, setSelectedOptionsContent] = useState<Content | null>(null);
 
   useEffect(() => {
     if (propUserId) {
@@ -159,11 +154,16 @@ const ContentGallery = ({
   };
 
   const handleContentPress = (content: Content) => {
-    // Luôn điều hướng đến màn hình chi tiết thay vì hiển thị modal
-    router.push({
-      pathname: "/(content)/content_detail",
-      params: { id: content.id }
-    });
+    if (detailInModal) {
+      setSelectedContent(content);
+      setModalVisible(true);
+    } else {
+      // Điều hướng đến màn hình chi tiết
+      router.push({
+        pathname: "/(content)/content_detail",
+        params: { id: content.id }
+      });
+    }
   };
 
   const navigateToViewAll = () => {
@@ -290,111 +290,147 @@ const ContentGallery = ({
     return false;
   };
 
-  // Hàm copy nội dung
-  const copyContent = async (content: Content) => {
-    try {
-      await Clipboard.setStringAsync(stripHtml(content.content));
-      Alert.alert('Thành công', 'Đã copy nội dung vào clipboard');
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không thể copy nội dung');
-    }
-    setShowOptions(false);
-  };
-
-  // Hàm tải ảnh
-  const downloadImage = async (imageUrl: string) => {
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Lỗi', 'Cần cấp quyền để tải ảnh');
-        return;
-      }
-
-      const { uri } = await FileSystem.downloadAsync(
-        imageUrl,
-        FileSystem.documentDirectory + 'temp_image.jpg'
-      );
-
-      await MediaLibrary.saveToLibraryAsync(uri);
-      await FileSystem.deleteAsync(uri);
-
-      Alert.alert('Thành công', 'Đã tải ảnh về thiết bị');
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không thể tải ảnh');
-    }
-    setShowOptions(false);
-  };
-
-  // Hàm chia sẻ
-  const shareContent = async (content: Content) => {
-    try {
-      await Share.share({
-        message: `${content.title}\n\n${stripHtml(content.content)}`,
-      });
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không thể chia sẻ nội dung');
-    }
-    setShowOptions(false);
-  };
-
   // Render mỗi item trong FlatList
   const renderContentItem = ({ item }: { item: Content }) => {
-    const firstImage = getFirstImage(item);
-    const timeAgo = getTimeAgo(item.created_at);
+    const imageUrl = getFirstImage(item);
+    const cleanContent = stripHtml(item.content);
 
-    return (
-      <View style={[styles.card, cardStyle === 'minimal' && styles.minimalCard]}>
-        <TouchableOpacity
-          style={styles.cardContent}
+    // Card nhỏ gọn
+    if (cardStyle === 'minimal') {
+      return (
+        <TouchableOpacity 
+          style={[
+            styles.minimalCard,
+            horizontal && { width: width * 0.7, marginRight: 12 }
+          ]} 
           onPress={() => handleContentPress(item)}
         >
-          {/* Existing card content */}
+          {imageUrl && (
+            <Image 
+              source={{ uri: imageUrl }} 
+              style={styles.minimalImage} 
+              resizeMode="cover" 
+            />
+          )}
+          <View style={styles.minimalInfo}>
+            <Text style={styles.minimalTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={styles.contentDate}>{formatDate(item.created_at)}</Text>
+            <Text style={styles.minimalExcerpt} numberOfLines={1}>{cleanContent}</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // Card đầy đủ
+    if (cardStyle === 'full') {
+      return (
+        <TouchableOpacity 
+          style={[
+            styles.fullCard,
+            horizontal && { width: width * 0.85, marginRight: 16 }
+          ]} 
+          onPress={() => handleContentPress(item)}
+        >
           <View style={styles.imageContainer}>
-            {firstImage ? (
-              <Image
-                source={{ uri: firstImage }}
-                style={styles.cardImage}
-                resizeMode="cover"
+            {imageUrl ? (
+              <Image 
+                source={{ uri: imageUrl }} 
+                style={styles.contentImage} 
+                resizeMode="cover" 
               />
             ) : (
-              <View style={styles.noImageContainer}>
-                <Ionicons name="image-outline" size={24} color="#ddd" />
+              <View style={styles.placeholderImage}>
+                <Ionicons name="newspaper-outline" size={40} color="#ccc" />
               </View>
             )}
           </View>
-          <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-            {cardStyle !== 'minimal' && (
-              <>
-                <Text style={styles.cardDescription} numberOfLines={2}>
-                  {stripHtml(item.content)}
-                </Text>
-                <View style={styles.cardFooter}>
-                  <Text style={styles.timeAgo}>{timeAgo}</Text>
-                  {item.category && (
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryText}>{item.category.name}</Text>
-                    </View>
-                  )}
-                </View>
-              </>
+          <View style={styles.fullCardInfo}>
+            <Text style={styles.contentTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={styles.contentDate}>{formatDate(item.created_at)}</Text>
+            <Text style={styles.contentExcerpt} numberOfLines={3}>{cleanContent}</Text>
+            {item.hashtag && (
+              <Text style={styles.contentHashtag} numberOfLines={1}>{item.hashtag}</Text>
             )}
           </View>
         </TouchableOpacity>
-        
-        {/* Options button */}
+      );
+    }
+    
+    // Simple card - hiển thị ảnh trên và text bên dưới
+    if (cardStyle === 'simple') {
+      return (
         <TouchableOpacity 
-          style={styles.optionsButton}
-          onPress={() => {
-            setSelectedOptionsContent(item);
-            setShowOptions(true);
-          }}
+          style={[
+            styles.simpleCard,
+            horizontal && { width: width * 0.38, marginRight: 10 }
+          ]} 
+          onPress={() => handleContentPress(item)}
         >
-          <Ionicons name="ellipsis-vertical" size={20} color="#666" />
+          {item.category?.sector?.image_rectangular && (
+            <View style={styles.sectorHeaderContainer}>
+              <Image 
+                source={{ uri: item.category.sector.image_rectangular }} 
+                style={styles.sectorHeaderImage} 
+                resizeMode="contain" 
+              />
+              {item.category?.sector?.name && (
+                <Text style={styles.sectorHeaderName}>{item.category.sector.name}</Text>
+              )}
+            </View>
+          )}
+          
+          <View style={styles.simpleImageContainer}>
+            {imageUrl ? (
+              <Image 
+                source={{ uri: imageUrl }} 
+                style={styles.simpleImage} 
+                resizeMode="cover" 
+              />
+            ) : (
+              <View style={styles.simplePlaceholderImage}>
+                <Ionicons name="newspaper-outline" size={30} color="#ccc" />
+              </View>
+            )}
+          </View>
+          <View style={styles.simpleInfo}>
+            <Text style={styles.simpleContent} numberOfLines={3}>{cleanContent}</Text>
+            <Text style={styles.simpleDate}>{getTimeAgo(item.created_at)}</Text>
+          </View>
         </TouchableOpacity>
-      </View>
+      );
+    }
+
+    // Card tiêu chuẩn (mặc định)
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.contentCard,
+          horizontal && { width: width * 0.75, marginRight: 16 }
+        ]} 
+        onPress={() => handleContentPress(item)}
+      >
+        <View style={styles.imageContainer}>
+          {imageUrl ? (
+            <Image 
+              source={{ uri: imageUrl }} 
+              style={styles.contentImage} 
+              resizeMode="cover" 
+            />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Ionicons name="newspaper-outline" size={40} color="#ccc" />
+            </View>
+          )}
+        </View>
+        <View style={styles.contentInfo}>
+          <Text style={styles.contentTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.contentDate}>{formatDate(item.created_at)}</Text>
+          <Text style={styles.contentExcerpt} numberOfLines={2}>{cleanContent}</Text>
+          {item.hashtag && (
+            <Text style={styles.contentHashtag} numberOfLines={1}>{item.hashtag}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -594,71 +630,13 @@ const ContentGallery = ({
               onPress={navigateToViewAll}
             >
               <Text style={styles.viewAllText}>Khám phá</Text>
-              <Image source={require('../../assets/images/arrow-icon.png')} style={styles.arrowIcon} />
+              <Ionicons name="chevron-forward" size={16} color="#ED1C24" />
             </TouchableOpacity>
           )}
         </View>
       );
     }
     return null;
-  };
-
-  // Options Modal
-  const renderOptionsModal = () => {
-    if (!selectedOptionsContent) return null;
-    
-    return (
-      <Modal
-        visible={showOptions}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowOptions(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1} 
-          onPress={() => setShowOptions(false)}
-        >
-          <View style={styles.optionsContainer}>
-            <TouchableOpacity 
-              style={styles.optionItem}
-              onPress={() => {
-                if (selectedOptionsContent?.media_contents?.[0]?.link) {
-                  downloadImage(selectedOptionsContent.media_contents[0].link);
-                }
-              }}
-            >
-              <Ionicons name="download-outline" size={24} color="#333" />
-              <Text style={styles.optionText}>Tải ảnh</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.optionItem}
-              onPress={() => {
-                if (selectedOptionsContent) {
-                  copyContent(selectedOptionsContent);
-                }
-              }}
-            >
-              <Ionicons name="copy-outline" size={24} color="#333" />
-              <Text style={styles.optionText}>Copy nội dung</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.optionItem}
-              onPress={() => {
-                if (selectedOptionsContent) {
-                  shareContent(selectedOptionsContent);
-                }
-              }}
-            >
-              <Ionicons name="share-social-outline" size={24} color="#333" />
-              <Text style={styles.optionText}>Chia sẻ</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    );
   };
 
   if (loading) {
@@ -706,7 +684,6 @@ const ContentGallery = ({
       />
       
       {detailInModal && renderContentDetail()}
-      {renderOptionsModal()}
     </View>
   );
 };
@@ -714,19 +691,17 @@ const ContentGallery = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 0,
+    padding: 16,
     backgroundColor: '#f5f5f8',
   },
   horizontalContainer: {
     paddingVertical: 12,
-    paddingHorizontal: 0,
   },
   titleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
-    paddingHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 20,
@@ -742,16 +717,12 @@ const styles = StyleSheet.create({
     color: '#ED1C24',
     marginRight: 4,
   },
-  arrowIcon: {
-    width: 16,
-    height: 16,
-  },
   listContainer: {
     paddingBottom: 20,
   },
   horizontalListContainer: {
-    paddingLeft: 16,
-    paddingRight: 0,
+    paddingLeft: 4,
+    paddingRight: 20,
   },
   contentCard: {
     backgroundColor: '#FFFFFF',
@@ -1012,99 +983,6 @@ const styles = StyleSheet.create({
   simpleDate: {
     fontSize: 12,
     color: '#999',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  cardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  cardBody: {
-    flex: 1,
-    padding: 10,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#222',
-    marginBottom: 4,
-  },
-  cardDescription: {
-    fontSize: 12,
-    color: '#666',
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  timeAgo: {
-    fontSize: 12,
-    color: '#999',
-  },
-  categoryBadge: {
-    backgroundColor: '#0066CC',
-    borderRadius: 10,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  optionsButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    padding: 8,
-    zIndex: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  optionsContainer: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  optionText: {
-    fontSize: 16,
-    marginLeft: 15,
-    color: '#333',
-  },
-  noImageContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
 
