@@ -883,7 +883,7 @@ export default function ProductBrandScreen() {
               <FlatList
                 ref={flatListRef}
                 horizontal
-                data={sector.list_combos?.filter(combo => combo.best_selling === true) || sector.list_combos?.slice(0, 5) || []}
+                data={[...(sector.list_combos?.filter(combo => combo.best_selling === true) || sector.list_combos?.slice(0, 5) || [])].sort((a, b) => a.total_price - b.total_price)}
                 renderItem={renderProductItem}
                 keyExtractor={item => item.id.toString()}
                 showsHorizontalScrollIndicator={false}
@@ -902,6 +902,7 @@ export default function ProductBrandScreen() {
                   <View style={styles.horizontalList}>
                     {ongridProducts
                       .filter(item => getPhaseType(item) === '1-phase')
+                      .sort((a, b) => a.total_price - b.total_price)
                       .map((item) => (
                         <Link
                           key={item.id}
@@ -956,6 +957,7 @@ export default function ProductBrandScreen() {
                   <View style={styles.horizontalList}>
                     {ongridProducts
                       .filter(item => getPhaseType(item) === '3-phase')
+                      .sort((a, b) => a.total_price - b.total_price)
                       .map((item) => (
                         <Link
                           key={item.id}
@@ -1010,6 +1012,7 @@ export default function ProductBrandScreen() {
                   <View style={styles.horizontalList}>
                     {ongridProducts
                       .filter(item => getPhaseType(item) === '3-phase-low')
+                      .sort((a, b) => a.total_price - b.total_price)
                       .map((item) => (
                         <Link
                           key={item.id}
@@ -1064,6 +1067,7 @@ export default function ProductBrandScreen() {
                   <View style={styles.horizontalList}>
                     {ongridProducts
                       .filter(item => getPhaseType(item) === '3-phase-high')
+                      .sort((a, b) => a.total_price - b.total_price)
                       .map((item) => (
                         <Link
                           key={item.id}
@@ -1127,6 +1131,7 @@ export default function ProductBrandScreen() {
                   <View style={styles.horizontalList}>
                     {hybridProducts
                       .filter(item => getPhaseType(item) === '1-phase')
+                      .sort((a, b) => a.total_price - b.total_price)
                       .map((item) => (
                         <Link
                           key={item.id}
@@ -1181,6 +1186,7 @@ export default function ProductBrandScreen() {
                   <View style={styles.horizontalList}>
                     {hybridProducts
                       .filter(item => getPhaseType(item) === '3-phase')
+                      .sort((a, b) => a.total_price - b.total_price)
                       .map((item) => (
                         <Link
                           key={item.id}
@@ -1235,6 +1241,7 @@ export default function ProductBrandScreen() {
                   <View style={styles.horizontalList}>
                     {hybridProducts
                       .filter(item => getPhaseType(item) === '3-phase-low')
+                      .sort((a, b) => a.total_price - b.total_price)
                       .map((item) => (
                         <Link
                           key={item.id}
@@ -1289,6 +1296,7 @@ export default function ProductBrandScreen() {
                   <View style={styles.horizontalList}>
                     {hybridProducts
                       .filter(item => getPhaseType(item) === '3-phase-high')
+                      .sort((a, b) => a.total_price - b.total_price)
                       .map((item) => (
                         <Link
                           key={item.id}

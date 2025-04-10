@@ -676,66 +676,73 @@ export default function QuotationSuccess() {
           <View style={styles.equipmentListDuplicate}>
             <Text style={styles.sectionTitle}>DANH MỤC THIẾT BỊ</Text>
             
-            {/* Tấm quang năng */}
-            {getPanels().length > 0 && (
-              <View style={styles.equipmentItem}>
-                <View style={styles.itemRow}>
-                  <Text style={styles.itemNumber}>1</Text>
-                  <Text style={[styles.itemName, { flex: 1 }]}>TẤM QUANG NĂNG</Text>
-                  <Text style={[styles.itemQuantity]}>
-                    {`${getPanels()[0].quantity} ${getPanels()[0].unit || 'Tấm'}`}
-                  </Text>
-                </View>
-              </View>
-            )}
+            {(() => {
+              let itemNumber = 1;
+              return (
+                <>
+                  {/* Tấm quang năng */}
+                  {getPanels().length > 0 && (
+                    <View style={styles.equipmentItem}>
+                      <View style={styles.itemRow}>
+                        <Text style={styles.itemNumber}>{itemNumber++}</Text>
+                        <Text style={[styles.itemName, { flex: 1 }]}>TẤM QUANG NĂNG</Text>
+                        <Text style={[styles.itemQuantity]}>
+                          {`${getPanels()[0].quantity} ${getPanels()[0].unit || 'Tấm'}`}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
 
-            {/* Biến tần */}
-            {getInverters().length > 0 && (
-              <View style={styles.equipmentItem}>
-                <View style={styles.itemRow}>
-                  <Text style={styles.itemNumber}>2</Text>
-                  <Text style={[styles.itemName, { flex: 1 }]}>BIẾN TẦN</Text>
-                  <Text style={[styles.itemQuantity]}>
-                    {`${getInverters()[0].quantity} ${getInverters()[0].unit || 'Bộ'}`}
-                  </Text>
-                </View>
-              </View>
-            )}
+                  {/* Biến tần */}
+                  {getInverters().length > 0 && (
+                    <View style={styles.equipmentItem}>
+                      <View style={styles.itemRow}>
+                        <Text style={styles.itemNumber}>{itemNumber++}</Text>
+                        <Text style={[styles.itemName, { flex: 1 }]}>BIẾN TẦN</Text>
+                        <Text style={[styles.itemQuantity]}>
+                          {`${getInverters()[0].quantity} ${getInverters()[0].unit || 'Bộ'}`}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
 
-            {/* Pin lưu trữ */}
-            {getBatteries().length > 0 && (
-              <View style={styles.equipmentItem}>
-                <View style={styles.itemRow}>
-                  <Text style={styles.itemNumber}>3</Text>
-                  <Text style={[styles.itemName, { flex: 1 }]}>PIN LƯU TRỮ</Text>
-                  <Text style={[styles.itemQuantity]}>
-                    {`${getBatteries()[0].quantity} ${getBatteries()[0].unit || 'Bộ'}`}
-                  </Text>
-                </View>
-              </View>
-            )}
+                  {/* Pin lưu trữ */}
+                  {getBatteries().length > 0 && (
+                    <View style={styles.equipmentItem}>
+                      <View style={styles.itemRow}>
+                        <Text style={styles.itemNumber}>{itemNumber++}</Text>
+                        <Text style={[styles.itemName, { flex: 1 }]}>PIN LƯU TRỮ</Text>
+                        <Text style={[styles.itemQuantity]}>
+                          {`${getBatteries()[0].quantity} ${getBatteries()[0].unit || 'Bộ'}`}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
 
-            {/* Hình thức lắp đặt */}
-            <View style={styles.equipmentItem}>
-              <View style={styles.itemRow}>
-                <Text style={styles.itemNumber}>4</Text>
-                <Text style={[styles.itemName, { flex: 1 }]}>
-                  {installationType === 'AP_MAI' ? 'HÌNH THỨC LẮP ĐẶT ÁP MÁI' : 'HÌNH THỨC LẮP ĐẶT KHUNG SẮT'}
-                </Text>
-                <Text style={[styles.itemQuantity]}>1 Bộ</Text>
-              </View>
-            </View>
+                  {/* Hình thức lắp đặt */}
+                  <View style={styles.equipmentItem}>
+                    <View style={styles.itemRow}>
+                      <Text style={styles.itemNumber}>{itemNumber++}</Text>
+                      <Text style={[styles.itemName, { flex: 1 }]}>
+                        {installationType === 'AP_MAI' ? 'HÌNH THỨC LẮP ĐẶT ÁP MÁI' : 'HÌNH THỨC LẮP ĐẶT KHUNG SẮT'}
+                      </Text>
+                      <Text style={[styles.itemQuantity]}>1 Bộ</Text>
+                    </View>
+                  </View>
 
-            {/* Phụ kiện, vật tư */}
-            {getAccessories().length > 0 && (
-              <View style={styles.equipmentItem}>
-                <View style={styles.itemRow}>
-                  <Text style={styles.itemNumber}>5</Text>
-                  <Text style={[styles.itemName, { flex: 1 }]}>PHỤ KIỆN, VẬT TƯ</Text>
-                  <Text style={[styles.itemQuantity]}>1 Bộ</Text>
-                </View>
-              </View>
-            )}
+                  {/* Phụ kiện, vật tư */}
+                  {getAccessories().length > 0 && (
+                    <View style={styles.equipmentItem}>
+                      <View style={styles.itemRow}>
+                        <Text style={styles.itemNumber}>{itemNumber++}</Text>
+                        <Text style={[styles.itemName, { flex: 1 }]}>PHỤ KIỆN, VẬT TƯ</Text>
+                        <Text style={[styles.itemQuantity]}>1 Bộ</Text>
+                      </View>
+                    </View>
+                  )}
+                </>
+              );
+            })()}
           </View>
         </ScrollView>
 

@@ -221,6 +221,13 @@ export default function QuotationBasicInfo() {
       );
     }
 
+    // Sắp xếp theo giá tăng dần
+    filtered.sort((a, b) => {
+      const priceA = a.total_price || a.price || 0;
+      const priceB = b.total_price || b.price || 0;
+      return priceA - priceB;
+    });
+
     setFilteredCombos(filtered);
   }, [systemType, phaseType, sector]);
 
