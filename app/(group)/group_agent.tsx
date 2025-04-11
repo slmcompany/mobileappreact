@@ -33,6 +33,7 @@ interface Agent {
   address: string | null;
   commission_rate: number;
   total_commission: number;
+  child_turnover: number;
   created_at: string;
   commissions: Commission[];
   role_id: number;
@@ -67,6 +68,9 @@ export default function GroupAgentScreen() {
   const [error, setError] = useState<string | null>(null);
   const [totalCommission, setTotalCommission] = useState(0);
   const [memberCount, setMemberCount] = useState(0);
+  const [newMembersCount, setNewMembersCount] = useState(0);
+  const [totalBonus, setTotalBonus] = useState(0);
+  const [currentUser, setCurrentUser] = useState<{name: string}>({name: ''});
   const [recentActivities, setRecentActivities] = useState<{id: number, name: string, amount: number, contractId: string, date: string}[]>([]);
   
   // Lấy dữ liệu từ API
@@ -74,6 +78,15 @@ export default function GroupAgentScreen() {
     const fetchAgents = async () => {
       setIsLoading(true);
       try {
+        // Lấy thông tin người dùng hiện tại
+        const userResponse = await fetch('https://id.slmsolar.com/api/users/4');
+        if (!userResponse.ok) {
+          throw new Error('Không thể lấy thông tin người dùng');
+        }
+        const userData = await userResponse.json();
+        setCurrentUser(userData);
+
+        // Lấy danh sách đại lý
         const response = await fetch('https://id.slmsolar.com/api/agents/4/downlines');
         if (!response.ok) {
           throw new Error('Không thể kết nối với server');
@@ -83,11 +96,26 @@ export default function GroupAgentScreen() {
         setAgents(data);
         
         // Tính tổng doanh số
-        const totalAmount = data.reduce((sum, agent) => sum + agent.total_commission, 0);
+        const totalAmount = data.reduce((sum, agent) => sum + agent.child_turnover, 0);
         setTotalCommission(totalAmount);
         
         // Số lượng thành viên
         setMemberCount(data.length);
+        
+        // Tính số thành viên mới trong tháng
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const newMembersCount = data.filter(agent => {
+          const createdDate = new Date(agent.created_at);
+          return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear;
+        }).length;
+        setNewMembersCount(newMembersCount);
+        
+        // Tính tổng thưởng từ commissions
+        const totalBonus = data.reduce((sum, agent) => 
+          sum + agent.commissions.reduce((commissionSum, commission) => 
+            commissionSum + commission.money, 0), 0);
+        setTotalBonus(totalBonus);
         
         // Lấy các hoạt động gần đây (từ danh sách commissions)
         const activities = data
@@ -100,12 +128,11 @@ export default function GroupAgentScreen() {
               date: formatDate(commission.created_at)
             }))
           )
-          .sort((a, b) => b.id - a.id) // Sắp xếp theo id giảm dần (mới nhất lên đầu)
-          .slice(0, 7); // Chỉ lấy 7 hoạt động gần nhất
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         setRecentActivities(activities);
       } catch (err) {
-        console.error('Error fetching agents:', err);
+        console.error('Error:', err);
         setError('Không thể tải dữ liệu. Vui lòng thử lại sau.');
       } finally {
         setIsLoading(false);
@@ -114,41 +141,45 @@ export default function GroupAgentScreen() {
 
     fetchAgents();
   }, []);
-  
+
   // Lấy top 3 agent có tổng doanh số cao nhất
   const topAgents = agents
     .slice()
-    .sort((a, b) => b.total_commission - a.total_commission)
+    .sort((a, b) => b.child_turnover - a.child_turnover)
     .slice(0, 3)
     .map((agent, index) => ({
       id: agent.id,
       name: agent.name,
-      amount: agent.total_commission,
+      amount: agent.child_turnover,
       rank: index + 1
     }));
-  
+
   // Activity Item component
-  const ActivityItem = ({ activity }: { activity: {id: number, name: string, amount: number, contractId: string, date: string} }) => (
-    <View style={styles.activityItem}>
-      <Image 
-        source={require('@/assets/images/agent_avatar.png')} 
-        style={styles.activityAvatar} 
-      />
-      <View style={styles.activityContent}>
-        <View style={styles.activityNameTime}>
-          <Text style={styles.activityName}>{activity.name}</Text>
-          <Text style={styles.activityTime}>{activity.date}</Text>
-        </View>
-        <View style={styles.activityAmountContainer}>
-          <Text style={styles.activityAmount}>{formatCurrency(activity.amount).replace('đ', '')}</Text>
-          <Text style={styles.activityContract}>{activity.contractId}</Text>
+  const ActivityItem = ({ activity }: { activity: {id: number, name: string, amount: number, contractId: string, date: string} }) => {
+    const agent = agents.find(a => a.name === activity.name);
+    return (
+      <View style={styles.activityItem}>
+        <Image 
+          source={agent?.avatar ? { uri: agent.avatar } : require('@/assets/images/agent_avatar.png')} 
+          style={styles.activityAvatar} 
+        />
+        <View style={styles.activityContent}>
+          <View style={styles.activityNameTime}>
+            <Text style={styles.activityName}>{activity.name}</Text>
+            <Text style={styles.activityTime}>{activity.date}</Text>
+          </View>
+          <View style={styles.activityAmountContainer}>
+            <Text style={styles.activityAmount}>{formatCurrency(activity.amount).replace('đ', '')}</Text>
+            <Text style={styles.activityContract}>{activity.contractId}</Text>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   // Top Agent Item component
   const TopAgentItem = ({ agent }: { agent: {id: number, name: string, amount: number, rank: number} }) => {
+    const agentData = agents.find(a => a.id === agent.id);
     // Determine colors based on rank
     const getRankColor = () => {
       switch(agent.rank) {
@@ -169,7 +200,7 @@ export default function GroupAgentScreen() {
         <View style={styles.agentCardContent}>
           <View style={styles.agentInfoRow}>
             <Image 
-              source={require('@/assets/images/agent_avatar.png')} 
+              source={agentData?.avatar ? { uri: agentData.avatar } : require('@/assets/images/agent_avatar.png')} 
               style={styles.topAgentAvatar} 
             />
             <View>
@@ -184,30 +215,6 @@ export default function GroupAgentScreen() {
     );
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#ED1C24" />
-          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
-        <View style={styles.loadingContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color="#ED1C24" />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
       <ScrollView style={styles.scrollContainer}>
@@ -215,7 +222,7 @@ export default function GroupAgentScreen() {
         <View style={styles.groupInfoSection}>
           {/* Group Header */}
           <View style={styles.groupHeader}>
-            <Text style={styles.groupHeaderText}>NHÓM ĐẠI LÝ SLM42</Text>
+            <Text style={styles.groupHeaderText}>NHÓM ĐẠI LÝ CỦA {currentUser.name.toUpperCase()}</Text>
             <View style={styles.leadershipBadge}>
               <Text style={styles.leadershipText}>BẠN ĐANG LÀ TRƯỞNG NHÓM</Text>
               <Ionicons name="flame" size={12} color="#FEC84B" />
@@ -229,17 +236,22 @@ export default function GroupAgentScreen() {
                 <Text style={styles.memberCountText}>{memberCount} thành viên</Text>
                 <Ionicons name="arrow-up-outline" size={16} color="#27273E" />
               </View>
-              <Text style={styles.newMemberText}>3 thành viên mới</Text>
+              <Text style={styles.newMemberText}>{newMembersCount} thành viên mới</Text>
             </View>
             
             <View style={styles.avatarGroup}>
-              <Image source={require('@/assets/images/avatar1.png')} style={styles.avatarGroupItem} />
-              <Image source={require('@/assets/images/avatar2.png')} style={[styles.avatarGroupItem, styles.avatarOverlap]} />
-              <Image source={require('@/assets/images/avatar3.png')} style={[styles.avatarGroupItem, styles.avatarOverlap]} />
-              <Image source={require('@/assets/images/avatar4.png')} style={[styles.avatarGroupItem, styles.avatarOverlap]} />
-              <View style={[styles.avatarCountContainer, styles.avatarOverlap]}>
-                <Text style={styles.avatarCountText}>+{Math.max(0, memberCount - 4)}</Text>
-              </View>
+              {agents.slice(0, 4).map((agent, index) => (
+                <Image 
+                  key={agent.id}
+                  source={agent.avatar ? { uri: agent.avatar } : require('@/assets/images/agent_avatar.png')} 
+                  style={[styles.avatarGroupItem, index > 0 && styles.avatarOverlap]} 
+                />
+              ))}
+              {agents.length > 4 && (
+                <View style={[styles.avatarCountContainer, styles.avatarOverlap]}>
+                  <Text style={styles.avatarCountText}>+{agents.length - 4}</Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -255,7 +267,7 @@ export default function GroupAgentScreen() {
                 <Ionicons name="information-circle-outline" size={12} color="#7B7D9D" />
                 <Text style={styles.bonusLabelText}>Thưởng doanh số dự kiến</Text>
               </View>
-              <Text style={styles.bonusAmount}>{formatCurrency(totalCommission * 0.01)}</Text>
+              <Text style={styles.bonusAmount}>{formatCurrency(totalBonus)}</Text>
             </View>
           </View>
         </View>
@@ -264,7 +276,6 @@ export default function GroupAgentScreen() {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Top doanh số</Text>
-            <Text style={styles.sectionPeriod}>THÁNG 3</Text>
           </View>
           
           <View style={styles.topAgentsContainer}>
@@ -578,4 +589,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-}); 
+});
