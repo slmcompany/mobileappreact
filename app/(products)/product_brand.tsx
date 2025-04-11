@@ -4,11 +4,11 @@ import { Text, WhiteSpace, WingBlank, Flex } from '@ant-design/react-native';
 import { Stack, useLocalSearchParams, router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SelectList } from 'react-native-dropdown-select-list';
-import { useSector } from '../../hooks/useSector';
-import { Combo } from '@/models/sector';
+import { useSector } from '@/src/hooks/useSector';
+import { Combo } from '@/src/models/sector';
 
 // Extend the imported Sector type
-declare module '../../models/sector' {
+declare module '@/src/models/sector' {
   interface Sector {
     sale_phone: string | null;
   }

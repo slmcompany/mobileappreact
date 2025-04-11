@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_CONFIG, API_ENDPOINTS, handleApiError } from '@/config/api';
-import User, { LoginCredentials } from '@/models/User';
+import { API_CONFIG, API_ENDPOINTS, handleApiError } from '@/src/config/api';
+import User, { LoginCredentials } from '@/src/models/User';
 
 // Dữ liệu người dùng mặc định từ API
 const DEFAULT_USERS: User[] = [

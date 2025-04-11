@@ -5,8 +5,8 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '@/context/AuthContext';
-import AuthService from '@/services/AuthService';
+import { useAuth } from '@/src/context/AuthContext';
+import AuthService from '@/src/services/AuthService';
 
 // Function để kiểm tra môi trường web
 const isWeb = Platform.OS === 'web';

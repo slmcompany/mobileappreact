@@ -1100,7 +1100,7 @@ export default function QuotationSuccess() {
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 style={[styles.downloadButton, styles.surveyButton]}
-                onPress={handleDownloadQuotation}
+                // onPress={handleDownloadQuotation}
               >
                 <Ionicons name="document-text-outline" size={18} color="#27273E" />
                 <Text style={styles.surveyButtonText}>BÁO GIÁ KHẢO SÁT</Text>

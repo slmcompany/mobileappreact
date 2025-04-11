@@ -9,8 +9,8 @@ import 'react-native-reanimated';
 import { Provider as AntDesignProvider } from '@ant-design/react-native';
 import * as Font from 'expo-font';
 import { IconFill, IconOutline } from '@ant-design/icons-react-native';
-import { AuthProvider } from '@/context/AuthContext';
-import { QueryProvider } from '../app/providers/QueryProvider';
+import { AuthProvider } from '@/src/context/AuthContext';
+import { QueryProvider } from '@/app/providers/QueryProvider';
 
 // Cấu hình màn hình splash với màu nền đỏ
 SplashScreen.preventAutoHideAsync();

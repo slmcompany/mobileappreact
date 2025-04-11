@@ -6,9 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/src/context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
-import ContentGallery from '../../app/components/ContentGallery';
+import ContentGallery from '@/app/components/ContentGallery';
 
 // Định nghĩa kiểu dữ liệu cho người dùng
 interface User {

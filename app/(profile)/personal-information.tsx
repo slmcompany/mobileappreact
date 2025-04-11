@@ -3,8 +3,8 @@ import { StyleSheet, View, Text, TouchableOpacity, Image, ScrollView, Platform }
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/context/AuthContext';
-import { globalStyles } from '@/context/ThemeContext';
+import { useAuth } from '@/src/context/AuthContext';
+import { globalStyles } from '@/src/context/ThemeContext';
 
 const PersonalInformationScreen = () => {
   const insets = useSafeAreaInsets();

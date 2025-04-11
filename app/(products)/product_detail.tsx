@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useCombo } from '../../hooks/useCombo';
+import { useCombo } from '@/src/hooks/useCombo';
 
 export default function ProductDetailScreen() {
   const router = useRouter();

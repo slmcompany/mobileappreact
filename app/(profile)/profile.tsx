@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, Image, ScrollView, Switch, Mo
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/src/context/AuthContext';
 
 type SectionKey = 'home' | 'news' | 'products' | 'about';
 

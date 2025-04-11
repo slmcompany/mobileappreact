@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator, Dimensions } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useCombo } from '../../hooks/useCombo';
-import { useSector } from '../../hooks/useSector';
+import { useCombo } from '@/src/hooks/useCombo';
+import { useSector } from '@/src/hooks/useSector';
 
 const SECTOR_LOGO = 'https://supabase.slmsolar.com/storage/v1/object/sign/solarmax/logo/logo-white.png';
 

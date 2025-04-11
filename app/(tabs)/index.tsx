@@ -11,12 +11,12 @@ import {
 } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/src/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSectors } from '../../hooks/useSector';
-import { Sector, Combo } from '../../models/sector';
-import ContentGallery from '../components/ContentGallery';
-import HomeAgentCTA from '../components/home_agent_cta';
+import { useSectors } from '@/src/hooks/useSector';
+import { Sector, Combo } from '@/src/models/sector';
+import ContentGallery from '@/app/components/ContentGallery';
+import HomeAgentCTA from '@/app/components/home_agent_cta';
 
 // Interface cho banner
 interface BannerImage {

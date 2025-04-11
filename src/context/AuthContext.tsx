@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import AuthService from '@/services/AuthService';
-import User, { AuthState, LoginCredentials } from '@/models/User';
+import AuthService from '@/src/services/AuthService';
+import User, { AuthState, LoginCredentials } from '@/src/models/User';
 
 // Create authentication context type
 interface AuthContextType {

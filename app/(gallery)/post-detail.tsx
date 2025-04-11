@@ -8,7 +8,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
-import { API_CONFIG } from '@/config/api';
+import { API_CONFIG } from '@/src/config/api';
 import RenderHtml, { 
   HTMLElementModel,
   HTMLContentModel,
