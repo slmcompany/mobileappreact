@@ -47,6 +47,7 @@ const ProfileScreen = () => {
         console.log('User data from API:', userData);
         console.log('Role data:', userData?.role);
         console.log('Role description:', userData?.role?.description);
+        console.log('Role ID:', userData?.role_id);
         
         if (userData) {
           setEmail(userData.email || '');
@@ -91,11 +92,14 @@ const ProfileScreen = () => {
     console.log('Current authState:', authState);
     console.log('Current role:', authState.user?.role);
     console.log('Current role description:', authState.user?.role?.description);
+    console.log('Current role_id:', authState.user?.role_id);
     
     // Kiểm tra AsyncStorage
     const checkAsyncStorage = async () => {
       const roleData = await AsyncStorage.getItem('@slm_user_role');
+      const roleId = await AsyncStorage.getItem('@slm_user_role_id');
       console.log('Role from AsyncStorage:', roleData ? JSON.parse(roleData) : null);
+      console.log('Role ID from AsyncStorage:', roleId);
     };
     checkAsyncStorage();
   }, [authState]);
@@ -182,7 +186,10 @@ const ProfileScreen = () => {
             <View style={styles.roleContainer}>
               <TouchableOpacity style={styles.roleButton}>
                 <View style={styles.roleButtonContent}>
-                  <Text style={styles.agentLevel}>{authState.user?.role?.description || 'CUSTOMER'}</Text>
+                  <Text style={styles.agentLevel}>
+                    {authState.user?.role?.description || 
+                     (authState.user?.role_id ? `ROLE ID: ${authState.user.role_id}` : 'CUSTOMER')}
+                  </Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -212,28 +219,34 @@ const ProfileScreen = () => {
               <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
-              <View style={styles.menuItemLeft}>
-                <View style={styles.iconContainer}>
-                  <Ionicons name="card-outline" size={24} color="#7B7D9D" />
+            {/* Tài khoản thụ hưởng - Chỉ hiển thị cho các role khác khách hàng (role_id != 3) */}
+            {authState.user?.role_id !== 3 && (
+              <TouchableOpacity style={styles.menuItem}>
+                <View style={styles.menuItemLeft}>
+                  <View style={styles.iconContainer}>
+                    <Ionicons name="card-outline" size={24} color="#7B7D9D" />
+                  </View>
+                  <Text style={styles.menuLabel}>Tài khoản thụ hưởng</Text>
                 </View>
-                <Text style={styles.menuLabel}>Tài khoản thụ hưởng</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
-            </TouchableOpacity>
+                <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
+              </TouchableOpacity>
+            )}
 
-            <TouchableOpacity 
-              style={styles.menuItem}
-              onPress={() => router.push('/profile_contract')}
-            >
-              <View style={styles.menuItemLeft}>
-                <View style={styles.iconContainer}>
-                  <Ionicons name="phone-portrait-outline" size={24} color="#7B7D9D" />
+            {/* Hợp đồng của bạn - Chỉ hiển thị cho các role khác khách hàng (role_id != 3) */}
+            {authState.user?.role_id !== 3 && (
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => router.push('/profile_contract')}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={styles.iconContainer}>
+                    <Ionicons name="phone-portrait-outline" size={24} color="#7B7D9D" />
+                  </View>
+                  <Text style={styles.menuLabel}>Hợp đồng của bạn</Text>
                 </View>
-                <Text style={styles.menuLabel}>Hợp đồng của bạn</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
-            </TouchableOpacity>
+                <Ionicons name="chevron-forward" size={20} color="#7B7D9D" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Settings Section */}

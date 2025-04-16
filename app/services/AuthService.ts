@@ -111,6 +111,7 @@ class AuthService {
   async storeUserData(user: User): Promise<void> {
     try {
       console.log('Storing user data:', user);
+      console.log('User role_id:', user.role_id);
       console.log('User role:', user.role);
       
       // Lưu toàn bộ user data
@@ -124,6 +125,12 @@ class AuthService {
         await AsyncStorage.setItem('@slm_user_role', JSON.stringify(user.role));
       }
       
+      // Lưu role_id để dự phòng
+      if (user.role_id) {
+        console.log('Storing role_id:', user.role_id);
+        await AsyncStorage.setItem('@slm_user_role_id', user.role_id.toString());
+      }
+      
       if ('avatar' in user) {
         await AsyncStorage.setItem('@slm_user_avatar', (user as any).avatar);
       }
@@ -131,8 +138,10 @@ class AuthService {
       // Verify stored data
       const storedUser = await AsyncStorage.getItem('@slm_user_data');
       const storedRole = await AsyncStorage.getItem('@slm_user_role');
+      const storedRoleId = await AsyncStorage.getItem('@slm_user_role_id');
       console.log('Stored user data:', storedUser);
       console.log('Stored role data:', storedRole);
+      console.log('Stored role_id:', storedRoleId);
     } catch (error) {
       console.error('Error storing user data:', error);
       throw error;
@@ -189,6 +198,8 @@ class AuthService {
       if (userData) {
         const user = JSON.parse(userData) as User;
         console.log('Parsed user data:', user);
+        console.log('User role_id:', user.role_id);
+        console.log('User role object:', user.role);
         
         // Lấy role data mới từ API
         try {
@@ -202,10 +213,13 @@ class AuthService {
           if (response.ok) {
             const freshData = await response.json();
             console.log('Fresh data from API:', freshData);
+            console.log('Fresh role_id from API:', freshData.role_id);
+            console.log('Fresh role object from API:', freshData.role);
             
             if (freshData.role) {
               console.log('Updating role with fresh data:', freshData.role);
               user.role = freshData.role;
+              user.role_id = freshData.role_id;
               
               // Cập nhật lại AsyncStorage với role mới
               await AsyncStorage.setItem('@slm_user_role', JSON.stringify(freshData.role));
