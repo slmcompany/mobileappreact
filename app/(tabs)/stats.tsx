@@ -317,6 +317,20 @@ export default function StatsScreen() {
     }).format(roundedAmount);
   };
 
+  // Format số điện thoại theo dạng xxx.xxx.xxxx
+  const formatPhoneNumber = (phoneNumber: string): string => {
+    if (!phoneNumber) return '';
+    
+    // Loại bỏ tất cả các ký tự không phải số
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    
+    // Nếu không đủ 10 số, trả về số gốc
+    if (cleaned.length !== 10) return phoneNumber;
+    
+    // Format theo xxx.xxx.xxxx
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
+  };
+
   const navigateToCommissionStats = () => {
     router.push('/(stats)/comission_history');
   };
@@ -360,13 +374,13 @@ export default function StatsScreen() {
                 )}
                 <View style={styles.userInfo}>
                   <Text style={styles.profileName}>{user?.name || 'Đang tải...'}</Text>
-                  <Text style={styles.profileId}>{user?.phone || ''}</Text>
+                  <Text style={styles.profileId}>{formatPhoneNumber(user?.phone || '')}</Text>
                 </View>
               </View>
               <View style={styles.companyInfo}>
                 <Text style={styles.companyName}>CÔNG TY CP ĐẦU TƯ SLM</Text>
                 <View style={styles.agentBadge}>
-                  <Text style={styles.agentBadgeText}>{user?.role?.name?.toUpperCase() || 'CUSTOMER'}</Text>
+                  <Text style={styles.agentBadgeText}>{user?.role?.description?.toUpperCase() || ''}</Text>
                 </View>
               </View>
             </View>
