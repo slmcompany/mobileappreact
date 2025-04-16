@@ -81,7 +81,7 @@ export default function ProductBaoGiaPage() {
   const fetchProductDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://id.slmsolar.com/api/pre_quote/combo');
+      const response = await fetch('https://api.slmglobal.vn/api/pre_quote/combo');
       const data: PreQuoteCombo[] = await response.json();
       const foundProduct = data.find(p => p.id.toString() === id);
       

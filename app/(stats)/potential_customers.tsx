@@ -62,7 +62,7 @@ export default function PotentialCustomersScreen() {
         }
         
         // Gọi API lấy danh sách khách hàng tiềm năng
-        const response = await fetch(`https://id.slmsolar.com/api/agents/${userId}/potential-customers`, {
+        const response = await fetch(`https://api.slmglobal.vn/api/agents/${userId}/potential-customers`, {
           headers: {
             'Accept': 'application/json'
           }

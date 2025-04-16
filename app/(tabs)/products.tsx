@@ -97,7 +97,7 @@ const useSectors = () => {
     const fetchSectors = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('https://id.slmsolar.com/api/sector', {
+        const response = await fetch('https://api.slmglobal.vn/api/sector', {
           headers: {
             'Accept': 'application/json'
           }

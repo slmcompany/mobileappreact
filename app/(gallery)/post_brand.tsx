@@ -200,7 +200,7 @@ export default function PostBrandScreen() {
   // Fetch thông tin sector và categories
   const fetchSectorAndCategories = async () => {
     try {
-      const response = await fetch('https://id.slmsolar.com/api/sector');
+      const response = await fetch('https://api.slmglobal.vn/api/sector');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -220,7 +220,7 @@ export default function PostBrandScreen() {
       setError(null);
       
       // Fetch posts
-      const response = await fetch('https://id.slmsolar.com/api/content');
+      const response = await fetch('https://api.slmglobal.vn/api/content');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }

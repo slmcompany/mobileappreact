@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/context/AuthContext';
+import { AuthState } from '@/src/models/User';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type SectionKey = 'home' | 'news' | 'products' | 'about';
 
@@ -21,6 +23,7 @@ const ProfileScreen = () => {
   const [gender, setGender] = useState(authState.user?.gender || '');
   const [name, setName] = useState(authState.user?.name || '');
   const [phone, setPhone] = useState(authState.user?.phone || '');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
 
   const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({
     home: false,
@@ -41,6 +44,10 @@ const ProfileScreen = () => {
     const fetchUserData = async () => {
       try {
         const userData = await getUser();
+        console.log('User data from API:', userData);
+        console.log('Role data:', userData?.role);
+        console.log('Role description:', userData?.role?.description);
+        
         if (userData) {
           setEmail(userData.email || '');
           setAddress(userData.address || '');
@@ -49,6 +56,27 @@ const ProfileScreen = () => {
           setGender(userData.gender || '');
           setName(userData.name || '');
           setPhone(userData.phone || '');
+          
+          // Lấy avatar từ dữ liệu user nếu có
+          if (userData.avatar) {
+            setUserAvatar(userData.avatar);
+            // Lưu avatar vào AsyncStorage
+            await AsyncStorage.setItem('@slm_user_avatar', userData.avatar);
+          } else {
+            // Kiểm tra avatar trong AsyncStorage
+            const storedAvatar = await AsyncStorage.getItem('@slm_user_avatar');
+            if (storedAvatar) {
+              setUserAvatar(storedAvatar);
+            }
+          }
+          
+          // Cập nhật role nếu có
+          if (userData.role) {
+            console.log('Updating role:', userData.role);
+            // Lưu role vào AsyncStorage
+            await AsyncStorage.setItem('@slm_user_role', JSON.stringify(userData.role));
+            console.log('Role saved to AsyncStorage');
+          }
         }
       } catch (error) {
         console.error('Lỗi khi lấy thông tin người dùng:', error);
@@ -57,6 +85,20 @@ const ProfileScreen = () => {
     
     fetchUserData();
   }, [getUser]);
+
+  // Thêm console.log để kiểm tra authState
+  useEffect(() => {
+    console.log('Current authState:', authState);
+    console.log('Current role:', authState.user?.role);
+    console.log('Current role description:', authState.user?.role?.description);
+    
+    // Kiểm tra AsyncStorage
+    const checkAsyncStorage = async () => {
+      const roleData = await AsyncStorage.getItem('@slm_user_role');
+      console.log('Role from AsyncStorage:', roleData ? JSON.parse(roleData) : null);
+    };
+    checkAsyncStorage();
+  }, [authState]);
 
   const handleLogout = async () => {
     try {
@@ -84,6 +126,20 @@ const ProfileScreen = () => {
     }
   };
 
+  // Format số điện thoại theo dạng xxx.xxx.xxxx
+  const formatPhoneNumber = (phoneNumber: string): string => {
+    if (!phoneNumber) return '';
+    
+    // Loại bỏ tất cả các ký tự không phải số
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    
+    // Nếu không đủ 10 số, trả về số gốc
+    if (cleaned.length !== 10) return phoneNumber;
+    
+    // Format theo xxx.xxx.xxxx
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
+  };
+
   return (
     <View style={[styles.container]}>
       <Stack.Screen 
@@ -106,19 +162,27 @@ const ProfileScreen = () => {
 
             <View style={styles.profileInfo}>
               <View style={styles.avatarContainer}>
-                <Image 
-                  source={require('../../assets/images/avatar.png')}
-                  style={styles.avatar}
-                />
+                {userAvatar ? (
+                  <Image 
+                    source={{ uri: userAvatar }}
+                    style={styles.avatar}
+                    defaultSource={require('../../assets/images/avatar.png')}
+                  />
+                ) : (
+                  <Image 
+                    source={require('../../assets/images/avatar.png')}
+                    style={styles.avatar}
+                  />
+                )}
               </View>
               <Text style={styles.name}>{name || ''}</Text>
-              <Text style={styles.phone}>{phone || ''}</Text>
+              <Text style={styles.phone}>{formatPhoneNumber(phone) || ''}</Text>
             </View>
 
             <View style={styles.roleContainer}>
               <TouchableOpacity style={styles.roleButton}>
                 <View style={styles.roleButtonContent}>
-                  <Text style={styles.agentLevel}>{authState.user?.role?.name?.toUpperCase() || 'CUSTOMER'}</Text>
+                  <Text style={styles.agentLevel}>{authState.user?.role?.description || 'CUSTOMER'}</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -278,7 +342,7 @@ const ProfileScreen = () => {
               <View style={styles.formField}>
                 <Text style={styles.fieldLabel}>Số điện thoại</Text>
                 <View style={styles.fieldDisabled}>
-                  <Text style={styles.fieldDisabledText}>{phone || ''}</Text>
+                  <Text style={styles.fieldDisabledText}>{formatPhoneNumber(phone) || ''}</Text>
                 </View>
                 <Text style={styles.fieldNote}>Số điện thoại không thể thay đổi</Text>
               </View>

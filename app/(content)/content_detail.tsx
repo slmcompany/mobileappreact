@@ -53,7 +53,7 @@ export default function ContentDetailScreen() {
       // Trong ứng dụng thực tế, bạn sẽ cần một API riêng để lấy chi tiết bài viết
       // Vì API hiện tại trả về tất cả nội dung của user,
       // chúng ta sẽ lọc ra nội dung cần thiết từ response
-      const response = await fetch('https://id.slmsolar.com/api/users/4', {
+      const response = await fetch('https://api.slmglobal.vn/api/users/4', {
         headers: {
           'Accept': 'application/json'
         }

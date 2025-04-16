@@ -80,7 +80,7 @@ export default function AccountScreen() {
 
   const fetchPotentialCustomers = async () => {
     try {
-      const response = await fetch('https://id.slmsolar.com/api/agents/4/potential-customers');
+      const response = await fetch('https://api.slmglobal.vn/api/agents/4/potential-customers');
       const data = await response.json();
       setPotentialCustomers(data);
     } catch (err) {
@@ -91,7 +91,7 @@ export default function AccountScreen() {
 
   const fetchOldCustomers = async () => {
     try {
-      const response = await fetch('https://id.slmsolar.com/api/agents/4/old-customer');
+      const response = await fetch('https://api.slmglobal.vn/api/agents/4/old-customer');
       const data = await response.json();
       setOldCustomers(data);
     } catch (err) {

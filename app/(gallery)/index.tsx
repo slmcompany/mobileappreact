@@ -317,7 +317,7 @@ export default function GalleryScreen() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('https://id.slmsolar.com/api/content');
+      const response = await fetch('https://api.slmglobal.vn/api/content');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -420,8 +420,8 @@ export default function GalleryScreen() {
   const fetchSectors = async () => {
     try {
       const [sectorResponse, contentResponse] = await Promise.all([
-        fetch('https://id.slmsolar.com/api/sector'),
-        fetch('https://id.slmsolar.com/api/content')
+        fetch('https://api.slmglobal.vn/api/sector'),
+        fetch('https://api.slmglobal.vn/api/content')
       ]);
 
       if (!sectorResponse.ok || !contentResponse.ok) {

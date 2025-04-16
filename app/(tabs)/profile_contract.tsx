@@ -144,7 +144,7 @@ export default function ProfileContractScreen() {
     
     const fetchUser = async () => {
       try {
-        const response = await fetch(`https://id.slmsolar.com/api/users/${userId}`, {
+        const response = await fetch(`https://api.slmglobal.vn/api/users/${userId}`, {
           headers: {
             'Accept': 'application/json'
           }

@@ -1,6 +1,6 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://id.slmsolar.com/api',
+  BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://api.slmglobal.vn/api',
   TIMEOUT: Number(process.env.EXPO_PUBLIC_API_TIMEOUT) || 30000, // 30 seconds
   HEADERS: {
     'Accept': 'application/json',

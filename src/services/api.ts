@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Sector } from '../models/sector';
 
-const API_BASE_URL = 'https://id.slmsolar.com/api';
+const API_BASE_URL = 'https://api.slmglobal.vn/api';
 
 export const sectorApi = {
   /**

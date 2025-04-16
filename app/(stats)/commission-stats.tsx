@@ -45,7 +45,7 @@ export default function CommissionStatsScreen() {
       // Lấy năm hiện tại
       const currentYear = new Date().getFullYear();
       
-      const response = await fetch(`https://id.slmsolar.com/api/user/commission/${userId}/${currentYear}`);
+      const response = await fetch(`https://api.slmglobal.vn/api/user/commission/${userId}/${currentYear}`);
       
       if (!response.ok) {
         throw new Error('Network response was not ok');

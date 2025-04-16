@@ -132,7 +132,7 @@ export default function GroupAgentScreen() {
       setIsLoading(true);
       try {
         // Lấy danh sách đại lý
-        const response = await fetch('https://id.slmsolar.com/api/agents/4/downlines');
+        const response = await fetch('https://api.slmglobal.vn/api/agents/4/downlines');
         if (!response.ok) {
           throw new Error('Không thể kết nối với server');
         }

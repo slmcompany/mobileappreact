@@ -5,6 +5,7 @@ import User, { AuthState, LoginCredentials } from '@/src/models/User';
 // Create authentication context type
 interface AuthContextType {
   authState: AuthState;
+  setAuthState: React.Dispatch<React.SetStateAction<AuthState>>;
   login: (credentials: LoginCredentials) => Promise<User | null>;
   logout: () => Promise<void>;
   getUser: () => Promise<User | null>;
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
     isLoading: true,
     error: null
   },
+  setAuthState: () => {},
   login: async () => null,
   logout: async () => {},
   getUser: async () => null,
@@ -172,6 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Value object to be provided to consumers
   const value = {
     authState,
+    setAuthState,
     login,
     logout,
     getUser,

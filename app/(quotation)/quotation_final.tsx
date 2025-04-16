@@ -82,7 +82,7 @@ export default function QuotationSuccess() {
           // Thử lấy dữ liệu từ API trước khi dùng params
           try {
             const token = await AsyncStorage.getItem('@slm_token');
-            const response = await fetch('https://id.slmsolar.com/api/auth/me', {
+            const response = await fetch('https://api.slmglobal.vn/api/auth/me', {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
@@ -531,7 +531,7 @@ export default function QuotationSuccess() {
         return;
       }
 
-      const meResponse = await fetch('https://id.slmsolar.com/api/auth/me', {
+      const meResponse = await fetch('https://api.slmglobal.vn/api/auth/me', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

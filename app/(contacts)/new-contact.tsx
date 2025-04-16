@@ -325,7 +325,7 @@ export default function NewContactScreen() {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
       
-      const response = await fetch(`https://id.slmsolar.com/api/mini_admins/potential-customer/check-exist-by-phone/${phone}`, {
+      const response = await fetch(`https://api.slmglobal.vn/api/mini_admins/potential-customer/check-exist-by-phone/${phone}`, {
         headers
       });
       
@@ -481,7 +481,7 @@ export default function NewContactScreen() {
         console.log('JSON BODY:', JSON.stringify(customerData, null, 2));
         
         // Gửi dữ liệu lên server với URL đầy đủ
-        const apiUrl = 'https://id.slmsolar.com/api/agents/create-new-potential-customer';
+        const apiUrl = 'https://api.slmglobal.vn/api/agents/create-new-potential-customer';
         console.log('Gửi request đến:', apiUrl);
         
         const response = await fetch(apiUrl, {

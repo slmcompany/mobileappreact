@@ -135,7 +135,7 @@ export default function QuotationBasicInfo() {
       
       try {
         setLoading(true);
-        const response = await fetch('https://id.slmsolar.com/api/sector');
+        const response = await fetch('https://api.slmglobal.vn/api/sector');
         
         if (!response.ok) {
           throw new Error('Failed to fetch sectors');

@@ -124,7 +124,7 @@ const ContentGallery = ({
   const fetchUserContents = async (id: number) => {
     try {
       setLoading(true);
-      const response = await fetch(`https://id.slmsolar.com/api/users/${id}`, {
+      const response = await fetch(`https://api.slmglobal.vn/api/users/${id}`, {
         headers: {
           'Accept': 'application/json'
         }
@@ -173,8 +173,22 @@ const ContentGallery = ({
   // Lấy ảnh đầu tiên của bài viết nếu có
   const getFirstImage = (content: Content): string | null => {
     if (content.media_contents && content.media_contents.length > 0) {
-      const image = content.media_contents.find(media => media.kind === 'image');
-      return image ? image.link : null;
+      // Tìm media có kind là image trước
+      const imageContent = content.media_contents.find(media => media.kind === 'image');
+      if (imageContent) {
+        return imageContent.link;
+      }
+      
+      // Nếu không có ảnh, tìm video
+      const videoContent = content.media_contents.find(media => media.kind === 'video');
+      if (videoContent) {
+        if (videoContent.thumbnail) {
+          return videoContent.thumbnail;
+        } else if (videoContent.link && !videoContent.link.startsWith('https://')) {
+          // Nếu link video không bắt đầu bằng https://, giả định là YouTube ID
+          return `https://img.youtube.com/vi/${videoContent.link}/hqdefault.jpg`;
+        }
+      }
     }
     return null;
   };
@@ -745,7 +759,7 @@ const styles = StyleSheet.create({
   minimalImage: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 8,
   },
   minimalInfo: {
     flex: 1,
@@ -779,7 +793,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: '100%',
-    height: 180,
+    aspectRatio: 1,
     overflow: 'hidden',
   },
   contentImage: {
@@ -914,7 +928,7 @@ const styles = StyleSheet.create({
   galleryImage: {
     width: 120,
     height: 120,
-    borderRadius: 60,
+    borderRadius: 8,
     marginRight: 10,
   },
   // Simple card styles
@@ -951,7 +965,7 @@ const styles = StyleSheet.create({
   },
   simpleImageContainer: {
     width: '100%',
-    aspectRatio: 4/3,
+    aspectRatio: 1,
     overflow: 'hidden',
   },
   simpleImage: {

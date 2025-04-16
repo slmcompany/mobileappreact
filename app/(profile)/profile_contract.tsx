@@ -6,6 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
+import { useAuth } from '@/src/context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import ContentGallery from '@/app/components/ContentGallery';
 
 // Định nghĩa kiểu dữ liệu cho người dùng
 interface User {
@@ -115,9 +118,24 @@ const stripHtmlTags = (html: string) => {
   return text.length > 80 ? text.substring(0, 80) + '...' : text;
 };
 
+// Thêm hàm formatPhoneNumber
+const formatPhoneNumber = (phoneNumber: string): string => {
+  if (!phoneNumber) return '';
+  
+  // Loại bỏ tất cả các ký tự không phải số
+  const cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // Nếu không đủ 10 số, trả về số gốc
+  if (cleaned.length !== 10) return phoneNumber;
+  
+  // Format theo xxx.xxx.xxxx
+  return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
+};
+
 export default function ProfileContractScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { authState, getUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [merchandises, setMerchandises] = useState<PreQuoteMerchandise[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -138,58 +156,69 @@ export default function ProfileContractScreen() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const response = await fetch('https://id.slmsolar.com/api/users/73', {
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
+        // Sử dụng getUser để lấy thông tin người dùng đã đăng nhập
+        const userData = await getUser();
+        console.log('User data from API:', userData);
         
-        if (!response.ok) {
-          throw new Error(`Error fetching user: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (data) {
-          setUser({
-            id: data.id || 0,
-            name: data.name || '',
-            phone: data.phone || '',
-            address: data.address || '',
-            avatar: data.avatar || ''
-          });
-
-          // Nếu có contracts trong dữ liệu user, lấy contract đầu tiên
-          if (data.contracts && data.contracts.length > 0) {
-            setContractCode(data.contracts[0].code || '');
-            setContractActivationDate(data.contracts[0].created_at || '');
-            
-            // Lấy merchandises từ contract
-            if (data.contracts[0].pre_quote_merchandises && 
-                data.contracts[0].pre_quote_merchandises.length > 0) {
-              const merchandisesData = data.contracts[0].pre_quote_merchandises
-                .filter((item: any) => item.warranty_years > 0)
-                .map((item: any) => ({
-                  id: item.id,
-                  merchandise_id: item.merchandise_id,
-                  pre_quote_id: item.pre_quote_id,
-                  name: item.merchandise?.name || '',
-                  warranty_years: item.warranty_years || 0,
-                  warranty_period_unit: 'year',
-                  activation_date: item.created_at || '',
-                  created_at: item.created_at || '',
-                  updated_at: item.updated_at || '',
-                  merchandise: item.merchandise
-                }));
-              setMerchandises(merchandisesData);
-              setLoading(false);
-            } else {
-              // Nếu không có pre_quote_merchandises trong contract, gọi API riêng
-              fetchMerchandises(data.contracts[0].id);
+        if (userData) {
+          // Gọi API để lấy thông tin chi tiết của user
+          const userId = userData.id;
+          const response = await fetch(`https://api.slmglobal.vn/api/users/${userId}`, {
+            headers: {
+              'Accept': 'application/json'
             }
-          } else {
-            // Nếu không có contracts trong user data, gọi API contracts riêng
-            fetchContract();
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Error fetching user: ${response.status}`);
           }
+          
+          const data = await response.json();
+          if (data) {
+            setUser({
+              id: data.id || 0,
+              name: data.name || '',
+              phone: data.phone || '',
+              address: data.address || '',
+              avatar: data.avatar || ''
+            });
+
+            // Nếu có contracts trong dữ liệu user, lấy contract đầu tiên
+            if (data.contracts && data.contracts.length > 0) {
+              setContractCode(data.contracts[0].code || '');
+              setContractActivationDate(data.contracts[0].created_at || '');
+              
+              // Lấy merchandises từ contract
+              if (data.contracts[0].pre_quote_merchandises && 
+                  data.contracts[0].pre_quote_merchandises.length > 0) {
+                const merchandisesData = data.contracts[0].pre_quote_merchandises
+                  .filter((item: any) => item.warranty_years > 0)
+                  .map((item: any) => ({
+                    id: item.id,
+                    merchandise_id: item.merchandise_id,
+                    pre_quote_id: item.pre_quote_id,
+                    name: item.merchandise?.name || '',
+                    warranty_years: item.warranty_years || 0,
+                    warranty_period_unit: 'year',
+                    activation_date: item.created_at || '',
+                    created_at: item.created_at || '',
+                    updated_at: item.updated_at || '',
+                    merchandise: item.merchandise
+                  }));
+                setMerchandises(merchandisesData);
+                setLoading(false);
+              } else {
+                // Nếu không có pre_quote_merchandises trong contract, gọi API riêng
+                fetchMerchandises(data.contracts[0].id);
+              }
+            } else {
+              // Nếu không có contracts trong user data, gọi API contracts riêng
+              fetchContract();
+            }
+          }
+        } else {
+          console.log('No user data found, using contract API');
+          fetchContract();
         }
       } catch (error) {
         console.error('Error fetching user:', error);
@@ -257,7 +286,7 @@ export default function ProfileContractScreen() {
     };
 
     fetchUser();
-  }, []);
+  }, [getUser]);
 
   // Fetch articles
   useEffect(() => {
@@ -479,7 +508,7 @@ export default function ProfileContractScreen() {
           )}
           <View style={styles.userTextContainer}>
             <Text style={styles.userName}>Chào, {user?.name || ''}</Text>
-            <Text style={styles.userPhone}>{user?.phone || ''}</Text>
+            <Text style={styles.userPhone}>{formatPhoneNumber(user?.phone || '')}</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.notificationButton}>
@@ -557,81 +586,25 @@ export default function ProfileContractScreen() {
     </View>
   );
 
-  const renderArticleItem = (article: any) => (
-    <TouchableOpacity 
-      key={article.id} 
-      style={styles.articleCard}
-      onPress={() => router.push({
-        pathname: "/profile_contract_detail",
-        params: { articleId: article.id }
-      })}
-    >
-      <View style={styles.userInfoBar}>
-        <Image 
-          source={require('../../assets/images/solarmax-logo.png')} 
-          style={styles.smallLogo} 
-        />
-        <Text style={styles.postAuthor}>{article.author}</Text>
-        <Text style={styles.postTime}>{article.time}</Text>
-      </View>
-      
-      {article.thumbnail && (
-        <View style={styles.postImageContainer}>
-          <ImageWithFallback
-            uri={article.thumbnail}
-            style={styles.postImage}
-          />
-        </View>
-      )}
-      
-      <View style={styles.postTextOverlay}>
-        <View style={styles.categoryRow}>
-          <View style={styles.categoryTag}>
-            <Text style={styles.categoryText} numberOfLines={1}>
-              Bài viết
-            </Text>
-          </View>
-        </View>
-        
-        <Text style={styles.postTitle} numberOfLines={2}>
-          {article.title}
-        </Text>
-        
-        <View style={styles.descriptionContainer}>
-          <Text style={styles.postDescription} numberOfLines={3}>
-            {article.plainContent}
-            <Text style={styles.seeMoreText}>
-              ... Xem chi tiết
-            </Text>
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderArticleSection = () => (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Bài viết liên quan</Text>
-        <TouchableOpacity style={styles.sectionButton}>
-          <Text style={styles.sectionButtonText}>Khám phá</Text>
-          <Ionicons name="arrow-forward-circle-outline" size={20} color="#ED1C24" />
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.articleList}>
-        {articles.map(article => renderArticleItem(article))}
-      </View>
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
         {renderHeader()}
         <View style={styles.content}>
           {renderDeviceSection()}
-          {renderArticleSection()}
+          
+          {/* Bài viết liên quan sử dụng ContentGallery */}
+          <ContentGallery 
+            userId={user?.id}
+            showTitle={true}
+            sectionTitle="Bài viết liên quan"
+            maxItems={5}
+            horizontal={true}
+            cardStyle="simple"
+            detailInModal={true}
+            showViewAll={true}
+            viewAllPath="/(tabs)/gallery"
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

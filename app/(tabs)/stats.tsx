@@ -55,6 +55,7 @@ export default function StatsScreen() {
   const [commissionData, setCommissionData] = useState<MonthlyCommission[]>([]);
   const [totalCommissions, setTotalCommissions] = useState<number>(0);
   const [totalCommissionAmount, setTotalCommissionAmount] = useState<number>(0);
+  const [totalContractAmount, setTotalContractAmount] = useState<number>(0);
   const [currentMonthCommissions, setCurrentMonthCommissions] = useState<number>(0);
   const [monthlyAmounts, setMonthlyAmounts] = useState<number[]>(Array(12).fill(0));
   const [downlinesCount, setDownlinesCount] = useState<number>(0);
@@ -99,11 +100,17 @@ export default function StatsScreen() {
       const total = commissionData.reduce((sum, month) => sum + month.commissions.length, 0);
       setTotalCommissions(total);
 
-      // Tính tổng tiền hoa hồng
+      // Tính tổng tiền hoa hồng và tổng doanh số
       const totalAmount = commissionData.reduce((sum, month) => {
         return sum + month.commissions.reduce((monthSum, comm) => monthSum + comm.money, 0);
       }, 0);
       setTotalCommissionAmount(totalAmount);
+
+      // Tính tổng doanh số theo hợp đồng
+      const totalContract = commissionData.reduce((sum, month) => {
+        return sum + month.commissions.reduce((monthSum, comm) => monthSum + (comm.sector?.total_amount || 0), 0);
+      }, 0);
+      setTotalContractAmount(totalContract);
 
       // Lấy số hợp đồng tháng hiện tại
       const currentMonth = new Date().getMonth() + 1; // getMonth() trả về 0-11
@@ -128,7 +135,7 @@ export default function StatsScreen() {
     try {
       setLoading(true);
       
-      const response = await fetch(`https://id.slmsolar.com/api/users/${id}`, {
+      const response = await fetch(`https://api.slmglobal.vn/api/users/${id}`, {
         headers: {
           'Accept': 'application/json'
         }
@@ -183,7 +190,7 @@ export default function StatsScreen() {
   const fetchCommissionData = async (id: number) => {
     try {
       const currentYear = new Date().getFullYear();
-      const response = await fetch(`https://id.slmsolar.com/api/user/commission/${id}/${currentYear}`, {
+      const response = await fetch(`https://api.slmglobal.vn/api/user/commission/${id}/${currentYear}`, {
         headers: {
           'Accept': 'application/json'
         }
@@ -221,7 +228,7 @@ export default function StatsScreen() {
 
   const fetchDownlines = async (id: number) => {
     try {
-      const response = await fetch(`https://id.slmsolar.com/api/agents/${id}/downlines`, {
+      const response = await fetch(`https://api.slmglobal.vn/api/agents/${id}/downlines`, {
         headers: {
           'Accept': 'application/json'
         }
@@ -259,7 +266,7 @@ export default function StatsScreen() {
 
   const fetchPotentialCustomersCount = async (id: number) => {
     try {
-      const response = await fetch(`https://id.slmsolar.com/api/agents/${id}/potential-customers`, {
+      const response = await fetch(`https://api.slmglobal.vn/api/agents/${id}/potential-customers`, {
         headers: {
           'Accept': 'application/json'
         }
@@ -374,8 +381,15 @@ export default function StatsScreen() {
           <Text style={styles.cardValue}>{totalCommissions}</Text>
         </View>
         
+        <View style={[styles.statsCard, styles.halfCard]}>
+          <Text style={styles.cardLabel}>Tổng doanh số</Text>
+          <Text style={[styles.cardValue, styles.valueGreen]}>{formatCurrency(totalContractAmount)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.statsRow}>
         <TouchableOpacity 
-          style={[styles.statsCard, styles.halfCard]}
+          style={[styles.statsCard, styles.fullCard]}
           onPress={navigateToCommissionStats}
         >
           <Text style={styles.cardLabel}>Hoa hồng đã nhận</Text>
@@ -549,6 +563,9 @@ const styles = StyleSheet.create({
   },
   halfCard: {
     flex: 0.48,
+  },
+  fullCard: {
+    flex: 1,
   },
   cardLabel: {
     fontSize: 14,

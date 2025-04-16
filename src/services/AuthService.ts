@@ -3,109 +3,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG, API_ENDPOINTS, handleApiError } from '@/src/config/api';
 import User, { LoginCredentials } from '@/src/models/User';
 
-// Dữ liệu người dùng mặc định từ API
-const DEFAULT_USERS: User[] = [
-  {
-    "id": 1,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Nguyễn TIến Mạnh",
-    "phone": "0964920242",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 2,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Trần Bảo Ngọc",
-    "phone": "0966874083",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 3,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Đỗ Thuỳ Dung",
-    "phone": "0394307569",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 4,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Nguyễn Đình Linh",
-    "phone": "0917599966",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 5,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Nguyễn Hoành Văn",
-    "phone": "0969862033",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  },
-  {
-    "id": 6,
-    "role_id": 2,
-    "email": null,
-    "password": "slm123",
-    "created_at": "2025-02-26T14:30:00",
-    "commission_rate": null,
-    "name": "Lê Huy Sĩ",
-    "phone": "0969663387",
-    "parent_id": null,
-    "total_commission": null,
-    "role": {"name": "ad_saler", "description": null, "id": 2}
-  }
-];
-
 // Authentication service class
 class AuthService {
   // Fetch all users from API
   async getUsers(): Promise<User[]> {
     try {
-      // Sử dụng fetch thay vì axios để tránh lỗi mạng
-      const response = await fetch('https://id.slmsolar.com/api/users', {
-        method: 'GET',
-        headers: API_CONFIG.HEADERS
-      });
+      const response = await axios.get<User[]>(
+        `${API_CONFIG.BASE_URL}${API_ENDPOINTS.USERS.LIST}`,
+        {
+          headers: API_CONFIG.HEADERS,
+          timeout: API_CONFIG.TIMEOUT
+        }
+      );
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data as User[];
+      return response.data;
     } catch (error) {
-      console.error('Error fetching users from API, using default data:', error);
-      // Trả về dữ liệu mặc định nếu API gặp lỗi
-      return DEFAULT_USERS;
+      console.error('Error fetching users from API:', error);
+      throw handleApiError(error);
     }
   }
 
@@ -189,6 +103,7 @@ class AuthService {
     idNumber?: string;
     birthDate?: string;
     gender?: string;
+    avatar?: string;
   }): Promise<User | null> {
     try {
       // Get current user data
@@ -208,6 +123,7 @@ class AuthService {
         ...(userInfo.idNumber && { idNumber: userInfo.idNumber }),
         ...(userInfo.birthDate && { birthDate: userInfo.birthDate }),
         ...(userInfo.gender && { gender: userInfo.gender }),
+        ...(userInfo.avatar && { avatar: userInfo.avatar }),
       };
       
       // Store updated user data

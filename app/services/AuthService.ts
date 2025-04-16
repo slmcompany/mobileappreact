@@ -9,7 +9,7 @@ class AuthService {
   async getUsers(): Promise<User[]> {
     try {
       // Sử dụng fetch thay vì axios để tránh lỗi mạng
-      const response = await fetch('https://id.slmsolar.com/api/users', {
+      const response = await fetch('https://api.slmglobal.vn/api/users', {
         method: 'GET',
         headers: API_CONFIG.HEADERS
       });
@@ -62,6 +62,26 @@ class AuthService {
       );
       
       if (user) {
+        // Lấy thông tin user chi tiết từ API
+        try {
+          const response = await fetch(`https://api.slmglobal.vn/api/users/${user.id}`, {
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const userDetail = await response.json();
+            console.log('User detail from API:', userDetail);
+            if (userDetail.role) {
+              user.role = userDetail.role;
+              console.log('Updated user role:', user.role);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user detail:', error);
+        }
+        
         // Store user data in AsyncStorage
         await this.storeUserData(user);
         console.log(`Đăng nhập thành công: ${user.name}`);
@@ -90,12 +110,29 @@ class AuthService {
   // Store user data in AsyncStorage
   async storeUserData(user: User): Promise<void> {
     try {
+      console.log('Storing user data:', user);
+      console.log('User role:', user.role);
+      
+      // Lưu toàn bộ user data
       await AsyncStorage.setItem('@slm_user_data', JSON.stringify(user));
       await AsyncStorage.setItem('@slm_login_phone', user.phone);
       await AsyncStorage.setItem('@slm_user_name', user.name);
+      
+      // Lưu riêng role data
+      if (user.role) {
+        console.log('Storing role data:', user.role);
+        await AsyncStorage.setItem('@slm_user_role', JSON.stringify(user.role));
+      }
+      
       if ('avatar' in user) {
         await AsyncStorage.setItem('@slm_user_avatar', (user as any).avatar);
       }
+      
+      // Verify stored data
+      const storedUser = await AsyncStorage.getItem('@slm_user_data');
+      const storedRole = await AsyncStorage.getItem('@slm_user_role');
+      console.log('Stored user data:', storedUser);
+      console.log('Stored role data:', storedRole);
     } catch (error) {
       console.error('Error storing user data:', error);
       throw error;
@@ -147,8 +184,49 @@ class AuthService {
   async getCurrentUser(): Promise<User | null> {
     try {
       const userData = await AsyncStorage.getItem('@slm_user_data');
+      console.log('Raw user data from AsyncStorage:', userData);
+      
       if (userData) {
-        return JSON.parse(userData) as User;
+        const user = JSON.parse(userData) as User;
+        console.log('Parsed user data:', user);
+        
+        // Lấy role data mới từ API
+        try {
+          console.log('Fetching fresh role data for user ID:', user.id);
+          const response = await fetch(`https://api.slmglobal.vn/api/users/${user.id}`, {
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const freshData = await response.json();
+            console.log('Fresh data from API:', freshData);
+            
+            if (freshData.role) {
+              console.log('Updating role with fresh data:', freshData.role);
+              user.role = freshData.role;
+              
+              // Cập nhật lại AsyncStorage với role mới
+              await AsyncStorage.setItem('@slm_user_role', JSON.stringify(freshData.role));
+              await AsyncStorage.setItem('@slm_user_data', JSON.stringify(user));
+              console.log('Updated user data in AsyncStorage');
+            }
+          } else {
+            console.error('API response not ok:', response.status);
+          }
+        } catch (error) {
+          console.error('Error fetching fresh role data:', error);
+          // Nếu không lấy được từ API, thử lấy từ AsyncStorage
+          const roleData = await AsyncStorage.getItem('@slm_user_role');
+          console.log('Fallback role data from AsyncStorage:', roleData);
+          if (roleData) {
+            user.role = JSON.parse(roleData);
+          }
+        }
+        
+        console.log('Final user data to return:', user);
+        return user;
       }
       return null;
     } catch (error) {

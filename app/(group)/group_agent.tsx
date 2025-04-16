@@ -79,7 +79,7 @@ export default function GroupAgentScreen() {
       setIsLoading(true);
       try {
         // Lấy thông tin người dùng hiện tại
-        const userResponse = await fetch('https://id.slmsolar.com/api/users/4');
+        const userResponse = await fetch('https://api.slmglobal.vn/api/users/4');
         if (!userResponse.ok) {
           throw new Error('Không thể lấy thông tin người dùng');
         }
@@ -87,7 +87,7 @@ export default function GroupAgentScreen() {
         setCurrentUser(userData);
 
         // Lấy danh sách đại lý
-        const response = await fetch('https://id.slmsolar.com/api/agents/4/downlines');
+        const response = await fetch('https://api.slmglobal.vn/api/agents/4/downlines');
         if (!response.ok) {
           throw new Error('Không thể kết nối với server');
         }
@@ -234,23 +234,35 @@ export default function GroupAgentScreen() {
             <View style={styles.memberCount}>
               <View style={styles.memberCountRow}>
                 <Text style={styles.memberCountText}>{memberCount} thành viên</Text>
-                <Ionicons name="arrow-up-outline" size={16} color="#27273E" />
+                <TouchableOpacity onPress={() => router.push('/group_users')}>
+                  <Image 
+                    source={require('@/assets/images/group-arrows-Icon.png')}
+                    style={{ width: 16, height: 16 }}
+                  />
+                </TouchableOpacity>
               </View>
               <Text style={styles.newMemberText}>{newMembersCount} thành viên mới</Text>
             </View>
             
             <View style={styles.avatarGroup}>
               {agents.slice(0, 4).map((agent, index) => (
-                <Image 
+                <TouchableOpacity 
                   key={agent.id}
-                  source={agent.avatar ? { uri: agent.avatar } : require('@/assets/images/agent_avatar.png')} 
-                  style={[styles.avatarGroupItem, index > 0 && styles.avatarOverlap]} 
-                />
+                  onPress={() => router.push('/group_users')}
+                >
+                  <Image 
+                    source={agent.avatar ? { uri: agent.avatar } : require('@/assets/images/agent_avatar.png')} 
+                    style={[styles.avatarGroupItem, index > 0 && styles.avatarOverlap]} 
+                  />
+                </TouchableOpacity>
               ))}
               {agents.length > 4 && (
-                <View style={[styles.avatarCountContainer, styles.avatarOverlap]}>
+                <TouchableOpacity 
+                  onPress={() => router.push('/group_users')}
+                  style={[styles.avatarCountContainer, styles.avatarOverlap]}
+                >
                   <Text style={styles.avatarCountText}>+{agents.length - 4}</Text>
-                </View>
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -358,7 +370,7 @@ const styles = StyleSheet.create({
   memberCountText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#27273E',
+    color: '#FFFFFF',
   },
   newMemberText: {
     fontSize: 10,

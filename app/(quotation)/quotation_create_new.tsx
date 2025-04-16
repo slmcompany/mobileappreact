@@ -31,7 +31,7 @@ export default function QuotationCreateNew() {
       setCustomerData(null);
 
       try {
-        const response = await fetch(`https://id.slmsolar.com/api/mini_admins/potential-customer/check-exist-by-code/${id.trim()}`);
+        const response = await fetch(`https://api.slmglobal.vn/api/mini_admins/potential-customer/check-exist-by-code/${id.trim()}`);
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
             throw new Error(errorData.message || `HTTP error! status: ${response.status}`);

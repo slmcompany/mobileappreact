@@ -22,6 +22,24 @@ export default function GroupLayout() {
           headerBackTitle: "Quay lại"
         }} 
       />
+      <Stack.Screen 
+        name="group_users" 
+        options={{
+          headerShown: true,
+          headerTitle: "Danh sách thành viên",
+          headerTitleAlign: 'center',
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#27273E',
+          },
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerShadowVisible: false,
+          headerBackTitle: "Quay lại"
+        }} 
+      />
     </Stack>
   );
 } 

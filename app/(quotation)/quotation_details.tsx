@@ -298,7 +298,7 @@ export default function QuotationDetails() {
   // Fetch tất cả sản phẩm
   const fetchAllProducts = async () => {
     try {
-      const response = await fetch('https://id.slmsolar.com/api/products/with-images');
+      const response = await fetch('https://api.slmglobal.vn/api/products/with-images');
       if (!response.ok) {
         throw new Error('Failed to fetch products');
       }
@@ -316,7 +316,7 @@ export default function QuotationDetails() {
       console.log('Bắt đầu fetch sản phẩm của combo với ID:', comboId);
       
       // Gọi API để lấy sector data
-      const sectorResponse = await fetch('https://id.slmsolar.com/api/sector');
+      const sectorResponse = await fetch('https://api.slmglobal.vn/api/sector');
       
       if (!sectorResponse.ok) {
         console.error('API trả về status không thành công:', sectorResponse.status);
@@ -416,7 +416,7 @@ export default function QuotationDetails() {
           
           // Thử sử dụng backup API nếu không tìm được sản phẩm nào
           try {
-            const backupResponse = await fetch(`https://id.slmsolar.com/api/combos/${comboId}/products`);
+            const backupResponse = await fetch(`https://api.slmglobal.vn/api/combos/${comboId}/products`);
             if (backupResponse.ok) {
               const data = await backupResponse.json();
               console.log('Dữ liệu từ API backup:', data);
@@ -450,7 +450,7 @@ export default function QuotationDetails() {
         
         // Thử sử dụng API backup nếu không tìm được combo
         try {
-          const backupResponse = await fetch(`https://id.slmsolar.com/api/combos/${comboId}/products`);
+          const backupResponse = await fetch(`https://api.slmglobal.vn/api/combos/${comboId}/products`);
           if (backupResponse.ok) {
             const data = await backupResponse.json();
             console.log('Dữ liệu từ API backup:', data);
@@ -530,7 +530,7 @@ export default function QuotationDetails() {
         setCategoryProducts(convertedProducts);
       } else {
         // Fetch lại nếu chưa có
-        const response = await fetch('https://id.slmsolar.com/api/products/with-images');
+        const response = await fetch('https://api.slmglobal.vn/api/products/with-images');
         if (!response.ok) throw new Error('Failed to fetch products');
         
         const data: ProductApiItem[] = await response.json();
@@ -822,7 +822,7 @@ export default function QuotationDetails() {
   const updateExistingCustomer = async (customerId: string) => {
     try {
       // Ví dụ gọi API cập nhật thông tin khách hàng
-      const response = await fetch(`https://id.slmsolar.com/api/mini_admins/potential-customer/update/${customerId}`, {
+      const response = await fetch(`https://api.slmglobal.vn/api/mini_admins/potential-customer/update/${customerId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -855,7 +855,7 @@ export default function QuotationDetails() {
   // Hàm lấy và lưu thông tin khách hàng
   const fetchAndSaveCustomerData = async (customerId: string) => {
     try {
-      const response = await fetch(`https://id.slmsolar.com/api/mini_admins/potential-customer/check-exist-by-code/${customerId}`);
+      const response = await fetch(`https://api.slmglobal.vn/api/mini_admins/potential-customer/check-exist-by-code/${customerId}`);
       if (!response.ok) {
         throw new Error('Không thể lấy thông tin khách hàng');
       }

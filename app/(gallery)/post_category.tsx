@@ -300,7 +300,7 @@ export default function GalleryScreen() {
   // Thêm hàm fetchSectors
   const fetchSectors = async () => {
     try {
-      const sectorResponse = await fetch('https://id.slmsolar.com/api/sector', {
+      const sectorResponse = await fetch('https://api.slmglobal.vn/api/sector', {
         headers: {
           'Accept': 'application/json'
         }
@@ -326,7 +326,7 @@ export default function GalleryScreen() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('https://id.slmsolar.com/api/content', {
+      const response = await fetch('https://api.slmglobal.vn/api/content', {
         headers: {
           'Accept': 'application/json'
         }

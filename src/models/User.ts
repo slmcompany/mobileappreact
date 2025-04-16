@@ -21,6 +21,7 @@ export interface User {
   gender?: string;
   issueDate?: string;
   issuePlace?: string;
+  avatar?: string;
 }
 
 // Authentication state interface
