@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/src/context/AuthContext';
 
 // Định nghĩa kiểu dữ liệu cho người dùng
 interface User {
@@ -77,6 +78,7 @@ interface CategoryMap {
 
 export default function ProfileContactDetailScreen() {
   const router = useRouter();
+  const { authState, getUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [contactInfos, setContactInfos] = useState<ContactInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -97,7 +99,51 @@ export default function ProfileContactDetailScreen() {
     const fetchUser = async () => {
       setLoading(true);
       try {
-        const response = await fetch('https://id.slmsolar.com/api/users/14', {
+        // Lấy thông tin người dùng từ context auth
+        const userData = await getUser();
+        
+        if (userData) {
+          setUser({
+            id: userData.id || 0,
+            name: userData.name || '',
+            phone: userData.phone || '',
+            address: userData.address || '',
+            avatar: userData.avatar || '',
+            email: userData.email || '',
+            gender: userData.gender === 'Nam',
+            citizen_id: userData.idNumber || '',
+            tax_code: '',
+            province: '',
+            district: '',
+            ward: ''
+          });
+          
+          createContactInfos({
+            id: userData.id,
+            name: userData.name,
+            phone: userData.phone,
+            address: userData.address || '',
+            email: userData.email,
+            gender: userData.gender === 'Nam',
+            citizen_id: userData.idNumber || '',
+          });
+          
+          // Fetch contract data
+          fetchContract();
+        } else {
+          // Fallback to API call if user data is not available in context
+          fetchUserFromAPI();
+        }
+      } catch (error) {
+        console.error('Error fetching user from context:', error);
+        // Fallback to API call if there's an error
+        fetchUserFromAPI();
+      }
+    };
+
+    const fetchUserFromAPI = async () => {
+      try {
+        const response = await fetch('https://api.slmglobal.vn/api/users/14', {
           headers: {
             'Accept': 'application/json'
           }
@@ -160,7 +206,7 @@ export default function ProfileContactDetailScreen() {
           }
         }
       } catch (error) {
-        console.error('Error fetching user:', error);
+        console.error('Error fetching user from API:', error);
         setUser(null);
         // Vẫn phải fetch contract nếu user API không trả về contract
         fetchContract();
@@ -294,7 +340,7 @@ export default function ProfileContactDetailScreen() {
     };
 
     fetchUser();
-  }, []);
+  }, [getUser]);
 
   // Khởi tạo thông tin hợp đồng và chi tiết hợp đồng
   useEffect(() => {
