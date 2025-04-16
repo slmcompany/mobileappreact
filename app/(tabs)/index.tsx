@@ -65,6 +65,85 @@ interface MonthlyCommission {
   commissions: Commission[];
 }
 
+// Định nghĩa kiểu dữ liệu cho thiết bị
+interface Device {
+  id: number;
+  name: string;
+  activationDate: string;
+  warrantyPeriod: string;
+  expireDate: string;
+  progressPercent: number;
+  imageUrl?: string;
+}
+
+// Định nghĩa kiểu dữ liệu cho pre_quote_merchandise
+interface PreQuoteMerchandise {
+  id: number;
+  merchandise_id: number;
+  pre_quote_id: number;
+  name: string;
+  warranty_years: number;
+  warranty_period_unit: string;
+  activation_date?: string;
+  created_at: string;
+  updated_at: string;
+  merchandise?: {
+    id: number;
+    name: string;
+    images?: Array<{
+      id: number;
+      merchandise_id: number;
+      link: string;
+    }>;
+  };
+}
+
+// Thêm component riêng để xử lý ảnh và lỗi CORS
+interface ImageWithFallbackProps {
+  uri: string | undefined;
+  style: any;
+  resizeMode?: 'cover' | 'contain' | 'stretch' | 'repeat' | 'center';
+}
+
+const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({ uri, style, resizeMode = 'cover' }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const fallbackImage = require('../../assets/images/replace-holder.png');
+  
+  return (
+    <View style={[style, {overflow: 'hidden', position: 'relative'}]}>
+      {isLoading && (
+        <View style={[StyleSheet.absoluteFill, {justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5'}]}>
+          <ActivityIndicator size="small" color="#ED1C24" />
+        </View>
+      )}
+      
+      {hasError || !uri ? (
+        <Image 
+          source={fallbackImage}
+          style={{width: '100%', height: '100%'}}
+          resizeMode={resizeMode}
+          onLoadEnd={() => setIsLoading(false)}
+        />
+      ) : (
+        <Image 
+          source={{ uri: uri }}
+          style={{width: '100%', height: '100%'}}
+          resizeMode={resizeMode}
+          onLoadStart={() => setIsLoading(true)}
+          onLoadEnd={() => setIsLoading(false)}
+          onError={() => {
+            console.log("Lỗi khi tải ảnh:", uri);
+            setHasError(true);
+            setIsLoading(false);
+          }}
+        />
+      )}
+    </View>
+  );
+};
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [activeProductIndex, setActiveProductIndex] = useState(0);
@@ -92,6 +171,13 @@ export default function HomeScreen() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [isLoadingBanners, setIsLoadingBanners] = useState<boolean>(false);
   const [bannersError, setBannersError] = useState<Error | null>(null);
+  
+  // Thêm states cho thiết bị
+  const [merchandises, setMerchandises] = useState<PreQuoteMerchandise[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [contractCode, setContractCode] = useState<string>('');
+  const [contractActivationDate, setContractActivationDate] = useState<string>('');
+  const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(false);
   
   useEffect(() => {
     if (sectorsError) {
@@ -610,6 +696,243 @@ export default function HomeScreen() {
   
   const promoData = renderPromoData(banners);
 
+  // Thêm useEffect để fetch thiết bị khi userId có và userRoleId === 3
+  useEffect(() => {
+    if (userId && userRoleId === 3) {
+      fetchUserDevices(userId);
+    }
+  }, [userId, userRoleId]);
+  
+  // Hàm fetch thiết bị từ API
+  const fetchUserDevices = async (id: number) => {
+    try {
+      setIsLoadingDevices(true);
+      const response = await fetch(`https://api.slmglobal.vn/api/users/${id}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching user: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data) {
+        // Nếu có contracts trong dữ liệu user, lấy contract đầu tiên
+        if (data.contracts && data.contracts.length > 0) {
+          setContractCode(data.contracts[0].code || '');
+          setContractActivationDate(data.contracts[0].created_at || '');
+          
+          // Lấy merchandises từ contract
+          if (data.contracts[0].pre_quote_merchandises && 
+              data.contracts[0].pre_quote_merchandises.length > 0) {
+            const merchandisesData = data.contracts[0].pre_quote_merchandises
+              .filter((item: any) => item.warranty_years > 0)
+              .map((item: any) => ({
+                id: item.id,
+                merchandise_id: item.merchandise_id,
+                pre_quote_id: item.pre_quote_id,
+                name: item.merchandise?.name || '',
+                warranty_years: item.warranty_years || 0,
+                warranty_period_unit: 'year',
+                activation_date: item.created_at || '',
+                created_at: item.created_at || '',
+                updated_at: item.updated_at || '',
+                merchandise: item.merchandise
+              }));
+            setMerchandises(merchandisesData);
+          } else {
+            // Nếu không có pre_quote_merchandises trong contract, gọi API riêng
+            fetchMerchandises(data.contracts[0].id);
+          }
+        } else {
+          // Nếu không có contracts trong user data, gọi API contracts riêng
+          fetchContract();
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user devices:', error);
+    } finally {
+      setIsLoadingDevices(false);
+    }
+  };
+
+  // Hàm fetch contract
+  const fetchContract = async () => {
+    try {
+      const response = await fetch('https://slmsolar.com/api/contracts', {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching contract: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data && data.data && data.data.length > 0) {
+        setContractCode(data.data[0].code || '');
+        setContractActivationDate(data.data[0].created_at || '');
+        
+        // Fetch merchandises based on contract
+        if (data.data[0].id) {
+          fetchMerchandises(data.data[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching contract:', error);
+      setContractCode('');
+    }
+  };
+
+  // Hàm fetch merchandises
+  const fetchMerchandises = async (contractId: number) => {
+    try {
+      const response = await fetch(`https://slmsolar.com/api/contracts/${contractId}/merchandises`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching merchandises: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data && data.data) {
+        // Lọc ra chỉ những thiết bị có warranty_years > 0
+        const filteredMerchandises = data.data.filter((item: any) => item.warranty_years > 0);
+        setMerchandises(filteredMerchandises);
+      }
+    } catch (error) {
+      console.error('Error fetching merchandises:', error);
+      // Fallback to empty array to prevent errors
+      setMerchandises([]);
+    }
+  };
+
+  // Convert merchandises to devices
+  useEffect(() => {
+    if (merchandises.length > 0) {
+      // Chuyển đổi dữ liệu từ PreQuoteMerchandise sang Device
+      const mappedDevices = merchandises.map((item) => {
+        // Tính toán ngày hết hạn bảo hành
+        const activationDate = contractActivationDate ? new Date(contractActivationDate) : (item.activation_date ? new Date(item.activation_date) : new Date());
+        const expireDate = new Date(activationDate);
+        expireDate.setFullYear(expireDate.getFullYear() + item.warranty_years);
+        
+        // Tính phần trăm thời gian bảo hành đã trôi qua
+        const now = new Date();
+        const totalWarrantyTime = expireDate.getTime() - activationDate.getTime();
+        const timeElapsed = now.getTime() - activationDate.getTime();
+        const progressPercent = Math.min(Math.round((timeElapsed / totalWarrantyTime) * 100), 100);
+        
+        // Định dạng ngày tháng
+        const formatDate = (date: Date) => {
+          return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+        };
+
+        // Lấy URL hình ảnh từ merchandise nếu có
+        const imageUrl = item.merchandise?.images && item.merchandise.images.length > 0 
+          ? item.merchandise.images[0].link 
+          : undefined;
+
+        return {
+          id: item.id,
+          name: item.name,
+          activationDate: formatDate(activationDate),
+          warrantyPeriod: `${item.warranty_years} năm`,
+          expireDate: formatDate(expireDate),
+          progressPercent: progressPercent,
+          imageUrl: imageUrl
+        };
+      });
+
+      setDevices(mappedDevices);
+    }
+  }, [merchandises, contractActivationDate]);
+  
+  // Thêm component hiển thị thiết bị
+  const renderDeviceSection = () => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Thiết bị của bạn</Text>
+      </View>
+      
+      <View style={styles.deviceIdContainer}>
+        <Text style={styles.deviceId}>{contractCode}</Text>
+        <TouchableOpacity 
+          style={styles.sectionButton}
+          onPress={() => router.push({
+            pathname: "/profile_contract_detail",
+            params: { contractCode }
+          })}
+        >
+          <Text style={styles.sectionButtonText}>Chi tiết</Text>
+          <Ionicons name="arrow-forward-circle" size={20} color="#ED1C24" />
+        </TouchableOpacity>
+      </View>
+      
+      {isLoadingDevices ? (
+        <View style={styles.loadingDeviceContainer}>
+          <ActivityIndicator size="small" color="#ED1C24" />
+          <Text style={styles.loadingDeviceText}>Đang tải thiết bị...</Text>
+        </View>
+      ) : devices.length > 0 ? (
+        <View style={styles.deviceList}>
+          {devices.map(device => (
+            <View key={device.id} style={styles.deviceCard}>
+              <View style={styles.deviceCardContent}>
+                <View style={styles.deviceImageContainer}>
+                  <ImageWithFallback
+                    uri={device.imageUrl}
+                    style={styles.deviceImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                
+                <View style={styles.deviceInfo}>
+                  <View>
+                    <View style={styles.nameContainer}>
+                      <Text style={styles.infoLabel}>Tên thiết bị:</Text>
+                      <Text 
+                        style={styles.deviceName}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >{device.name}</Text>
+                    </View>
+                    
+                    <View style={styles.activationDateContainer}>
+                      <Text style={styles.infoLabel}>Ngày kích hoạt:</Text>
+                      <Text style={styles.infoValue}>{device.activationDate}</Text>
+                    </View>
+                    
+                    <View style={styles.warrantyTextContainer}>
+                      <Text style={styles.infoLabel}>Thời gian bảo hành: {device.warrantyPeriod}</Text>
+                      <Text style={styles.infoLabel}>đến hết {device.expireDate}</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.progressBarContainer}>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressBarFill, { width: `${device.progressPercent}%` }]} />
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyDeviceContainer}>
+          <Text style={styles.emptyDeviceText}>Không có thiết bị</Text>
+        </View>
+      )}
+    </View>
+  );
+
   if (isSectorsLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -675,7 +998,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <View style={styles.notificationContainer}>
                 <Flex direction="row" align="center">
-                  {userRoleId !== 4 && (
+                  {userRoleId !== 4 && userRoleId !== 3 && (
                     <TouchableOpacity 
                       style={styles.notificationIconContainer}
                       onPress={() => router.push('/(quotation)/quotation_create_new')}
@@ -690,7 +1013,7 @@ export default function HomeScreen() {
                   <TouchableOpacity 
                     style={[
                       styles.notificationIconContainer, 
-                      userRoleId !== 4 ? { marginLeft: 8 } : {}
+                      userRoleId !== 4 && userRoleId !== 3 ? { marginLeft: 8 } : {}
                     ]}
                     onPress={() => router.push('/(notification)/notification')}
                   >
@@ -705,160 +1028,181 @@ export default function HomeScreen() {
               </View>
             </Flex>
             
-            {/* Income Card */}
-            <WhiteSpace size="lg" />
-            <View style={{...styles.incomeCard, marginHorizontal: 0, borderRadius: 10}}>
-              <LinearGradient
-                colors={['rgba(255, 208, 121, 0.6)', 'rgba(255, 208, 121, 0)']}
-                locations={[0, 1]}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}
-                style={[styles.incomeCardContent, { borderRadius: 10 }]}
-              >
-                <Flex direction="row" align="center" justify="between">
-                  <View style={[styles.incomeTextContainer, { justifyContent: 'center' }]}>
-                    <Text style={styles.incomeTitle}>Thu nhập dự kiến {`T${new Date().getMonth() + 1}`}</Text>
-                    <Flex align="center">
-                      {isLoadingCommission ? (
-                        <ActivityIndicator size="small" color="#fff" style={{marginRight: 10}} />
-                      ) : (
-                        <Text style={styles.incomeAmount}>
-                          {isAmountVisible 
-                            ? formatCurrency(totalCommissionAmount) 
-                            : getMaskedAmount(totalCommissionAmount)}
-                        </Text>
-                      )}
-                      <TouchableOpacity onPress={toggleAmountVisibility}>
-                        <Image 
-                          source={require('../../assets/images/eye-icon.png')} 
-                          style={{ width: 36, height: 36, marginLeft: 2 }} 
-                          resizeMode="contain"
-                        />
-                      </TouchableOpacity>
+            {/* Income Card - Ẩn với Khách hàng */}
+            {userRoleId !== 3 && (
+              <>
+                <WhiteSpace size="lg" />
+                <View style={{...styles.incomeCard, marginHorizontal: 0, borderRadius: 10}}>
+                  <LinearGradient
+                    colors={['rgba(255, 208, 121, 0.6)', 'rgba(255, 208, 121, 0)']}
+                    locations={[0, 1]}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 0}}
+                    style={[styles.incomeCardContent, { borderRadius: 10 }]}
+                  >
+                    <Flex direction="row" align="center" justify="between">
+                      <View style={[styles.incomeTextContainer, { justifyContent: 'center' }]}>
+                        <Text style={styles.incomeTitle}>Thu nhập dự kiến {`T${new Date().getMonth() + 1}`}</Text>
+                        <Flex align="center">
+                          {isLoadingCommission ? (
+                            <ActivityIndicator size="small" color="#fff" style={{marginRight: 10}} />
+                          ) : (
+                            <Text style={styles.incomeAmount}>
+                              {isAmountVisible 
+                                ? formatCurrency(totalCommissionAmount) 
+                                : getMaskedAmount(totalCommissionAmount)}
+                            </Text>
+                          )}
+                          <TouchableOpacity onPress={toggleAmountVisibility}>
+                            <Image 
+                              source={require('../../assets/images/eye-icon.png')} 
+                              style={{ width: 36, height: 36, marginLeft: 2 }} 
+                              resizeMode="contain"
+                            />
+                          </TouchableOpacity>
+                        </Flex>
+                      </View>
+                      <View style={[styles.iconContainer, { paddingBottom: 8, paddingTop: 8, alignSelf: 'center' }]}>
+                        <TouchableOpacity 
+                          style={styles.statItem}
+                          onPress={navigateToGroupAgent}
+                        >
+                          <Image 
+                            source={require('../../assets/images/cong-dong.png')} 
+                            style={{ width: 24, height: 24, marginBottom: 4 }} 
+                            resizeMode="contain"
+                          />
+                          <Text style={styles.statLabel}>Cộng đồng</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={[styles.statItem, { marginLeft: 16 }]}
+                          onPress={navigateToCommissionHistory}
+                        >
+                          <Image 
+                            source={require('../../assets/images/chart-pie.png')} 
+                            style={{ width: 24, height: 24, marginBottom: 4 }} 
+                            resizeMode="contain"
+                          />
+                          <Text style={styles.statLabel}>Thống kê</Text>
+                        </TouchableOpacity>
+                      </View>
                     </Flex>
-                  </View>
-                  <View style={[styles.iconContainer, { paddingBottom: 8, paddingTop: 8, alignSelf: 'center' }]}>
-                    <TouchableOpacity 
-                      style={styles.statItem}
-                      onPress={navigateToGroupAgent}
-                    >
-                      <Image 
-                        source={require('../../assets/images/cong-dong.png')} 
-                        style={{ width: 24, height: 24, marginBottom: 4 }} 
-                        resizeMode="contain"
-                      />
-                      <Text style={styles.statLabel}>Cộng đồng</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.statItem, { marginLeft: 16 }]}
-                      onPress={navigateToCommissionHistory}
-                    >
-                      <Image 
-                        source={require('../../assets/images/chart-pie.png')} 
-                        style={{ width: 24, height: 24, marginBottom: 4 }} 
-                        resizeMode="contain"
-                      />
-                      <Text style={styles.statLabel}>Thống kê</Text>
-                    </TouchableOpacity>
-                  </View>
-                </Flex>
-              </LinearGradient>
-            </View>
+                  </LinearGradient>
+                </View>
+              </>
+            )}
           </View>
           
           <WingBlank style={styles.contentContainer}>
-            {/* Sản phẩm Section */}
-            <WhiteSpace size="lg" />
-            <Flex justify="between" style={[styles.brandContainer, { paddingVertical: 16 }]}>
-              {sectors?.map((sector) => (
-                <TouchableOpacity
-                  key={sector.id}
-                  style={[
-                    styles.brandCard,
-                    // Thêm màu background tùy theo brand
-                    { backgroundColor: sector.id === 2 ? '#FFD700' : sector.id === 1 ? '#4CAF50' : '#fff' }
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push({
-                    pathname: "/(products)/product_brand",
-                    params: { id: sector.id }
-                  })}
-                >
-                  <View style={styles.brandContent}>
-                    <Image 
-                      source={{ uri: sector.image }} 
-                      style={styles.brandLogo} 
-                      resizeMode="contain" 
-                    />
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </Flex>
+            {/* Hiển thị thiết bị nếu là khách hàng */}
+            {userRoleId === 3 && (
+              renderDeviceSection()
+            )}
             
-            {/* Promo Cards */}
-            <WhiteSpace size="lg" />
-            <View style={styles.carouselContainer}>
-              {isLoadingBanners ? (
-                <View style={styles.loadingBannerContainer}>
-                  <ActivityIndicator size="small" color="#D9261C" />
-                  <Text style={styles.loadingBannerText}>Đang tải banner...</Text>
-                </View>
-              ) : (
-                <FlatList
-                  ref={promoFlatListRef}
-                  horizontal
-                  data={promoData}
-                  renderItem={({item}) => (
-                    <View style={[styles.promoCard, { width: width - 32, marginHorizontal: 4 }]}>
-                      {item.imageUrl ? (
-                        <Image
-                          source={{ uri: item.imageUrl }} 
-                          style={styles.promoFullImage} 
-                          resizeMode="cover"
-                          onError={(e) => console.error('Error loading banner image:', e.nativeEvent.error)}
+            {/* Brand Selector Section - Ẩn với Khách hàng */}
+            {userRoleId !== 3 && (
+              <>
+                <WhiteSpace size="lg" />
+                <Flex justify="between" style={[styles.brandContainer, { paddingVertical: 16 }]}>
+                  {sectors?.map((sector) => (
+                    <TouchableOpacity
+                      key={sector.id}
+                      style={[
+                        styles.brandCard,
+                        // Thêm màu background tùy theo brand
+                        { backgroundColor: sector.id === 2 ? '#FFD700' : sector.id === 1 ? '#4CAF50' : '#fff' }
+                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => router.push({
+                        pathname: "/(products)/product_brand",
+                        params: { id: sector.id }
+                      })}
+                    >
+                      <View style={styles.brandContent}>
+                        <Image 
+                          source={{ uri: sector.image }} 
+                          style={styles.brandLogo} 
+                          resizeMode="contain" 
                         />
-                      ) : item.image ? (
-                        <Image
-                          source={item.image} 
-                          style={styles.promoFullImage} 
-                          resizeMode="cover" 
-                        />
-                      ) : (
-                        <View style={[styles.promoFullImage, { backgroundColor: item.backgroundColor || '#D9261C' }]} />
-                      )}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </Flex>
+              </>
+            )}
+            
+            {/* Promo Cards - Ẩn với Khách hàng */}
+            {userRoleId !== 3 && (
+              <>
+                <WhiteSpace size="lg" />
+                <View style={styles.carouselContainer}>
+                  {isLoadingBanners ? (
+                    <View style={styles.loadingBannerContainer}>
+                      <ActivityIndicator size="small" color="#D9261C" />
+                      <Text style={styles.loadingBannerText}>Đang tải banner...</Text>
                     </View>
+                  ) : (
+                    <FlatList
+                      ref={promoFlatListRef}
+                      horizontal
+                      data={promoData}
+                      renderItem={({item}) => (
+                        <View style={[styles.promoCard, { width: width - 32, marginHorizontal: 4 }]}>
+                          {item.imageUrl ? (
+                            <Image
+                              source={{ uri: item.imageUrl }} 
+                              style={styles.promoFullImage} 
+                              resizeMode="cover"
+                              onError={(e) => console.error('Error loading banner image:', e.nativeEvent.error)}
+                            />
+                          ) : item.image ? (
+                            <Image
+                              source={item.image} 
+                              style={styles.promoFullImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={[styles.promoFullImage, { backgroundColor: item.backgroundColor || '#D9261C' }]} />
+                          )}
+                        </View>
+                      )}
+                      keyExtractor={item => item.id}
+                      showsHorizontalScrollIndicator={false}
+                      pagingEnabled
+                      snapToInterval={width - 32}
+                      decelerationRate="fast"
+                      onMomentumScrollEnd={handlePromoScroll}
+                      contentContainerStyle={{ paddingHorizontal: 16 }}
+                    />
                   )}
-                  keyExtractor={item => item.id}
-                  showsHorizontalScrollIndicator={false}
-                  pagingEnabled
-                  snapToInterval={width - 32}
-                  decelerationRate="fast"
-                  onMomentumScrollEnd={handlePromoScroll}
-                  contentContainerStyle={{ paddingHorizontal: 16 }}
-                />
-              )}
-              
-              <View style={styles.promoPaginationContainer}>
-                {promoData.map((_, index) => (
-                  <TouchableOpacity 
-                    key={index} 
-                    style={[
-                      styles.promoPaginationBar, 
-                      index === activePromoIndex && styles.promoPaginationBarActive
-                    ]}
-                    onPress={() => scrollToPromo(index)}
-                  />
-                ))}
-              </View>
-            </View>
+                  
+                  <View style={styles.promoPaginationContainer}>
+                    {promoData.map((_, index) => (
+                      <TouchableOpacity 
+                        key={index} 
+                        style={[
+                          styles.promoPaginationBar, 
+                          index === activePromoIndex && styles.promoPaginationBarActive
+                        ]}
+                        onPress={() => scrollToPromo(index)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              </>
+            )}
             
-            {/* Bán chạy Section */}
-            <WhiteSpace size="lg" />
-            <Text style={styles.sectionTitle}>Bán chạy</Text>
-            <WhiteSpace size="xs" />
-            {sectors.map((sector) => (
-              <ProductSection key={sector.id} sector={sector} />
-            ))}
+            {/* Bán chạy Section - Ẩn với Khách hàng */}
+            {userRoleId !== 3 && (
+              <>
+                <WhiteSpace size="lg" />
+                <Text style={styles.sectionTitle}>Bán chạy</Text>
+                <WhiteSpace size="xs" />
+                {sectors.map((sector) => (
+                  <ProductSection key={sector.id} sector={sector} />
+                ))}
+              </>
+            )}
           </WingBlank>
           
           {/* HomeAgentCTA Section - Chỉ hiển thị với role_id là 4 hoặc 5 */}
@@ -1599,6 +1943,145 @@ const styles = StyleSheet.create({
   loadingBannerText: {
     marginTop: 8,
     color: '#666',
+    fontSize: 14,
+  },
+  section: {
+    width: '100%',
+    marginTop: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  sectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionButtonText: {
+    fontFamily: 'Roboto',
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#ED1C24',
+  },
+  deviceIdContainer: {
+    marginLeft: 16,
+    marginRight: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  deviceId: {
+    fontFamily: 'Roboto',
+    fontWeight: '700',
+    fontSize: 16,
+    color: '#7B7D9D',
+  },
+  deviceList: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  deviceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  deviceCardContent: {
+    flexDirection: 'row',
+  },
+  deviceImageContainer: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#F5F5F8',
+    overflow: 'hidden',
+  },
+  deviceImage: {
+    width: '100%',
+    height: '100%',
+  },
+  deviceInfo: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  deviceName: {
+    fontFamily: 'Roboto',
+    fontWeight: '600',
+    fontSize: 13,
+    color: '#27273E',
+    flex: 1,
+    marginLeft: 4,
+  },
+  activationDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  infoLabel: {
+    fontFamily: 'Roboto',
+    fontSize: 10,
+    color: '#7B7D9D',
+    marginRight: 4,
+  },
+  infoValue: {
+    fontFamily: 'Roboto',
+    fontSize: 10,
+    color: '#7B7D9D',
+  },
+  warrantyInfoContainer: {
+    width: '100%',
+  },
+  warrantyTextContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  progressBarContainer: {
+    width: '100%',
+    marginTop: 8,
+  },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#E5E5E5',
+    borderRadius: 4,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#12B669',
+    borderRadius: 4,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  loadingDeviceContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingDeviceText: {
+    marginTop: 8,
+    color: '#7B7D9D',
+    fontSize: 14,
+  },
+  emptyDeviceContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyDeviceText: {
+    color: '#7B7D9D',
     fontSize: 14,
   },
 });
