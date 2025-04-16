@@ -1,14 +1,78 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/context/AuthContext';
 import { globalStyles } from '@/src/context/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PersonalInformationScreen = () => {
   const insets = useSafeAreaInsets();
-  const { authState } = useAuth();
+  const { authState, getUser } = useAuth();
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  
+  // Thêm useState cho các thông tin cá nhân
+  const [name, setName] = useState(authState.user?.name || '');
+  const [phone, setPhone] = useState(authState.user?.phone || '');
+  const [email, setEmail] = useState(authState.user?.email || '');
+  const [birthDate, setBirthDate] = useState(authState.user?.birthDate || '');
+  const [gender, setGender] = useState(authState.user?.gender || '');
+  const [idNumber, setIdNumber] = useState(authState.user?.idNumber || '');
+  const [issueDate, setIssueDate] = useState(authState.user?.issueDate || '');
+  const [issuePlace, setIssuePlace] = useState(authState.user?.issuePlace || '');
+  const [address, setAddress] = useState(authState.user?.address || '');
+
+  // Lấy thông tin người dùng khi component được tạo
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userData = await getUser();
+        console.log('User data from API:', userData);
+        
+        if (userData) {
+          setName(userData.name || '');
+          setPhone(userData.phone || '');
+          setEmail(userData.email || '');
+          setBirthDate(userData.birthDate || '');
+          setGender(userData.gender || '');
+          setIdNumber(userData.idNumber || '');
+          setIssueDate(userData.issueDate || '');
+          setIssuePlace(userData.issuePlace || '');
+          setAddress(userData.address || '');
+          
+          // Lấy avatar từ dữ liệu user nếu có
+          if (userData.avatar) {
+            setUserAvatar(userData.avatar);
+          } else {
+            // Kiểm tra avatar trong AsyncStorage
+            const storedAvatar = await AsyncStorage.getItem('@slm_user_avatar');
+            if (storedAvatar) {
+              setUserAvatar(storedAvatar);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy thông tin người dùng:', error);
+      }
+    };
+    
+    fetchUserData();
+  }, [getUser]);
+
+  // Format số điện thoại theo dạng xxx.xxx.xxxx
+  const formatPhoneNumber = (phoneNumber: string): string => {
+    if (!phoneNumber) return '';
+    
+    // Loại bỏ tất cả các ký tự không phải số
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    
+    // Nếu không đủ 10 số, trả về số gốc
+    if (cleaned.length !== 10) return phoneNumber;
+    
+    // Format theo xxx.xxx.xxxx
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
+  };
 
   const InfoItem = ({ label, value }: { label: string; value: string }) => (
     <View style={styles.infoItem}>
@@ -40,10 +104,18 @@ const PersonalInformationScreen = () => {
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
-            <Image 
-              source={require('../../assets/images/replace-holder.png')}
-              style={styles.avatar}
-            />
+            {userAvatar ? (
+              <Image 
+                source={{ uri: userAvatar }}
+                style={styles.avatar}
+                defaultSource={require('../../assets/images/replace-holder.png')}
+              />
+            ) : (
+              <Image 
+                source={require('../../assets/images/replace-holder.png')}
+                style={styles.avatar}
+              />
+            )}
             <TouchableOpacity style={styles.cameraButton}>
               <Ionicons name="camera" size={16} color="#22272F" />
             </TouchableOpacity>
@@ -54,44 +126,47 @@ const PersonalInformationScreen = () => {
         <View style={styles.infoSection}>
           <InfoItem 
             label="Họ và tên"
-            value={authState.user?.name || ''}
+            value={name}
           />
           <InfoItem 
             label="Số điện thoại"
-            value={authState.user?.phone || ''}
+            value={formatPhoneNumber(phone)}
           />
           <InfoItem 
             label="Email"
-            value={authState.user?.email || ''}
+            value={email}
           />
           <InfoItem 
             label="Ngày sinh"
-            value={authState.user?.birthDate || ''}
+            value={birthDate}
           />
           <InfoItem 
             label="Giới tính"
-            value={authState.user?.gender || ''}
+            value={gender}
           />
           <InfoItem 
             label="Số CCCD/Hộ chiếu"
-            value={authState.user?.idNumber || ''}
+            value={idNumber}
           />
           <InfoItem 
             label="Ngày cấp"
-            value={authState.user?.issueDate || ''}
+            value={issueDate}
           />
           <InfoItem 
             label="Nơi cấp"
-            value={authState.user?.issuePlace || ''}
+            value={issuePlace}
           />
           <InfoItem 
             label="Địa chỉ liên hệ"
-            value={authState.user?.address || ''}
+            value={address}
           />
         </View>
 
         {/* Change Request Button */}
-        <TouchableOpacity style={styles.changeRequestButton}>
+        <TouchableOpacity 
+          style={styles.changeRequestButton}
+          onPress={() => router.push('/(profile)/profile')}
+        >
           <Text style={[globalStyles.text, styles.changeRequestText]}>YÊU CẦU THAY ĐỔI</Text>
         </TouchableOpacity>
       </ScrollView>
