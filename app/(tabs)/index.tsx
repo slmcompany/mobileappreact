@@ -121,6 +121,14 @@ export default function HomeScreen() {
     getUserId();
   }, []);
   
+  // Thêm useEffect mới để lấy avatar khi có userId
+  useEffect(() => {
+    // Chỉ gọi khi có userId và không có userAvatar
+    if (userId && !userAvatar) {
+      fetchUserAvatar();
+    }
+  }, [userId, userAvatar]);
+  
   // Sau khi có userId, gọi API để lấy thông tin hoa hồng
   useEffect(() => {
     if (userId) {
@@ -144,7 +152,7 @@ export default function HomeScreen() {
     try {
       setIsLoadingCommission(true);
       const currentYear = new Date().getFullYear();
-      const response = await fetch(`https://id.slmsolar.com/api/user/commission/${id}/${currentYear}`, {
+      const response = await fetch(`https://api.slmglobal.vn/api/user/commission/${id}/${currentYear}`, {
         headers: {
           'Accept': 'application/json'
         }
@@ -192,6 +200,20 @@ export default function HomeScreen() {
     }).format(roundedAmount);
   };
   
+  // Format số điện thoại theo dạng xxx.xxx.xxxx
+  const formatPhoneNumber = (phoneNumber: string): string => {
+    if (!phoneNumber) return '';
+    
+    // Loại bỏ tất cả các ký tự không phải số
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    
+    // Nếu không đủ 10 số, trả về số gốc
+    if (cleaned.length !== 10) return phoneNumber;
+    
+    // Format theo xxx.xxx.xxxx
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
+  };
+  
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -225,12 +247,18 @@ export default function HomeScreen() {
         
         // Lấy avatar từ AsyncStorage hoặc authState
         if (storedAvatar) {
+          console.log('Sử dụng avatar từ AsyncStorage');
           setUserAvatar(storedAvatar);
-        } else if (authState.user && 'avatar' in authState.user) {
-          // Sử dụng cách kiểm tra thuộc tính an toàn hơn
-          setUserAvatar((authState.user as any).avatar);
+        } else if (authState.user && 'avatar' in authState.user && authState.user.avatar) {
+          console.log('Sử dụng avatar từ authState');
+          // Ép kiểu cho avatar từ authState để tránh lỗi type
+          const userAvatar = (authState.user as any).avatar as string;
+          setUserAvatar(userAvatar);
+          // Lưu avatar từ authState vào AsyncStorage
+          await AsyncStorage.setItem('@slm_user_avatar', userAvatar);
         } else {
           // Nếu không có trong authState và AsyncStorage, thử lấy từ API
+          console.log('Không tìm thấy avatar, sẽ lấy từ API');
           await fetchUserAvatar();
         }
       } catch (error) {
@@ -245,14 +273,34 @@ export default function HomeScreen() {
   const fetchUserAvatar = async () => {
     try {
       // Lấy user ID từ AsyncStorage hoặc authState
-      const userId = authState.user?.id || await AsyncStorage.getItem('@slm_user_id');
+      let userId = null;
+      
+      if (authState.user?.id) {
+        userId = authState.user.id;
+      } else {
+        const storedUserId = await AsyncStorage.getItem('@slm_user_id');
+        if (storedUserId) {
+          userId = storedUserId;
+        } else {
+          // Tìm user ID từ user data nếu có
+          const userData = await AsyncStorage.getItem('@slm_user_data');
+          if (userData) {
+            const parsedUserData = JSON.parse(userData);
+            if (parsedUserData.id) {
+              userId = parsedUserData.id;
+            }
+          }
+        }
+      }
       
       if (!userId) {
-        console.log('Không tìm thấy ID người dùng');
+        console.log('Không tìm thấy ID người dùng để lấy avatar');
         return;
       }
       
-      const response = await fetch(`https://id.slmsolar.com/api/users/${userId}`, {
+      console.log(`Đang lấy avatar cho user ID: ${userId}`);
+      
+      const response = await fetch(`https://api.slmglobal.vn/api/users/${userId}`, {
         headers: {
           'Accept': 'application/json'
         }
@@ -262,13 +310,29 @@ export default function HomeScreen() {
         throw new Error(`Lỗi khi lấy thông tin: ${response.status}`);
       }
       
-      const data = await response.json();
+      // Kiểm tra content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+      }
+      
+      // Lấy text và kiểm tra trước khi parse
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) {
+        throw new Error('Phản hồi không phải định dạng JSON');
+      }
+      
+      // Parse JSON
+      const data = JSON.parse(text);
       
       if (data && data.avatar) {
+        console.log('Đã lấy được avatar từ API:', data.avatar);
         setUserAvatar(data.avatar);
         
         // Lưu avatar vào AsyncStorage để sử dụng sau này
         await AsyncStorage.setItem('@slm_user_avatar', data.avatar);
+      } else {
+        console.log('Không tìm thấy avatar trong dữ liệu API');
       }
     } catch (error) {
       console.error('Lỗi khi lấy avatar người dùng:', error);
@@ -375,7 +439,7 @@ export default function HomeScreen() {
         setIsLoadingBanners(true);
         setBannersError(null);
         
-        const response = await fetch('https://id.slmsolar.com/api/banners', {
+        const response = await fetch('https://api.slmglobal.vn/api/banners', {
           headers: {
             'Accept': 'application/json'
           }
@@ -458,7 +522,7 @@ export default function HomeScreen() {
           )}
         </View>
         <View style={{ padding: 12, flex: 1 }}>
-          <Text style={styles.productTitle} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.productTitle} numberOfLines={3}>{item.name}</Text>
           <Text style={styles.productPrice}>
             {new Intl.NumberFormat('vi-VN', { 
               style: 'currency', 
@@ -592,7 +656,10 @@ export default function HomeScreen() {
                     source={{ uri: userAvatar }} 
                     style={styles.avatarPlaceholder}
                     onError={() => {
-                      console.log('Lỗi khi tải ảnh avatar');
+                      console.log('Lỗi khi tải ảnh avatar từ URI:', userAvatar);
+                      // Nếu lỗi khi tải avatar, thử lấy lại avatar từ API
+                      fetchUserAvatar();
+                      // Đồng thời reset state userAvatar để hiển thị placeholder
                       setUserAvatar(null);
                     }}
                   />
@@ -603,7 +670,7 @@ export default function HomeScreen() {
                 )}
                 <View style={styles.userInfo}>
                   <Text style={styles.greeting}>Chào {userName || 'Người dùng'}</Text>
-                  <Text style={styles.userId}>{userPhone || '(Chưa đăng nhập)'}</Text>
+                  <Text style={styles.userId}>{formatPhoneNumber(userPhone) || '(Chưa đăng nhập)'}</Text>
                 </View>
               </TouchableOpacity>
               <View style={styles.notificationContainer}>
@@ -1011,7 +1078,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 0,
     width: 330,
-    aspectRatio: 2/1,
+    aspectRatio: 343/150,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1152,8 +1219,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productTitle: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#222',
+    marginBottom: 8,
   },
   productDescription: {
     fontSize: 14,
@@ -1451,7 +1520,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#ED1C24',
-    marginTop: 16,
+    marginTop: 0,
     marginBottom: 4,
   },
   loadingContainer: {
