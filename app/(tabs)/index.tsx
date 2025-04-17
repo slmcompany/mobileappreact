@@ -1063,19 +1063,21 @@ export default function HomeScreen() {
                         </Flex>
                       </View>
                       <View style={[styles.iconContainer, { paddingBottom: 8, paddingTop: 8, alignSelf: 'center' }]}>
+                        {userRoleId !== 5 && (
+                          <TouchableOpacity 
+                            style={styles.statItem}
+                            onPress={navigateToGroupAgent}
+                          >
+                            <Image 
+                              source={require('../../assets/images/cong-dong.png')} 
+                              style={{ width: 24, height: 24, marginBottom: 4 }} 
+                              resizeMode="contain"
+                            />
+                            <Text style={styles.statLabel}>Cộng đồng</Text>
+                          </TouchableOpacity>
+                        )}
                         <TouchableOpacity 
-                          style={styles.statItem}
-                          onPress={navigateToGroupAgent}
-                        >
-                          <Image 
-                            source={require('../../assets/images/cong-dong.png')} 
-                            style={{ width: 24, height: 24, marginBottom: 4 }} 
-                            resizeMode="contain"
-                          />
-                          <Text style={styles.statLabel}>Cộng đồng</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={[styles.statItem, { marginLeft: 16 }]}
+                          style={[styles.statItem, { marginLeft: userRoleId !== 5 ? 16 : 0 }]}
                           onPress={navigateToCommissionHistory}
                         >
                           <Image 
