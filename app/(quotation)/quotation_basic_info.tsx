@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Định nghĩa các loại tùy chọn
 type SystemType = 'HYBRID' | 'BAM_TAI';
-type PhaseType = 'ONE_PHASE' | 'THREE_PHASE_LOW' | 'THREE_PHASE_HIGH';
+type PhaseType = 'ONE_PHASE' | 'THREE_PHASE_LOW' | 'THREE_PHASE_HIGH' | 'THREE_PHASE';
 
 // Định nghĩa kiểu dữ liệu cho combo
 type Combo = {
@@ -121,6 +121,10 @@ export default function QuotationBasicInfo() {
   const [systemType, setSystemType] = useState<SystemType>('HYBRID');
   const [phaseType, setPhaseType] = useState<PhaseType>('ONE_PHASE');
   
+  // State cho việc kiểm soát hiển thị tuần tự
+  const [showPhaseSelection, setShowPhaseSelection] = useState(false);
+  const [showSuggestedProducts, setShowSuggestedProducts] = useState(false);
+  
   // State cho dữ liệu sector và combos
   const [sector, setSector] = useState<Sector | null>(null);
   const [loading, setLoading] = useState(true);
@@ -184,6 +188,29 @@ export default function QuotationBasicInfo() {
     fetchSectorData();
   }, [sectorId]);
 
+  // Xử lý khi chọn loại hệ
+  const handleSystemTypeSelect = (type: SystemType) => {
+    setSystemType(type);
+    // Reset phase type when system type changes
+    if (type === 'BAM_TAI') {
+      // For BAM_TAI, we only have ONE_PHASE or THREE_PHASE
+      setPhaseType('ONE_PHASE');
+    } else {
+      // For HYBRID, we keep the default ONE_PHASE
+      setPhaseType('ONE_PHASE');
+    }
+    
+    setShowPhaseSelection(true);
+    setShowSuggestedProducts(false);
+    setSelectedCombo(null);
+  };
+
+  // Xử lý khi chọn loại pha
+  const handlePhaseTypeSelect = (type: PhaseType) => {
+    setPhaseType(type);
+    setShowSuggestedProducts(true);
+  };
+
   // Lọc combos dựa trên các tùy chọn
   useEffect(() => {
     if (!sector) return;
@@ -218,6 +245,12 @@ export default function QuotationBasicInfo() {
       filtered = filtered.filter(combo => 
         getPhaseType(combo) === '3-phase-high' ||
         (combo.type?.includes('BA_PHA') && combo.type?.toLowerCase().includes('ap cao'))
+      );
+    } else if (phaseType === 'THREE_PHASE') {
+      // For the generic 3-phase option (for BAM_TAI)
+      filtered = filtered.filter(combo => 
+        getPhaseType(combo).includes('3-phase') || 
+        combo.type?.includes('BA_PHA')
       );
     }
 
@@ -336,7 +369,7 @@ export default function QuotationBasicInfo() {
                       styles.optionButton,
                       systemType === 'HYBRID' ? styles.optionButtonSelected : styles.optionButtonNormal,
                     ]}
-                    onPress={() => setSystemType('HYBRID')}
+                    onPress={() => handleSystemTypeSelect('HYBRID')}
                   >
                     <Text 
                       style={[
@@ -352,7 +385,7 @@ export default function QuotationBasicInfo() {
                       styles.optionButton,
                       systemType === 'BAM_TAI' ? styles.optionButtonSelected : styles.optionButtonNormal,
                     ]}
-                    onPress={() => setSystemType('BAM_TAI')}
+                    onPress={() => handleSystemTypeSelect('BAM_TAI')}
                   >
                     <Text 
                       style={[
@@ -366,120 +399,152 @@ export default function QuotationBasicInfo() {
                 </View>
               </View>
 
-              {/* Số pha */}
-              <View style={styles.filterGroup}>
-                <Text style={styles.filterLabel}>Số pha</Text>
-                <View style={styles.optionsContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.optionButton,
-                      phaseType === 'ONE_PHASE' ? styles.optionButtonSelected : styles.optionButtonNormal,
-                    ]}
-                    onPress={() => setPhaseType('ONE_PHASE')}
-                  >
-                    <Text 
+              {/* Số pha - chỉ hiển thị khi đã chọn loại hệ */}
+              {showPhaseSelection && (
+                <View style={styles.filterGroup}>
+                  <Text style={styles.filterLabel}>Số pha</Text>
+                  <View style={styles.optionsContainer}>
+                    <TouchableOpacity
                       style={[
-                        styles.optionText,
-                        phaseType === 'ONE_PHASE' ? styles.optionTextSelected : styles.optionTextNormal,
+                        styles.optionButton,
+                        phaseType === 'ONE_PHASE' ? styles.optionButtonSelected : styles.optionButtonNormal,
                       ]}
+                      onPress={() => handlePhaseTypeSelect('ONE_PHASE')}
                     >
-                      MỘT PHA
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.optionButton,
-                      phaseType === 'THREE_PHASE_LOW' ? styles.optionButtonSelected : styles.optionButtonNormal,
-                    ]}
-                    onPress={() => setPhaseType('THREE_PHASE_LOW')}
-                  >
-                    <Text 
-                      style={[
-                        styles.optionText,
-                        phaseType === 'THREE_PHASE_LOW' ? styles.optionTextSelected : styles.optionTextNormal,
-                      ]}
-                    >
-                      BA PHA ÁP THẤP
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.optionButton,
-                      phaseType === 'THREE_PHASE_HIGH' ? styles.optionButtonSelected : styles.optionButtonNormal,
-                    ]}
-                    onPress={() => setPhaseType('THREE_PHASE_HIGH')}
-                  >
-                    <Text 
-                      style={[
-                        styles.optionText,
-                        phaseType === 'THREE_PHASE_HIGH' ? styles.optionTextSelected : styles.optionTextNormal,
-                      ]}
-                    >
-                      BA PHA ÁP CAO
-                    </Text>
-                  </TouchableOpacity>
+                      <Text 
+                        style={[
+                          styles.optionText,
+                          phaseType === 'ONE_PHASE' ? styles.optionTextSelected : styles.optionTextNormal,
+                        ]}
+                      >
+                        MỘT PHA
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    {systemType === 'HYBRID' ? (
+                      // Hiển thị ba pha áp thấp và áp cao cho hệ HYBRID
+                      <>
+                        <TouchableOpacity
+                          style={[
+                            styles.optionButton,
+                            phaseType === 'THREE_PHASE_LOW' ? styles.optionButtonSelected : styles.optionButtonNormal,
+                          ]}
+                          onPress={() => handlePhaseTypeSelect('THREE_PHASE_LOW')}
+                        >
+                          <Text 
+                            style={[
+                              styles.optionText,
+                              phaseType === 'THREE_PHASE_LOW' ? styles.optionTextSelected : styles.optionTextNormal,
+                            ]}
+                          >
+                            BA PHA ÁP THẤP
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.optionButton,
+                            phaseType === 'THREE_PHASE_HIGH' ? styles.optionButtonSelected : styles.optionButtonNormal,
+                          ]}
+                          onPress={() => handlePhaseTypeSelect('THREE_PHASE_HIGH')}
+                        >
+                          <Text 
+                            style={[
+                              styles.optionText,
+                              phaseType === 'THREE_PHASE_HIGH' ? styles.optionTextSelected : styles.optionTextNormal,
+                            ]}
+                          >
+                            BA PHA ÁP CAO
+                          </Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      // Hiển thị chỉ một tùy chọn ba pha cho hệ BÁM TẢI
+                      <TouchableOpacity
+                        style={[
+                          styles.optionButton,
+                          phaseType === 'THREE_PHASE' ? styles.optionButtonSelected : styles.optionButtonNormal,
+                        ]}
+                        onPress={() => handlePhaseTypeSelect('THREE_PHASE')}
+                      >
+                        <Text 
+                          style={[
+                            styles.optionText,
+                            phaseType === 'THREE_PHASE' ? styles.optionTextSelected : styles.optionTextNormal,
+                          ]}
+                        >
+                          BA PHA
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
 
-            {/* Sản phẩm gợi ý */}
-            <View style={styles.suggestedProductsContainer}>
-              <Text style={styles.sectionTitle}>SẢN PHẨM GỢI Ý</Text>
-              
-              <View style={styles.horizontalList}>
-                {filteredCombos.map((combo) => (
-                  <TouchableOpacity
-                    key={combo.id}
-                    style={[
-                      styles.horizontalCard,
-                      selectedCombo?.id === combo.id ? styles.comboCardSelected : {}
-                    ]}
-                    onPress={() => handleComboSelect(combo)}
-                  >
-                    <View style={styles.horizontalImageContainer}>
-                      {combo.image ? (
-                        <Image 
-                          source={{ uri: combo.image }} 
-                          style={styles.productImage} 
-                          resizeMode="cover" 
-                        />
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <Ionicons name="cube-outline" size={30} color="#888" />
+            {/* Sản phẩm gợi ý - chỉ hiển thị khi đã chọn số pha */}
+            {showSuggestedProducts && (
+              <View style={styles.suggestedProductsContainer}>
+                <Text style={styles.sectionTitle}>SẢN PHẨM GỢI Ý</Text>
+                
+                {filteredCombos.length > 0 ? (
+                  <View style={styles.horizontalList}>
+                    {filteredCombos.map((combo) => (
+                      <TouchableOpacity
+                        key={combo.id}
+                        style={[
+                          styles.horizontalCard,
+                          selectedCombo?.id === combo.id ? styles.comboCardSelected : {}
+                        ]}
+                        onPress={() => handleComboSelect(combo)}
+                      >
+                        <View style={styles.horizontalImageContainer}>
+                          {combo.image ? (
+                            <Image 
+                              source={{ uri: combo.image }} 
+                              style={styles.productImage} 
+                              resizeMode="cover" 
+                            />
+                          ) : (
+                            <View style={styles.imagePlaceholder}>
+                              <Ionicons name="cube-outline" size={30} color="#888" />
+                            </View>
+                          )}
                         </View>
-                      )}
-                    </View>
-                    <View style={styles.horizontalContentContainer}>
-                      <Text style={styles.productName} numberOfLines={2}>{combo.name}</Text>
-                      
-                      <View style={styles.productDetails}>
-                        <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(combo)}</Text>
-                        <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(combo.payback_period)}</Text>
-                      </View>
-                      
-                      <View style={styles.priceContainer}>
-                        <Text style={styles.productPrice}>
-                          {new Intl.NumberFormat('vi-VN', { 
-                            style: 'currency', 
-                            currency: 'VND' 
-                          }).format(combo.total_price || combo.price)}
-                        </Text>
-                      </View>
-                    </View>
-                    {selectedCombo?.id === combo.id && (
-                      <View style={styles.selectedComboIndicator}>
-                        <Ionicons name="checkmark-circle" size={24} color="#12B669" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
+                        <View style={styles.horizontalContentContainer}>
+                          <Text style={styles.productName} numberOfLines={2}>{combo.name}</Text>
+                          
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>Sản lượng điện: {formatPowerOutput(combo)}</Text>
+                            <Text style={styles.productDetail}>Thời gian hoàn vốn: {formatPaybackPeriod(combo.payback_period)}</Text>
+                          </View>
+                          
+                          <View style={styles.priceContainer}>
+                            <Text style={styles.productPrice}>
+                              {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(combo.total_price || combo.price)}
+                            </Text>
+                          </View>
+                        </View>
+                        {selectedCombo?.id === combo.id && (
+                          <View style={styles.selectedComboIndicator}>
+                            <Ionicons name="checkmark-circle" size={24} color="#12B669" />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.noProductsContainer}>
+                    <Text style={styles.noProductsText}>Không tìm thấy sản phẩm phù hợp với lựa chọn của bạn.</Text>
+                  </View>
+                )}
               </View>
-            </View>
+            )}
           </View>
         </ScrollView>
 
-      
-        
         {/* Bottom action */}
         <View style={styles.bottomContainer}>
           <TouchableOpacity
@@ -489,8 +554,12 @@ export default function QuotationBasicInfo() {
             <Text style={styles.buttonTextBack}>QUAY LẠI</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.buttonContinue}
+            style={[
+              styles.buttonContinue,
+              (!showSuggestedProducts) && styles.buttonContinueDisabled
+            ]}
             onPress={handleContinue}
+            disabled={!showSuggestedProducts}
           >
             <Text style={styles.buttonTextContinue}>TIẾP TỤC</Text>
           </TouchableOpacity>
@@ -732,5 +801,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
+  },
+  noProductsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F8',
+  },
+  noProductsText: {
+    fontSize: 14,
+    color: '#7B7D9D',
+    textAlign: 'center',
+  },
+  buttonContinueDisabled: {
+    backgroundColor: '#ABACC2',
   },
 }); 
