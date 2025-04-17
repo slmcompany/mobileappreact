@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, FlatList, ActivityIndicator, Image, Dimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Định nghĩa kiểu dữ liệu cho khách hàng tiềm năng
 interface PotentialCustomer {
@@ -41,6 +42,24 @@ interface OldCustomer {
 // Định nghĩa loại tab hiển thị
 type TabType = 'all' | 'potential' | 'purchased';
 
+// Interface cho banner
+interface BannerImage {
+  id: number;
+  link: string;
+  banner_id: number;
+  created_at: string | null;
+}
+
+interface Banner {
+  id: number;
+  title: string;
+  slug: string;
+  location: string;
+  created_at: string | null;
+  sector_id: number;
+  banner_images: BannerImage[];
+}
+
 export default function AccountScreen() {
   const router = useRouter();
   const [potentialCustomers, setPotentialCustomers] = useState<PotentialCustomer[]>([]);
@@ -48,22 +67,101 @@ export default function AccountScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const { width } = Dimensions.get('window');
+  const [userId, setUserId] = useState<number | null>(null);
+  
+  // Banner states
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [isLoadingBanners, setIsLoadingBanners] = useState<boolean>(false);
+  const [bannersError, setBannersError] = useState<Error | null>(null);
+  const [activePromoIndex, setActivePromoIndex] = useState(0);
+  const promoFlatListRef = useRef<FlatList>(null);
   
   // Lấy dữ liệu khách hàng từ API khi lần đầu load
   useEffect(() => {
-    fetchData();
+    const getUserId = async () => {
+      try {
+        // Thử nhiều cách khác nhau để lấy user ID
+        // 1. Thử lấy từ AsyncStorage - @slm_user_data
+        const userData = await AsyncStorage.getItem('@slm_user_data');
+        if (userData) {
+          const user = JSON.parse(userData);
+          if (user.id) {
+            setUserId(user.id);
+            console.log('Đã lấy user ID từ @slm_user_data:', user.id);
+            return user.id;
+          }
+        }
+        
+        // 2. Thử lấy từ AsyncStorage - @slm_user_id
+        const userIdStr = await AsyncStorage.getItem('@slm_user_id');
+        if (userIdStr) {
+          const parsedId = parseInt(userIdStr);
+          setUserId(parsedId);
+          console.log('Đã lấy user ID từ @slm_user_id:', parsedId);
+          return parsedId;
+        }
+        
+        // 3. Thử lấy từ @slm_user_role_id (một số trường hợp role_id có thể là agent_id)
+        const roleIdStr = await AsyncStorage.getItem('@slm_user_role_id');
+        if (roleIdStr) {
+          const parsedRoleId = parseInt(roleIdStr);
+          console.log('Đã lấy role ID:', parsedRoleId);
+          // Trong trường hợp khẩn cấp, có thể sử dụng role_id làm agent_id
+          setUserId(parsedRoleId);
+          return parsedRoleId;
+        }
+        
+        // Nếu không có ID nào được tìm thấy, sử dụng ID mặc định = 4
+        console.warn('Không tìm thấy ID người dùng trong AsyncStorage, sử dụng ID mặc định = 4');
+        setUserId(4);
+        return 4;
+      } catch (error) {
+        console.error('Lỗi khi lấy user ID:', error);
+        // Fallback to default ID in case of error
+        setUserId(4);
+        return 4;
+      }
+    };
+    
+    getUserId().then((id) => {
+      console.log('Sử dụng ID để fetch dữ liệu:', id);
+      fetchData();
+    });
+    
+    fetchBanners();
   }, []);
   
   // Lấy dữ liệu khách hàng mỗi khi màn hình được focus (quay lại từ màn hình khác)
   useFocusEffect(
     React.useCallback(() => {
       console.log('Màn hình Account được focus - Cập nhật danh sách khách hàng');
-      fetchData();
+      // Kiểm tra lại userId khi focus để đảm bảo sử dụng ID mới nhất
+      const checkUserId = async () => {
+        try {
+          if (!userId) {
+            const userData = await AsyncStorage.getItem('@slm_user_data');
+            if (userData) {
+              const user = JSON.parse(userData);
+              if (user.id) {
+                setUserId(user.id);
+                console.log('Focus: Đã cập nhật user ID:', user.id);
+              }
+            }
+          }
+          fetchData();
+        } catch (error) {
+          console.error('Focus: Lỗi khi kiểm tra user ID:', error);
+          fetchData();
+        }
+      };
+      
+      checkUserId();
       
       return () => {
         // Cleanup khi unfocus nếu cần
       };
-    }, [])
+    }, [userId])
   );
 
   const fetchData = async () => {
@@ -78,9 +176,106 @@ export default function AccountScreen() {
     }
   };
 
+  // Fetch dữ liệu banners từ API
+  const fetchBanners = async () => {
+    try {
+      setIsLoadingBanners(true);
+      setBannersError(null);
+      
+      const response = await fetch('https://api.slmglobal.vn/api/banners', {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Lỗi khi lấy dữ liệu banners: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON: ${contentType}`);
+      }
+      
+      const text = await response.text();
+      if (!text || text.trim().startsWith('<')) {
+        throw new Error('Phản hồi không phải định dạng JSON');
+      }
+      
+      const data = JSON.parse(text);
+      
+      if (data && Array.isArray(data)) {
+        // Lọc để chỉ hiển thị banner ở location 'home'
+        const homeBanners = data.filter(banner => banner.location === 'home');
+        setBanners(homeBanners);
+      } else {
+        setBanners([]);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu banners:', error);
+      setBannersError(error instanceof Error ? error : new Error('Lỗi không xác định'));
+    } finally {
+      setIsLoadingBanners(false);
+    }
+  };
+
+  // Hàm xử lý cuộn banner
+  const handlePromoScroll = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+    const slideWidth = width - 32; // accounting for padding
+    const offset = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offset / slideWidth);
+    if (index !== activePromoIndex) {
+      setActivePromoIndex(index);
+    }
+  };
+  
+  // Hàm cuộn đến banner theo index
+  const scrollToPromo = (index: number) => {
+    if (promoFlatListRef.current) {
+      promoFlatListRef.current.scrollToIndex({
+        index,
+        animated: true,
+      });
+      setActivePromoIndex(index);
+    }
+  };
+
+  // Cập nhật renderPromoData để chỉ sử dụng dữ liệu từ API
+  const renderPromoData = (banners: Banner[]) => {
+    if (!banners || banners.length === 0) {
+      return [];
+    }
+    
+    // Sử dụng banner_images từ API để tạo dữ liệu promo
+    const firstBanner = banners[0];
+    if (!firstBanner || !firstBanner.banner_images || firstBanner.banner_images.length === 0) {
+      return [];
+    }
+    
+    return firstBanner.banner_images.map((image) => ({
+      id: image.id.toString(),
+      action: firstBanner.title || 'Sản phẩm',
+      mainText: firstBanner.slug || '',
+      buttonText: 'Xem ngay',
+      backgroundColor: '#D9261C',
+      imageUrl: image.link,
+    }));
+  };
+  
+  const promoData = renderPromoData(banners);
+
   const fetchPotentialCustomers = async () => {
     try {
-      const response = await fetch('https://api.slmglobal.vn/api/agents/4/potential-customers');
+      if (!userId) {
+        console.warn('fetchPotentialCustomers: Không có user ID, sử dụng ID mặc định = 4');
+        const response = await fetch(`https://api.slmglobal.vn/api/agents/4/potential-customers`);
+        const data = await response.json();
+        setPotentialCustomers(data);
+        return;
+      }
+
+      console.log(`Lấy khách hàng tiềm năng cho agent ID = ${userId}`);
+      const response = await fetch(`https://api.slmglobal.vn/api/agents/${userId}/potential-customers`);
       const data = await response.json();
       setPotentialCustomers(data);
     } catch (err) {
@@ -91,7 +286,16 @@ export default function AccountScreen() {
 
   const fetchOldCustomers = async () => {
     try {
-      const response = await fetch('https://api.slmglobal.vn/api/agents/4/old-customer');
+      if (!userId) {
+        console.warn('fetchOldCustomers: Không có user ID, sử dụng ID mặc định = 4');
+        const response = await fetch(`https://api.slmglobal.vn/api/agents/4/old-customer`);
+        const data = await response.json();
+        setOldCustomers(data);
+        return;
+      }
+
+      console.log(`Lấy khách hàng đã mua hàng cho agent ID = ${userId}`);
+      const response = await fetch(`https://api.slmglobal.vn/api/agents/${userId}/old-customer`);
       const data = await response.json();
       setOldCustomers(data);
     } catch (err) {
@@ -163,6 +367,115 @@ export default function AccountScreen() {
   // Lấy tổng số lượng khách hàng hiển thị
   const displayData = getDisplayData();
 
+  // Render banner promo carousel component
+  const renderBannerPromo = () => (
+    <View style={styles.carouselContainer}>
+      {isLoadingBanners ? (
+        <View style={styles.loadingBannerContainer}>
+          <ActivityIndicator size="small" color="#D9261C" />
+          <Text style={styles.loadingBannerText}>Đang tải banner...</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={promoFlatListRef}
+          horizontal
+          data={promoData}
+          renderItem={({item}) => (
+            <View style={[styles.promoCard, { width: width - 32, marginHorizontal: 4 }]}>
+              {item.imageUrl ? (
+                <Image
+                  source={{ uri: item.imageUrl }} 
+                  style={styles.promoFullImage} 
+                  resizeMode="cover"
+                  onError={(e) => console.error('Error loading banner image:', e.nativeEvent.error)}
+                />
+              ) : (
+                <View style={[styles.promoFullImage, { backgroundColor: item.backgroundColor || '#D9261C' }]} />
+              )}
+            </View>
+          )}
+          keyExtractor={item => item.id}
+          showsHorizontalScrollIndicator={false}
+          pagingEnabled
+          snapToInterval={width - 32}
+          decelerationRate="fast"
+          onMomentumScrollEnd={handlePromoScroll}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        />
+      )}
+      
+      <View style={styles.promoPaginationContainer}>
+        {promoData.map((_, index) => (
+          <TouchableOpacity 
+            key={index} 
+            style={[
+              styles.promoPaginationBar, 
+              index === activePromoIndex && styles.promoPaginationBarActive
+            ]}
+            onPress={() => scrollToPromo(index)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+
+  // Render default stats card nếu là tab Tất cả
+  const renderDefaultStatsCard = () => (
+    <View style={[
+      styles.statsCard, 
+      { backgroundColor: '#FFECED' }
+    ]}>
+      <View style={styles.statsContent}>
+        <View style={styles.titleRow}>
+          <View style={styles.textGroup}>
+            <Text style={[
+              styles.statsTitle,
+              { color: '#81002F' }
+            ]}>
+              Chủ động thêm thông tin khách hàng để không bỏ lỡ cơ hội.
+            </Text>
+            <Text style={[
+              styles.statsSubtitle,
+              { color: '#ED1C24' }
+            ]}>Bạn đang có {totalPotentialCustomers < 10 ? `0${totalPotentialCustomers}` : totalPotentialCustomers}/20 khách hàng tiềm năng</Text>
+            <View style={styles.progressBarContainer}>
+              <View style={[
+                styles.progressBar, 
+                { width: `${Math.min((totalPotentialCustomers / 20) * 100, 100)}%` },
+                { backgroundColor: '#ED1C24' }
+              ]} />
+            </View>
+          </View>
+          <Image 
+            source={require('../../assets/images/all-notification-user-icon.png')} 
+            style={styles.titleIcon}
+          />
+        </View>
+      </View>
+      <TouchableOpacity 
+        style={[
+          styles.statsButton, 
+          { borderTopColor: '#fff' }
+        ]} 
+        onPress={() => router.push('/new-contact')}
+      >
+        <Text 
+          style={[
+            styles.statsButtonText,
+            { color: '#81002F' }
+          ]}
+        >
+          Thêm khách hàng mới
+        </Text>
+        <Ionicons 
+          name="arrow-forward" 
+          size={20} 
+          color="#81002F" 
+        />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
       <View style={styles.header}>
@@ -227,97 +540,29 @@ export default function AccountScreen() {
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
-              <View style={[
-                styles.statsCard, 
-                activeTab === 'potential' ? { backgroundColor: '#EDF8FF' } : 
-                activeTab === 'purchased' ? { backgroundColor: '#E6FFF4' } : 
-                { backgroundColor: '#FFECED' }
-              ]}>
-                <View style={styles.statsContent}>
-                  <View style={styles.titleRow}>
-                    <View style={styles.textGroup}>
-                      <Text style={[
-                        styles.statsTitle,
-                        activeTab === 'potential' ? { color: '#365292' } : 
-                        activeTab === 'purchased' ? { color: '#006650' } : 
-                        { color: '#81002F' }
-                      ]}>
+              <>
+                {/* Hiển thị banner promo nếu là tab tiềm năng hoặc đã mua */}
+                {(activeTab === 'potential' || activeTab === 'purchased') ? (
+                  renderBannerPromo()
+                ) : (
+                  renderDefaultStatsCard()
+                )}
+                {(activeTab === 'potential' || activeTab === 'purchased') && (
+                  <View style={styles.sectionButton}>
+                    <TouchableOpacity 
+                      style={styles.actionButtonContainer}
+                      onPress={() => router.push('/new-contact')}
+                    >
+                      <Text style={styles.actionButtonText}>
                         {activeTab === 'potential' 
-                          ? "Giúp khách hàng sở hữu giải pháp tuyệt vời này: Chốt đơn ngay!"
-                          : activeTab === 'purchased'
-                            ? "Tiếp tục mang đến những giải pháp giá trị cho nhiều người hơn nữa!"
-                            : "Chủ động thêm thông tin khách hàng để không bỏ lỡ cơ hội."
-                        }
+                          ? "Tạo yêu cầu tư vấn" 
+                          : "Tạo yêu cầu tư vấn"}
                       </Text>
-                      {activeTab !== 'potential' && (
-                        <>
-                          {activeTab === 'purchased' ? (
-                            <Text style={[
-                              styles.statsSubtitle,
-                              { color: '#006650' }
-                            ]}>Thật tuyệt vời, bạn đã có {totalOldCustomers} khách hàng chốt đơn trong tháng này. Hãy tiếp tục cố gắng nhé!</Text>
-                          ) : (
-                            <Text style={[
-                              styles.statsSubtitle,
-                              { color: '#ED1C24' }
-                            ]}>Bạn đang có {totalPotentialCustomers < 10 ? `0${totalPotentialCustomers}` : totalPotentialCustomers}/20 khách hàng tiềm năng</Text>
-                          )}
-                          {activeTab === 'all' && (
-                            <View style={styles.progressBarContainer}>
-                              <View style={[
-                                styles.progressBar, 
-                                { width: `${Math.min((totalPotentialCustomers / 20) * 100, 100)}%` },
-                                { backgroundColor: '#ED1C24' }
-                              ]} />
-                            </View>
-                          )}
-                        </>
-                      )}
-                    </View>
-                    <Image 
-                      source={activeTab === 'potential' 
-                        ? require('../../assets/images/tiem-nang-notification-user-icon.png')
-                        : activeTab === 'purchased'
-                          ? require('../../assets/images/da-mua-notification-user-icon.png')
-                          : require('../../assets/images/all-notification-user-icon.png')
-                      } 
-                      style={styles.titleIcon}
-                    />
+                      <Ionicons name="arrow-forward" size={20} color="#ED1C24" />
+                    </TouchableOpacity>
                   </View>
-                </View>
-                <TouchableOpacity 
-                  style={[
-                    styles.statsButton, 
-                    activeTab === 'potential' ? { borderTopColor: '#D1E9FF' } : 
-                    activeTab === 'purchased' ? { borderTopColor: '#CCFFE6' } : 
-                    { borderTopColor: '#fff' }
-                  ]} 
-                  onPress={() => router.push('/new-contact')}
-                >
-                  <Text 
-                    style={[
-                      styles.statsButtonText,
-                      activeTab === 'potential' ? { color: '#365292' } : 
-                      activeTab === 'purchased' ? { color: '#006650' } : 
-                      { color: '#81002F' }
-                    ]}
-                  >
-                    {activeTab === 'potential' || activeTab === 'purchased'
-                      ? "Tạo yêu cầu tư vấn"
-                      : "Thêm khách hàng mới"
-                    }
-                  </Text>
-                  <Ionicons 
-                    name="arrow-forward" 
-                    size={20} 
-                    color={
-                      activeTab === 'potential' ? '#365292' : 
-                      activeTab === 'purchased' ? '#006650' : 
-                      '#81002F'
-                    } 
-                  />
-                </TouchableOpacity>
-              </View>
+                )}
+              </>
             }
           />
         </>
@@ -550,4 +795,92 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
-}); 
+  // Thêm styles cho banner promo carousel
+  carouselContainer: {
+    marginHorizontal: -20,
+    marginBottom: 16,
+  },
+  promoCard: {
+    backgroundColor: 'transparent',
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 0,
+    width: 330,
+    aspectRatio: 343/150,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.15)',
+      }
+    }),
+    marginVertical: 4,
+    marginRight: 12,
+  },
+  promoFullImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 10,
+  },
+  promoPaginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  promoPaginationBar: {
+    width: 12,
+    height: 2,
+    backgroundColor: '#ccc',
+    marginHorizontal: 3,
+    borderRadius: 2,
+  },
+  promoPaginationBarActive: {
+    backgroundColor: '#ED1C24',
+    width: 18,
+  },
+  loadingBannerContainer: {
+    height: 150,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f8',
+    borderRadius: 10,
+    marginHorizontal: 16,
+  },
+  loadingBannerText: {
+    marginTop: 8,
+    color: '#666',
+    fontSize: 14,
+  },
+  sectionButton: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  actionButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#ED1C24',
+  },
+});
