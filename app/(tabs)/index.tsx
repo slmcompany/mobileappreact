@@ -156,6 +156,8 @@ export default function HomeScreen() {
   const [userPhone, setUserPhone] = useState<string>('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userRoleId, setUserRoleId] = useState<number | null>(null);
+  const [hasCustomers, setHasCustomers] = useState<boolean>(false);
+  const [checkingCustomers, setCheckingCustomers] = useState<boolean>(false);
   const { data: sectors, isLoading: isSectorsLoading, error: sectorsError } = useSectors();
   
   // Thêm state để lưu trữ dữ liệu hoa hồng
@@ -219,6 +221,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (userId) {
       fetchCommissionData(userId);
+      checkUserCustomers(userId);
     }
   }, [userId]);
   
@@ -933,6 +936,36 @@ export default function HomeScreen() {
     </View>
   );
 
+  // Thêm hàm kiểm tra khách hàng cũ
+  const checkUserCustomers = async (id: number) => {
+    try {
+      setCheckingCustomers(true);
+      const response = await fetch(`https://api.slmglobal.vn/api/agents/${id}/old-customer`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Lỗi khi kiểm tra khách hàng: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Nếu có mảng dữ liệu và có ít nhất 1 phần tử thì đánh dấu đã có khách hàng
+      if (Array.isArray(data) && data.length > 0) {
+        setHasCustomers(true);
+      } else {
+        setHasCustomers(false);
+      }
+    } catch (error) {
+      console.error('Lỗi khi kiểm tra khách hàng cũ:', error);
+      setHasCustomers(false);
+    } finally {
+      setCheckingCustomers(false);
+    }
+  };
+
   if (isSectorsLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1207,8 +1240,8 @@ export default function HomeScreen() {
             )}
           </WingBlank>
           
-          {/* HomeAgentCTA Section - Chỉ hiển thị với role_id là 4 hoặc 5 */}
-          {(userRoleId === 4 || userRoleId === 5) && (
+          {/* HomeAgentCTA Section - Chỉ hiển thị với role_id là 4 hoặc 5 và chưa có khách hàng mua hàng */}
+          {(userRoleId === 4 || userRoleId === 5) && !hasCustomers && !checkingCustomers && (
             <HomeAgentCTA />
           )}
 

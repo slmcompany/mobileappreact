@@ -22,7 +22,7 @@ interface HomeAgentCTAProps {
 const HomeAgentCTA = ({
   title = 'Bắt đầu Bán hàng ngay~!',
   description = 'Mở khóa Thư viện Nội dung của SLM ngay khi có hợp đồng đầu tiên thành công để "bỏ túi" thêm thật nhiều bí kíp, giúp bạn tự tin hơn trên con đường chinh phục đỉnh cao bán hàng nhé!',
-  primaryButtonText = 'Tạo Báo giá',
+  primaryButtonText = 'Xem sản phẩm',
   secondaryButtonText = 'Chính sách Đại lý',
   image,
   primaryButtonAction,
@@ -30,7 +30,7 @@ const HomeAgentCTA = ({
   containerStyle = {},
   showTextInsteadOfImage = false,
   alternativeText = 'SLM',
-  primaryNavigateTo = '/(agent)/quote',
+  primaryNavigateTo = '/(tabs)/product',
   secondaryNavigateTo = '/(agent)/policy'
 }: HomeAgentCTAProps) => {
   const router = useRouter();
