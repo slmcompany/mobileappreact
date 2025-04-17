@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/app/context/AuthContext';
 
 // Định nghĩa các interface cho API
 interface Commission {
@@ -62,6 +63,8 @@ const formatDate = (dateString: string) => {
 
 export default function GroupAgentScreen() {
   const insets = useSafeAreaInsets();
+  const { authState } = useAuth();
+  const userId = authState.user?.id;
   
   const [isLoading, setIsLoading] = useState(true);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -76,10 +79,16 @@ export default function GroupAgentScreen() {
   // Lấy dữ liệu từ API
   useEffect(() => {
     const fetchAgents = async () => {
+      if (!userId) {
+        setError('Người dùng chưa đăng nhập');
+        setIsLoading(false);
+        return;
+      }
+      
       setIsLoading(true);
       try {
         // Lấy thông tin người dùng hiện tại
-        const userResponse = await fetch('https://api.slmglobal.vn/api/users/4');
+        const userResponse = await fetch(`https://api.slmglobal.vn/api/users/${userId}`);
         if (!userResponse.ok) {
           throw new Error('Không thể lấy thông tin người dùng');
         }
@@ -87,7 +96,7 @@ export default function GroupAgentScreen() {
         setCurrentUser(userData);
 
         // Lấy danh sách đại lý
-        const response = await fetch('https://api.slmglobal.vn/api/agents/4/downlines');
+        const response = await fetch(`https://api.slmglobal.vn/api/agents/${userId}/downlines`);
         if (!response.ok) {
           throw new Error('Không thể kết nối với server');
         }
@@ -140,7 +149,7 @@ export default function GroupAgentScreen() {
     };
 
     fetchAgents();
-  }, []);
+  }, [userId]);
 
   // Lấy top 3 agent có tổng doanh số cao nhất
   const topAgents = agents
