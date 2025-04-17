@@ -55,6 +55,7 @@ export default function StatsScreen() {
   const [commissionData, setCommissionData] = useState<MonthlyCommission[]>([]);
   const [totalCommissions, setTotalCommissions] = useState<number>(0);
   const [totalCommissionAmount, setTotalCommissionAmount] = useState<number>(0);
+  const [expectedCommissionAmount, setExpectedCommissionAmount] = useState<number>(0);
   const [totalContractAmount, setTotalContractAmount] = useState<number>(0);
   const [currentMonthCommissions, setCurrentMonthCommissions] = useState<number>(0);
   const [monthlyAmounts, setMonthlyAmounts] = useState<number[]>(Array(12).fill(0));
@@ -96,38 +97,61 @@ export default function StatsScreen() {
   // Xử lý dữ liệu commission sau khi nhận được
   useEffect(() => {
     if (commissionData.length > 0) {
+      // Lấy thông tin ngày hiện tại
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1; // getMonth() trả về 0-11
+      const currentYear = currentDate.getFullYear();
+      
       // Tính tổng số hợp đồng
       const total = commissionData.reduce((sum, month) => sum + month.commissions.length, 0);
       setTotalCommissions(total);
 
-      // Tính tổng tiền hoa hồng và tổng doanh số
-      const totalAmount = commissionData.reduce((sum, month) => {
-        return sum + month.commissions.reduce((monthSum, comm) => monthSum + comm.money, 0);
-      }, 0);
-      setTotalCommissionAmount(totalAmount);
-
+      // Khởi tạo biến để tính tổng
+      let totalPaid = 0;        // Tổng hoa hồng đã trả (paid = true)
+      let totalUnpaid = 0;      // Tổng hoa hồng chưa trả (paid = false)
+      let contractsThisMonth = 0;  // Số hợp đồng trong tháng hiện tại
+      const monthlyData = Array(12).fill(0);  // Dữ liệu hoa hồng theo tháng cho biểu đồ
+      
+      // Xử lý tất cả commission trong một lần lặp để tối ưu hiệu suất
+      commissionData.forEach(monthData => {
+        monthData.commissions.forEach(comm => {
+          // Xử lý theo trạng thái thanh toán
+          if (comm.paid) {
+            totalPaid += comm.money;
+          } else {
+            totalUnpaid += comm.money;
+          }
+          
+          // Xử lý theo ngày tạo từ trường created_at
+          if (comm.created_at) {
+            const commissionDate = new Date(comm.created_at);
+            
+            // Đếm hợp đồng tháng hiện tại dựa trên ngày tạo
+            if (commissionDate.getMonth() + 1 === currentMonth && 
+                commissionDate.getFullYear() === currentYear) {
+              contractsThisMonth++;
+            }
+            
+            // Cập nhật dữ liệu biểu đồ theo tháng (chỉ với hợp đồng đã thanh toán)
+            if (comm.paid && commissionDate.getFullYear() === currentYear) {
+              const monthIndex = commissionDate.getMonth(); // 0-11
+              monthlyData[monthIndex] += comm.money;
+            }
+          }
+        });
+      });
+      
+      // Cập nhật state với dữ liệu đã tính toán
+      setTotalCommissionAmount(totalPaid);
+      setExpectedCommissionAmount(totalUnpaid);
+      setCurrentMonthCommissions(contractsThisMonth);
+      setMonthlyAmounts(monthlyData);
+      
       // Tính tổng doanh số theo hợp đồng
       const totalContract = commissionData.reduce((sum, month) => {
         return sum + month.commissions.reduce((monthSum, comm) => monthSum + (comm.sector?.total_amount || 0), 0);
       }, 0);
       setTotalContractAmount(totalContract);
-
-      // Lấy số hợp đồng tháng hiện tại
-      const currentMonth = new Date().getMonth() + 1; // getMonth() trả về 0-11
-      const currentMonthData = commissionData.find(m => m.month === currentMonth);
-      if (currentMonthData) {
-        setCurrentMonthCommissions(currentMonthData.commissions.length);
-      }
-
-      // Cập nhật dữ liệu cho biểu đồ
-      const monthlyData = Array(12).fill(0);
-      commissionData.forEach(monthData => {
-        if (monthData.month >= 1 && monthData.month <= 12) {
-          const monthAmount = monthData.commissions.reduce((sum, comm) => sum + comm.money, 0);
-          monthlyData[monthData.month - 1] = monthAmount;
-        }
-      });
-      setMonthlyAmounts(monthlyData);
     }
   }, [commissionData]);
 
@@ -331,6 +355,15 @@ export default function StatsScreen() {
     return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
   };
 
+  // Lọc và tính tổng hoa hồng theo trạng thái thanh toán
+  const calculateCommissionByPaidStatus = (data: MonthlyCommission[], isPaid: boolean): number => {
+    return data.reduce((total, month) => {
+      return total + month.commissions
+        .filter(comm => comm.paid === isPaid)
+        .reduce((sum, comm) => sum + comm.money, 0);
+    }, 0);
+  };
+
   const navigateToCommissionStats = () => {
     router.push('/(stats)/comission_history');
   };
@@ -436,6 +469,8 @@ export default function StatsScreen() {
       
       {/* Chart Section */}
       <View style={styles.chartContainer}>
+        <Text style={styles.chartTitle}>Hoa hồng đã nhận theo tháng</Text>
+        
         <View style={[styles.chartTooltip, {left: `${(maxMonthIndex / 11) * 100}%`}]}>
           <Text style={styles.tooltipText}>{formatCurrency(maxAmount)} đ</Text>
         </View>
@@ -461,6 +496,17 @@ export default function StatsScreen() {
             );
           })}
         </View>
+        
+        <View style={styles.chartFooter}>
+          <Text style={styles.chartFooterText}>
+            <Text style={styles.chartFooterBold}>Thu nhập dự kiến: </Text>
+            {formatCurrency(expectedCommissionAmount)} đ
+          </Text>
+          <Text style={styles.chartFooterText}>
+            <Text style={styles.chartFooterBold}>Hoa hồng đã nhận: </Text>
+            {formatCurrency(totalCommissionAmount)} đ
+          </Text>
+        </View>
       </View>
       
       {/* Bottom Stats */}
@@ -478,7 +524,7 @@ export default function StatsScreen() {
             <View style={[styles.statCardIndicator, styles.blueIndicator]} />
             <View style={styles.statCardContent}>
               <Text style={styles.statCardLabel}>Thu nhập dự kiến</Text>
-              <Text style={styles.statCardValue}>{formatCurrency(totalCommissionAmount)}</Text>
+              <Text style={styles.statCardValue}>{formatCurrency(expectedCommissionAmount)}</Text>
             </View>
           </View>
         </View>
@@ -489,9 +535,6 @@ export default function StatsScreen() {
             <View style={styles.statCardContent}>
               <Text style={styles.statCardLabel}>Tổng số hợp đồng</Text>
               <Text style={styles.statCardValue}>{totalCommissions}</Text>
-              <TouchableOpacity style={styles.circleArrow}>
-                <Text style={styles.circleArrowText}>→</Text>
-              </TouchableOpacity>
             </View>
           </View>
           
@@ -726,19 +769,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  circleArrow: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#f1f1f1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  circleArrowText: {
-    fontSize: 14,
-    color: '#666',
-  },
   headerContainer: {
     width: '100%',
     flexDirection: 'row',
@@ -772,5 +802,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#27273E',
+    marginBottom: 10,
+  },
+  chartFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  chartFooterText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  chartFooterBold: {
+    fontWeight: 'bold',
   },
 }); 
