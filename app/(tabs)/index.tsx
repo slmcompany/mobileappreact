@@ -998,7 +998,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <View style={styles.notificationContainer}>
                 <Flex direction="row" align="center">
-                  {userRoleId !== 4 && userRoleId !== 3 && (
+                  {(userRoleId === 1 || userRoleId === 2) && (
                     <TouchableOpacity 
                       style={styles.notificationIconContainer}
                       onPress={() => router.push('/(quotation)/quotation_create_new')}
@@ -1013,7 +1013,7 @@ export default function HomeScreen() {
                   <TouchableOpacity 
                     style={[
                       styles.notificationIconContainer, 
-                      userRoleId !== 4 && userRoleId !== 3 ? { marginLeft: 8 } : {}
+                      (userRoleId === 1 || userRoleId === 2) ? { marginLeft: 8 } : {}
                     ]}
                     onPress={() => router.push('/(notification)/notification')}
                   >
