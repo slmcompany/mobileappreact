@@ -53,8 +53,83 @@ export default function ProductQuoteScreen() {
         return match ? match[1] : '5.5';
     };
 
-    const getPhaseFromType = (type?: string) => {
+    const getPhaseFromType = (type?: string, phaseType?: string) => {
+        if (phaseType) {
+            if (phaseType.toLowerCase().includes('3-phase')) {
+                return 3;
+            } else if (phaseType.toLowerCase().includes('1-phase')) {
+                return 1;
+            }
+        }
+        
+        // Fallback to the old logic if phaseType is not available
         return type?.includes('BA_PHA') ? 3 : 1;
+    };
+
+    // Hàm để xác định loại pha (dùng chung với hệ thống khác)
+    const getPhaseType = (combo: any) => {
+        const type = combo.type?.toLowerCase() || '';
+        const phaseType = combo.phase_type?.toLowerCase() || '';
+        
+        if (phaseType.includes('3-phase')) {
+            if (phaseType.includes('low voltage')) {
+                return '3-phase-low';
+            }
+            if (phaseType.includes('high voltage')) {
+                return '3-phase-high';
+            }
+            return '3-phase'; // general 3-phase if voltage not specified
+        }
+        if (phaseType.includes('1-phase') || type.includes('mot_pha')) {
+            return '1-phase';
+        }
+        return '';
+    };
+
+    // Hàm lấy tag hiển thị của sản phẩm
+    const getProductTag = (combo: any) => {
+        const tags = {
+            installation: combo.installation_type ? combo.installation_type.toUpperCase() : null,
+            phase: null as string | null,
+            system: null as string | null
+        };
+        
+        const phaseType = getPhaseType(combo);
+        if (phaseType === '3-phase-low') {
+            tags.phase = 'BA PHA ÁP THẤP';
+        } else if (phaseType === '3-phase-high') {
+            tags.phase = 'BA PHA ÁP CAO';
+        } else if (phaseType === '3-phase') {
+            tags.phase = 'BA PHA';
+        } else if (phaseType === '1-phase') {
+            tags.phase = 'MỘT PHA';
+        }
+
+        // Xác định loại hệ
+        if (combo.installation_type?.toLowerCase() === 'ongrid' || combo.type?.includes('BAM_TAI')) {
+            tags.system = 'HỆ BÁM TẢI';
+        } else if (combo.installation_type?.toLowerCase() === 'hybrid' || combo.type?.includes('DOC_LAP')) {
+            tags.system = 'HỆ ĐỘC LẬP';
+        }
+        
+        return tags;
+    };
+
+    const getPhaseDisplay = (type?: string, phaseType?: string) => {
+        if (phaseType) {
+            if (phaseType.toLowerCase().includes('3-phase-low')) {
+                return 'BA PHA ÁP THẤP';
+            } else if (phaseType.toLowerCase().includes('3-phase-high')) {
+                return 'BA PHA ÁP CAO';
+            } else if (phaseType.toLowerCase().includes('3-phase')) {
+                return 'BA PHA';
+            } else if (phaseType.toLowerCase().includes('1-phase')) {
+                return 'MỘT PHA';
+            }
+        }
+        
+        // Fallback
+        return type?.includes('BA_PHA') ? 'BA PHA' : 'MỘT PHA';
     };
 
     const roundToTenThousands = (price: number) => {
@@ -84,7 +159,7 @@ export default function ProductQuoteScreen() {
     }
 
     const power = getPowerFromName(product.name);
-    const phase = getPhaseFromType(product.type);
+    const phase = getPhaseFromType(product.type, product.phase_type);
     const productionRange = `${Math.round(Number(power) * 80)}-${Math.round(Number(power) * 120)} kWh/tháng`;
 
     return (
@@ -177,10 +252,10 @@ export default function ProductQuoteScreen() {
                         
                         <View style={styles.systemTags}>
                             <View style={styles.tag}>
-                                <Text style={styles.tagText}>{phase === 1 ? 'MỘT PHA' : 'BA PHA'}</Text>
+                                <Text style={styles.tagText}>{getProductTag(product).system || (product.type?.includes('DOC_LAP') ? 'HỆ ĐỘC LẬP' : 'HỆ BÁM TẢI')}</Text>
                             </View>
-                            <View style={[styles.tag, styles.blueTag]}>
-                                <Text style={[styles.tagText, styles.blueTagText]}>ÁP THẤP</Text>
+                            <View style={styles.tag}>
+                                <Text style={styles.tagText}>{getProductTag(product).phase || getPhaseDisplay(product.type, product.phase_type)}</Text>
                             </View>
                         </View>
                     </View>

@@ -371,7 +371,7 @@ const ContentGallery = ({
         <TouchableOpacity 
           style={[
             styles.simpleCard,
-            horizontal && { width: width * 0.38, marginRight: 10 }
+            horizontal && { width: (width - 48) / 2.4, marginHorizontal: 4 }
           ]} 
           onPress={() => handleContentPress(item)}
         >
@@ -679,18 +679,26 @@ const ContentGallery = ({
     <View style={[styles.container, horizontal && styles.horizontalContainer, containerStyle]}>
       {renderSectionHeader()}
       
-      <FlatList
-        data={contents}
-        renderItem={renderContentItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={[
-          styles.listContainer,
-          horizontal && styles.horizontalListContainer
-        ]}
-        horizontal={horizontal}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-      />
+      {horizontal ? (
+        <View style={styles.carouselContainer}>
+          <FlatList
+            data={contents}
+            renderItem={renderContentItem}
+            keyExtractor={(item) => item.id.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+          />
+        </View>
+      ) : (
+        <FlatList
+          data={contents}
+          renderItem={renderContentItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
       
       {detailInModal && renderContentDetail()}
     </View>
@@ -730,8 +738,8 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   horizontalListContainer: {
-    paddingLeft: 4,
-    paddingRight: 20,
+    paddingLeft: 0,
+    paddingRight: 0,
   },
   contentCard: {
     backgroundColor: '#FFFFFF',
@@ -992,6 +1000,9 @@ const styles = StyleSheet.create({
   simpleDate: {
     fontSize: 12,
     color: '#999',
+  },
+  carouselContainer: {
+    marginHorizontal: -16,
   },
 });
 
