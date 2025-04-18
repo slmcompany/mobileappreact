@@ -868,10 +868,10 @@
   dependencies:
     uuid "^8.0.0"
 
-"@expo/cli@0.22.24":
-  version "0.22.24"
-  resolved "https://registry.npmjs.org/@expo/cli/-/cli-0.22.24.tgz"
-  integrity sha512-lhdenxBC8/x/vL39j79eXE09mOaqNNLmiSDdY/PblnI+UNzGgsQ48hBTYa/MQhd0ioXXVKurZL2941dLKwcxJw==
+"@expo/cli@0.22.26":
+  version "0.22.26"
+  resolved "https://registry.yarnpkg.com/@expo/cli/-/cli-0.22.26.tgz#b61b5223af484cc50f83eac3eaaa9d53e941ade9"
+  integrity sha512-I689wc8Fn/AX7aUGiwrh3HnssiORMJtR2fpksX+JIe8Cj/EDleblYMSwRPd0025wrwOV9UN1KM/RuEt/QjCS3Q==
   dependencies:
     "@0no-co/graphql.web" "^1.0.8"
     "@babel/runtime" "^7.20.0"
@@ -886,7 +886,7 @@
     "@expo/osascript" "^2.1.6"
     "@expo/package-manager" "^1.7.2"
     "@expo/plist" "^0.2.2"
-    "@expo/prebuild-config" "^8.0.31"
+    "@expo/prebuild-config" "~8.2.0"
     "@expo/rudder-sdk-node" "^1.1.1"
     "@expo/spawn-async" "^1.7.2"
     "@expo/ws-tunnel" "^1.0.1"
@@ -1123,10 +1123,10 @@
     base64-js "^1.2.3"
     xmlbuilder "^14.0.0"
 
-"@expo/prebuild-config@^8.0.27", "@expo/prebuild-config@^8.0.31":
-  version "8.0.31"
-  resolved "https://registry.npmjs.org/@expo/prebuild-config/-/prebuild-config-8.0.31.tgz"
-  integrity sha512-YTuS5ic9KolD/WA3GqgLcZytHQU1dpitlZ/cbDq8ZqkY+1ae5YWX+GkYEZf2VyECPaWnHYuDGddaTQVw5miTRg==
+"@expo/prebuild-config@~8.2.0":
+  version "8.2.0"
+  resolved "https://registry.yarnpkg.com/@expo/prebuild-config/-/prebuild-config-8.2.0.tgz#eeca7c58000bacf4e3e60c6953261f78405eedbc"
+  integrity sha512-CxiPpd980s0jyxi7eyN3i/7YKu3XL+8qPjBZUCYtc0+axpGweqIkq2CslyLSKHyqVyH/zlPkbVgWdyiYavFS5Q==
   dependencies:
     "@expo/config" "~10.0.11"
     "@expo/config-plugins" "~9.0.17"
@@ -2456,11 +2456,6 @@ balanced-match@^1.0.0:
   resolved "https://registry.npmjs.org/balanced-match/-/balanced-match-1.0.2.tgz"
   integrity sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==
 
-base64-arraybuffer@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.npmjs.org/base64-arraybuffer/-/base64-arraybuffer-1.0.2.tgz"
-  integrity sha512-I3yl4r9QB5ZRY3XuJVEPfc2XhZO6YweFPI+UovAzn+8/hb3oJ6lnysaFcjVpkCPfVWFUDvoZ8kmVDP7WyRtYtQ==
-
 base64-js@^1.2.3, base64-js@^1.3.1, base64-js@^1.5.1:
   version "1.5.1"
   resolved "https://registry.npmjs.org/base64-js/-/base64-js-1.5.1.tgz"
@@ -3081,13 +3076,6 @@ css-in-js-utils@^3.1.0:
   dependencies:
     hyphenate-style-name "^1.0.3"
 
-css-line-break@^2.1.0:
-  version "2.1.0"
-  resolved "https://registry.npmjs.org/css-line-break/-/css-line-break-2.1.0.tgz"
-  integrity sha512-FHcKFCZcAha3LwfVBhCQbW2nCNbkZXn7KVUJcsT5/P8YmfsVja0FMPJr0B903j/E69HUphKiV9iQArX8SDYA4w==
-  dependencies:
-    utrie "^1.0.2"
-
 css-to-react-native@^3.0.0:
   version "3.2.0"
   resolved "https://registry.npmjs.org/css-to-react-native/-/css-to-react-native-3.2.0.tgz"
@@ -3700,12 +3688,12 @@ expo-sharing@^13.0.1:
   resolved "https://registry.npmjs.org/expo-sharing/-/expo-sharing-13.0.1.tgz"
   integrity sha512-qych3Nw65wlFcnzE/gRrsdtvmdV0uF4U4qVMZBJYPG90vYyWh2QM9rp1gVu0KWOBc7N8CC2dSVYn4/BXqJy6Xw==
 
-expo-splash-screen@~0.29.22:
-  version "0.29.22"
-  resolved "https://registry.npmjs.org/expo-splash-screen/-/expo-splash-screen-0.29.22.tgz"
-  integrity sha512-f+bPpF06bqiuW1Fbrd3nxeaSsmTVTBEKEYe3epYt4IE6y4Ulli3qEUamMLlRQiDGuIXPU6zQlscpy2mdBUI5cA==
+expo-splash-screen@~0.29.24:
+  version "0.29.24"
+  resolved "https://registry.yarnpkg.com/expo-splash-screen/-/expo-splash-screen-0.29.24.tgz#4e5f6d576d3fbb37c5e3e4ee6d3f3b3ece350f75"
+  integrity sha512-k2rdjbb3Qeg4g104Sdz6+qXXYba8QgiuZRSxHX8IpsSYiiTU48BmCCGy12sN+O1B+sD1/+WPL4duCa1Fy6+Y4g==
   dependencies:
-    "@expo/prebuild-config" "^8.0.27"
+    "@expo/prebuild-config" "~8.2.0"
 
 expo-status-bar@~2.0.1:
   version "2.0.1"
@@ -3732,13 +3720,13 @@ expo-web-browser@~14.0.2:
   resolved "https://registry.npmjs.org/expo-web-browser/-/expo-web-browser-14.0.2.tgz"
   integrity sha512-Hncv2yojhTpHbP6SGWARBFdl7P6wBHc1O8IKaNsH0a/IEakq887o1eRhLxZ5IwztPQyRDhpqHdgJ+BjWolOnwA==
 
-expo@~52.0.42:
-  version "52.0.44"
-  resolved "https://registry.npmjs.org/expo/-/expo-52.0.44.tgz"
-  integrity sha512-qj3+MWxmqLyBaYQ8jDOvVLEgSqNplH3cf+nDhxCo4C1cpTPD1u/HGh1foibtaeuCYLHsE5km1lrcOpRbFJ4luQ==
+expo@~52.0.46:
+  version "52.0.46"
+  resolved "https://registry.yarnpkg.com/expo/-/expo-52.0.46.tgz#3869b87b585da67406a8216539d12a16d736f16e"
+  integrity sha512-JG89IVZLp7DWzgeiQb+0N43kWOF1DUm3esBvAS9cPFWZsM9x8nDXgbvtREcycDPA6E+yJsSC+086CigeUY6sVA==
   dependencies:
     "@babel/runtime" "^7.20.0"
-    "@expo/cli" "0.22.24"
+    "@expo/cli" "0.22.26"
     "@expo/config" "~10.0.11"
     "@expo/config-plugins" "~9.0.17"
     "@expo/fingerprint" "0.11.11"
@@ -4310,14 +4298,6 @@ html-escaper@^2.0.0:
   version "2.0.2"
   resolved "https://registry.npmjs.org/html-escaper/-/html-escaper-2.0.2.tgz"
   integrity sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==
-
-html2canvas@^1.4.1:
-  version "1.4.1"
-  resolved "https://registry.npmjs.org/html2canvas/-/html2canvas-1.4.1.tgz"
-  integrity sha512-fPU6BHNpsyIhr8yyMpTLLxAbkaK8ArIBcmZIRiBLiDhjeqvXolaEmDGmELFuX9I4xDcaKKcJl+TKZLqruBbmWA==
-  dependencies:
-    css-line-break "^2.1.0"
-    text-segmentation "^1.0.3"
 
 htmlparser2@^7.1.2:
   version "7.2.0"
@@ -5446,14 +5426,9 @@ lodash.throttle@^4.1.1:
   resolved "https://registry.npmjs.org/lodash.throttle/-/lodash.throttle-4.1.1.tgz"
   integrity sha512-wIkUCfVKpVsWo3JSZlc+8MB5it+2AN5W8J7YVMST30UrvcQNZ1Okbj+rbVniijTWE6FGYy4XJq/rHkas8qJMLQ==
 
-lodash@>4.17.0, lodash@^4.17.19:
+lodash@>4.17.0, lodash@^4.17.19, lodash@^4.17.21:
   version "4.17.21"
   resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz"
-  integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
-
-lodash@^4.17.21:
-  version "4.17.21"
-  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz#679591c564c3bffaae8454cf0b3df370c3d6911c"
   integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
 
 log-symbols@^2.2.0:
@@ -6683,18 +6658,6 @@ react-native-screens@~4.4.0:
     react-freeze "^1.0.0"
     warn-once "^0.1.0"
 
-react-native-screenshot@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.npmjs.org/react-native-screenshot/-/react-native-screenshot-1.0.0.tgz"
-  integrity sha512-Y7RVb3huqlzKrpaN1JKVlyCw5FWhRs7G6v6/UjZ499VGb/kEwBbCmdIRtnoKzzUzI5CS7RcLOZW9Ie7izq9gww==
-
-react-native-view-shot@~4.0.3:
-  version "4.0.3"
-  resolved "https://registry.npmjs.org/react-native-view-shot/-/react-native-view-shot-4.0.3.tgz"
-  integrity sha512-USNjYmED7C0me02c1DxKA0074Hw+y/nxo+xJKlffMvfUWWzL5ELh/TJA/pTnVqFurIrzthZDPtDM7aBFJuhrHQ==
-  dependencies:
-    html2canvas "^1.4.1"
-
 react-native-web@~0.19.13:
   version "0.19.13"
   resolved "https://registry.npmjs.org/react-native-web/-/react-native-web-0.19.13.tgz"
@@ -7689,13 +7652,6 @@ test-exclude@^6.0.0:
     glob "^7.1.4"
     minimatch "^3.0.4"
 
-text-segmentation@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.npmjs.org/text-segmentation/-/text-segmentation-1.0.3.tgz"
-  integrity sha512-iOiPUo/BGnZ6+54OsWxZidGCsdU8YbE4PSpdPinp7DeMtUJNJBoJ/ouUSTJjHkh1KntHaltHl/gDs2FC4i5+Nw==
-  dependencies:
-    utrie "^1.0.2"
-
 thenify-all@^1.0.0:
   version "1.6.0"
   resolved "https://registry.npmjs.org/thenify-all/-/thenify-all-1.6.0.tgz"
@@ -7981,13 +7937,6 @@ utils-merge@1.0.1:
   version "1.0.1"
   resolved "https://registry.npmjs.org/utils-merge/-/utils-merge-1.0.1.tgz"
   integrity sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==
-
-utrie@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.npmjs.org/utrie/-/utrie-1.0.2.tgz"
-  integrity sha512-1MLa5ouZiOmQzUbjbu9VmjLzn1QLXBhwpUa7kdLUQK+KQ5KA9I1vk5U4YHe/X2Ch7PYnJfWuWT+VbuxbGwljhw==
-  dependencies:
-    base64-arraybuffer "^1.0.2"
 
 uuid@^7.0.3:
   version "7.0.3"

@@ -4,12 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import CustomerInfoDrawer from './components/CustomerInfoDrawer';
-import { captureRef } from 'react-native-view-shot';
-import * as ImageManipulator from 'expo-image-manipulator';
 
 // Định nghĩa kiểu dữ liệu cho sản phẩm trong báo giá
 interface Product {
@@ -399,124 +396,18 @@ export default function QuotationSuccess() {
     return roundedPrice.toLocaleString('vi-VN') + ' VND';
   };
 
-  // Thêm hàm mới để đảm bảo render hoàn tất
-  const waitForRender = async () => {
-    return new Promise(resolve => {
-      requestAnimationFrame(() => {
-        setTimeout(resolve, 1000);
-      });
-    });
-  };
-
-  // Hàm ghép ảnh
-  const combineImages = async (imageUris: string[]): Promise<string> => {
-    try {
-      // Tạo một ảnh trắng làm nền
-      const backgroundImage = await ImageManipulator.manipulateAsync(
-        imageUris[0],
-        [],
-        { format: ImageManipulator.SaveFormat.JPEG, compress: 1 }
-      );
-
-      // Ghép từng ảnh vào nền
-      let combinedImage = backgroundImage;
-      for (let i = 1; i < imageUris.length; i++) {
-        const currentImage = await ImageManipulator.manipulateAsync(
-          imageUris[i],
-          [],
-          {
-            format: ImageManipulator.SaveFormat.JPEG,
-            compress: 1,
-            base64: false,
-          }
-        );
-
-        // Tạo một ảnh mới bằng cách nối dọc
-        combinedImage = await ImageManipulator.manipulateAsync(
-          combinedImage.uri,
-          [
-            {
-              resize: {
-                width: combinedImage.width,
-                height: combinedImage.height + currentImage.height
-              }
-            }
-          ],
-          {
-            format: ImageManipulator.SaveFormat.JPEG,
-            compress: 1,
-            base64: false,
-          }
-        );
-      }
-
-      return combinedImage.uri;
-    } catch (error) {
-      console.error('Lỗi khi ghép ảnh:', error);
-      throw error;
-    }
-  };
-
   // Sửa lại hàm handleDownloadQuotation
   const handleDownloadQuotation = async () => {
     try {
-      Alert.alert('Thông báo', 'Đang tạo ảnh báo giá. Vui lòng đợi trong giây lát...');
-
-      const fileName = `bao-gia-slm-solar-${Date.now()}.jpg`;
-      const filePath = `${FileSystem.documentDirectory}${fileName}`;
-
-      // Scroll đến đầu trang
-      if (scrollViewRef.current) {
-        (scrollViewRef.current as any).scrollTo({ y: 0, animated: false });
-      }
-
-      // Đợi một chút để đảm bảo scroll đã hoàn tất
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Chụp toàn bộ ScrollView
-      const uri = await captureRef(scrollViewRef, {
-        format: 'jpg',
-        quality: 1,
-        result: 'tmpfile',
-        height: 5000,
-        snapshotContentContainer: true
-      });
-
-      // Kiểm tra xem ảnh có tồn tại không
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (!fileInfo.exists) {
-        throw new Error('Không thể tạo ảnh');
-      }
-
-      // Sao chép file
-      await FileSystem.copyAsync({
-        from: uri,
-        to: filePath
-      });
-
-      const isAvailable = await Sharing.isAvailableAsync();
-      
-      if (isAvailable) {
-        await Sharing.shareAsync(filePath, {
-          mimeType: 'image/jpeg',
-          dialogTitle: 'Chia sẻ báo giá SLM Solar',
-          UTI: 'public.jpeg'
-        });
-      } else {
-        Alert.alert(
-          'Thông báo', 
-          'Thiết bị của bạn không hỗ trợ tính năng chia sẻ file. Vui lòng cập nhật phiên bản mới nhất của ứng dụng.'
-        );
-      }
-
-      await FileSystem.deleteAsync(uri, { idempotent: true });
-      await FileSystem.deleteAsync(filePath, { idempotent: true });
-      
+      Alert.alert(
+        'Thông báo', 
+        'Tính năng chụp ảnh báo giá đã bị vô hiệu hóa trong phiên bản này.'
+      );
     } catch (error) {
-      console.error('Lỗi khi tạo hoặc chia sẻ ảnh:', error);
+      console.error('Lỗi:', error);
       Alert.alert(
         'Lỗi', 
-        'Đã xảy ra lỗi khi tạo hoặc chia sẻ ảnh. Vui lòng thử lại sau.'
+        'Đã xảy ra lỗi. Vui lòng thử lại sau.'
       );
     }
   };

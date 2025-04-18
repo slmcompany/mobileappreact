@@ -31,7 +31,7 @@
     "@types/lodash.debounce": "^4.0.9",
     "axios": "^1.8.4",
     "dotenv": "^16.4.7",
-    "expo": "~52.0.42",
+    "expo": "~52.0.46",
     "expo-blur": "~14.0.3",
     "expo-clipboard": "~7.0.1",
     "expo-constants": "~17.0.8",
@@ -45,7 +45,7 @@
     "expo-print": "^14.0.3",
     "expo-router": "~4.0.20",
     "expo-sharing": "^13.0.1",
-    "expo-splash-screen": "~0.29.22",
+    "expo-splash-screen": "~0.29.24",
     "expo-status-bar": "~2.0.1",
     "expo-symbols": "~0.2.2",
     "expo-system-ui": "~4.0.9",
@@ -61,8 +61,6 @@
     "react-native-render-html": "^6.3.4",
     "react-native-safe-area-context": "^4.12.0",
     "react-native-screens": "~4.4.0",
-    "react-native-screenshot": "^1.0.0",
-    "react-native-view-shot": "~4.0.3",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5"
   },
@@ -77,5 +75,12 @@
     "react-test-renderer": "18.3.1",
     "typescript": "^5.3.3"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "listUnknownPackages": false
+      }
+    }
+  }
 }
