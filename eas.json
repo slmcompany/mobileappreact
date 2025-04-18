@@ -7,6 +7,10 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "APP_ENV": "development"
+      },
       "ios": {
         "resourceClass": "m-medium",
         "simulator": true
@@ -14,20 +18,36 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "APP_ENV": "staging"
+      },
       "ios": {
         "resourceClass": "m-medium"
       }
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "APP_ENV": "production"
+      },
       "ios": {
         "resourceClass": "m-medium",
-        "credentialsSource": "local",
-        "buildConfiguration": "Release"
+        "credentialsSource": "remote",
+        "buildConfiguration": "Release",
+        "image": "latest"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6473627889",
+        "language": "vi",
+        "companyName": "SLM Solar",
+        "appName": "SLM Solar"
+      }
+    }
   }
 }
